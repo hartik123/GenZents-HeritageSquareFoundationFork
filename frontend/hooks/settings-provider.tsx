@@ -59,6 +59,7 @@ const defaultSettings: ExtendedSettings = {
   showTokenCount: false,
   compactMode: false,
   fullScreenMode: false,
+  showAvatars: true,
 
   // Export settings
   exportFormat: "json",
@@ -83,6 +84,7 @@ const defaultSettings: ExtendedSettings = {
 
   // Shortcuts and productivity
   keyboardShortcuts: {},
+  shortcuts: [],
   autoSave: true,
   autoSaveInterval: 30,
 

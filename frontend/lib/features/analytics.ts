@@ -1,25 +1,7 @@
 import { supabase } from "@/lib/supabase/client"
-import type { Analytics } from "@/lib/types"
+import type { Analytics, AnalyticsQuery, AnalyticsResult } from "@/lib/types"
 
-export interface AnalyticsQuery {
-  timeRange: {
-    start: string
-    end: string
-  }
-  metrics: string[]
-  groupBy?: string[]
-  filters?: Record<string, any>
-}
-
-export interface AnalyticsResult {
-  data: any[]
-  summary: {
-    totalEvents: number
-    uniqueUsers: number
-    averageSessionDuration: number
-    topEvents: { event: string; count: number }[]
-  }
-}
+// Remove duplicate interfaces - now using centralized types
 
 export class AnalyticsEngine {
   static async track(event: string, properties: Record<string, any> = {}) {
@@ -189,7 +171,7 @@ export class AnalyticsEngine {
       if (error) continue
 
       const uniqueUsers = new Set(data.map((d) => d.user_id)).size
-      const conversionRate = i === 0 ? 100 : (uniqueUsers / results[0].users) * 100
+      const conversionRate: number = i === 0 ? 100 : (uniqueUsers / results[0].users) * 100
 
       results.push({
         step: i + 1,

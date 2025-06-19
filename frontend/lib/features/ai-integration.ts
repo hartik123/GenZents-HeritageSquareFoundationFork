@@ -1,25 +1,7 @@
 import { supabase } from "@/lib/supabase/client"
-import type { AIModel, Message } from "@/lib/types"
+import type { AIModel, Message, AIProvider, GenerationOptions } from "@/lib/types"
 
-export interface AIProvider {
-  name: string
-  apiKey: string
-  baseUrl?: string
-  models: AIModel[]
-}
-
-export interface GenerationOptions {
-  model: string
-  temperature?: number
-  maxTokens?: number
-  topP?: number
-  frequencyPenalty?: number
-  presencePenalty?: number
-  stop?: string[]
-  stream?: boolean
-  systemPrompt?: string
-  context?: Message[]
-}
+// Remove duplicate interfaces - now using centralized types
 
 export class AIIntegration {
   private static providers: Map<string, AIProvider> = new Map()

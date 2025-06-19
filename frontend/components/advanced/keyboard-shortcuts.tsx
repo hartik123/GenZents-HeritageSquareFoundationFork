@@ -17,22 +17,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { useSettings } from "@/hooks/settings-provider"
+import type { ShortcutCategory, KeyboardShortcut } from "@/lib/types/ui"
 
-interface ShortcutCategory {
-  id: string
-  name: string
-  shortcuts: KeyboardShortcut[]
-}
-
-interface KeyboardShortcut {
-  id: string
-  name: string
-  description: string
-  keys: string[]
-  action: string
-  category: string
-  customizable: boolean
-}
+// Remove duplicate interfaces as they now come from centralized types
 
 const defaultShortcuts: ShortcutCategory[] = [
   {

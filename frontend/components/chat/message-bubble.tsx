@@ -27,16 +27,14 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { useChat, type Message } from "@/hooks/chat-provider"
+import { useChat } from "@/hooks/chat-provider"
 import { useSettings } from "@/hooks/settings-provider"
 import { formatDistanceToNow, format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import type { MessageBubbleProps } from "@/lib/types/ui"
 
-interface MessageBubbleProps {
-  message: Message
-  isLast?: boolean
-}
+// Remove duplicate interface as it now comes from centralized types
 
 export function MessageBubble({ message, isLast }: MessageBubbleProps) {
   const { dispatch, regenerateMessage, currentSession } = useChat()
@@ -69,7 +67,13 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
     const existingReaction = message.reactions?.find((r) => r.type === type)
     const updatedReactions = existingReaction
       ? message.reactions?.filter((r) => r.type !== type) || []
-      : [...(message.reactions || []), { type }]
+      : [...(message.reactions || []), { 
+          id: `${Date.now()}`, 
+          user_id: "current_user", 
+          type, 
+          emoji: type === "thumbs_up" ? "👍" : "👎", 
+          created_at: new Date().toISOString() 
+        }]
 
     dispatch({
       type: "UPDATE_MESSAGE",
@@ -97,7 +101,8 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
   }
 
   const getStatusIcon = () => {
-    switch (message.status) {
+    const statusString = message.status?.status || "sent"
+    switch (statusString) {
       case "sending":
         return <Clock className="h-3 w-3 text-muted-foreground animate-spin" />
       case "sent":
@@ -172,7 +177,7 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
         </div>
 
         <div className={cn("flex items-center gap-2 text-xs text-muted-foreground", isUser && "order-first")}>
-          {settings.showTimestamps && <span>{formatTimestamp(message.timestamp)}</span>}
+          {settings.showTimestamps && message.timestamp && <span>{formatTimestamp(message.timestamp)}</span>}
 
           {isUser && getStatusIcon()}
 

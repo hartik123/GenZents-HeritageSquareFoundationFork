@@ -1,22 +1,11 @@
-interface RateLimitOptions {
-  windowMs: number
-  max: number
-  message: string
-  standardHeaders: boolean
-  legacyHeaders: boolean
-}
+import type { RateLimitOptions, RateLimitStore, RateLimitResult } from "@/lib/types"
 
-interface RateLimitStore {
-  [key: string]: {
-    count: number
-    resetTime: number
-  }
-}
+// Remove duplicate interfaces - now using centralized types
 
 const store: RateLimitStore = {}
 
 export const rateLimit = (options: RateLimitOptions) => {
-  return (identifier: string): { allowed: boolean; remaining: number; resetTime: number } => {
+  return (identifier: string): RateLimitResult => {
     const now = Date.now()
     const key = identifier
 

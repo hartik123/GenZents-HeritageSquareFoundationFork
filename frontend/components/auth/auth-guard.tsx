@@ -5,10 +5,9 @@ import type React from "react"
 import { useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import type { AuthGuardProps } from "@/lib/types/ui"
 
-interface AuthGuardProps {
-  children: React.ReactNode
-}
+// Remove duplicate interface as it now comes from centralized types
 
 export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter()

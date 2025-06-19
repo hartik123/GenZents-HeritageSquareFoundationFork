@@ -1,5 +1,6 @@
 import DOMPurify from "isomorphic-dompurify"
 import { rateLimit } from "./rate-limit"
+import type { PasswordValidationResult } from "@/lib/types"
 
 // Input validation and sanitization
 export const sanitizeInput = (input: string): string => {
@@ -14,7 +15,7 @@ export const validateEmail = (email: string): boolean => {
   return emailRegex.test(email)
 }
 
-export const validatePassword = (password: string): { valid: boolean; errors: string[] } => {
+export const validatePassword = (password: string): PasswordValidationResult => {
   const errors: string[] = []
 
   if (password.length < 8) {

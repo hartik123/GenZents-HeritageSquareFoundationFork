@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware"
 
 interface SettingsState {
   // Theme and appearance
+  theme: "dark" | "light" | "system"
   fontSize: "small" | "medium" | "large"
   highContrast: boolean
   layoutDensity: string
@@ -26,6 +27,7 @@ interface SettingsState {
   showTimestamps: boolean
   showWordCount: boolean
   showModelInfo: boolean
+  showAvatars: boolean
 
   // Privacy and data
   saveHistory: boolean
@@ -52,6 +54,7 @@ interface SettingsState {
 
 const defaultSettings = {
   // Theme and appearance
+  theme: "system" as const,
   fontSize: "medium" as const,
   highContrast: false,
   layoutDensity: "comfortable",
@@ -75,6 +78,7 @@ const defaultSettings = {
   showTimestamps: false,
   showWordCount: false,
   showModelInfo: false,
+  showAvatars: true,
 
   // Privacy and data
   saveHistory: true,

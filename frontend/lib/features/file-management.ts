@@ -1,13 +1,7 @@
 import { supabase } from "@/lib/supabase/client"
-import type { Attachment, VirusScanResult } from "@/lib/types"
+import type { Attachment, VirusScanResult, UploadOptions } from "@/lib/types"
 
-export interface UploadOptions {
-  maxSize?: number
-  allowedTypes?: string[]
-  generateThumbnail?: boolean
-  virusScan?: boolean
-  encrypt?: boolean
-}
+// Remove duplicate interfaces - now using centralized types
 
 export class FileManager {
   private static readonly DEFAULT_MAX_SIZE = 100 * 1024 * 1024 // 100MB

@@ -1,3 +1,5 @@
+import type { KeyboardShortcutOptions } from "@/lib/types"
+
 // Focus management
 export const focusElement = (selector: string): void => {
   const element = document.querySelector(selector) as HTMLElement
@@ -44,7 +46,7 @@ export const trapFocus = (element: HTMLElement): (() => void) => {
 export const registerKeyboardShortcut = (
   key: string,
   callback: (e: KeyboardEvent) => void,
-  options: { ctrl?: boolean; alt?: boolean; shift?: boolean; meta?: boolean } = {}
+  options: KeyboardShortcutOptions = {}
 ): (() => void) => {
   const handler = (e: KeyboardEvent) => {
     if (

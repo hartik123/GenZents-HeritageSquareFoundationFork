@@ -1,40 +1,7 @@
 import { supabase } from "@/lib/supabase/client"
-import type { Chat, Message } from "@/lib/types"
+import type { Chat, Message, SearchOptions, SearchResult, SearchFacets } from "@/lib/types"
 
-export interface SearchOptions {
-  query: string
-  filters: {
-    dateRange?: [string, string]
-    users?: string[]
-    tags?: string[]
-    models?: string[]
-    fileTypes?: string[]
-    sentiment?: "positive" | "negative" | "neutral"
-    hasAttachments?: boolean
-    isEdited?: boolean
-    minTokens?: number
-    maxTokens?: number
-  }
-  sortBy?: "relevance" | "date" | "tokens" | "reactions"
-  sortOrder?: "asc" | "desc"
-  limit?: number
-  offset?: number
-}
-
-export interface SearchResult {
-  chats: Chat[]
-  messages: Message[]
-  totalCount: number
-  facets: SearchFacets
-  suggestions: string[]
-}
-
-export interface SearchFacets {
-  users: { name: string; count: number }[]
-  tags: { name: string; count: number }[]
-  models: { name: string; count: number }[]
-  dateRanges: { range: string; count: number }[]
-}
+// Remove duplicate interfaces - now using centralized types
 
 export class AdvancedSearch {
   static async search(options: SearchOptions): Promise<SearchResult> {

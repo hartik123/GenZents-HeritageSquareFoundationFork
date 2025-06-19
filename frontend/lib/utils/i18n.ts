@@ -1,4 +1,4 @@
-type TranslationDictionary = Record<string, Record<string, string>>
+import type { TranslationDictionary } from "@/lib/types"
 
 const translations: TranslationDictionary = {
   en: {

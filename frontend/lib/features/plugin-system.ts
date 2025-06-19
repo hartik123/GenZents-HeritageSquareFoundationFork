@@ -1,21 +1,7 @@
 import { supabase } from "@/lib/supabase/client"
-import type { Plugin, PluginSettings } from "@/lib/types"
+import type { Plugin, PluginSettings, PluginAPI } from "@/lib/types"
 
-export interface PluginAPI {
-  // Core API methods available to plugins
-  sendMessage: (content: string, options?: any) => Promise<void>
-  getCurrentChat: () => any
-  getUser: () => any
-  showNotification: (message: string, type?: "info" | "success" | "warning" | "error") => void
-  registerCommand: (name: string, handler: Function) => void
-  registerShortcut: (keys: string[], handler: Function) => void
-  addMenuItem: (menu: string, item: any) => void
-  storage: {
-    get: (key: string) => Promise<any>
-    set: (key: string, value: any) => Promise<void>
-    remove: (key: string) => Promise<void>
-  }
-}
+// Remove duplicate interfaces - now using centralized types
 
 export class PluginSystem {
   private static plugins: Map<string, Plugin> = new Map()

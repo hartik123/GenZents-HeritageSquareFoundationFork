@@ -27,7 +27,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useSettings } from "@/hooks/settings-provider"
-import { useTheme } from "@/components/theme-provider"
+import { useTheme } from "@/hooks/theme-provider"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 const settingsSections = [

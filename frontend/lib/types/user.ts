@@ -1,3 +1,5 @@
+import type { ShortcutCategory, KeyboardShortcut } from "./ui"
+
 export interface User {
   id: string
   email: string
@@ -99,6 +101,7 @@ export interface Settings {
   showWordCount: boolean
   showModelInfo: boolean
   showTokenCount: boolean
+  showAvatars: boolean
   compactMode: boolean
   fullScreenMode: boolean
 
@@ -125,6 +128,7 @@ export interface Settings {
 
   // Shortcuts and productivity
   keyboardShortcuts: Record<string, string>
+  shortcuts: ShortcutCategory[]
   autoSave: boolean
   autoSaveInterval: number
 }

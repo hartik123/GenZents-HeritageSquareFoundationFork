@@ -4,18 +4,9 @@ import type React from "react"
 
 import { createContext, useContext, useEffect, useState } from "react"
 import { useSettingsStore } from "@/lib/stores/settings-store"
+import type { Theme, ThemeProviderProps, ThemeProviderState } from "@/lib/types/ui"
 
-type Theme = "dark" | "light" | "system"
-
-interface ThemeProviderProps {
-  children: React.ReactNode
-  defaultTheme?: Theme
-}
-
-interface ThemeProviderState {
-  theme: Theme
-  setTheme: (theme: Theme) => void
-}
+// Remove duplicate interfaces as they now come from centralized types
 
 const initialState: ThemeProviderState = {
   theme: "system",

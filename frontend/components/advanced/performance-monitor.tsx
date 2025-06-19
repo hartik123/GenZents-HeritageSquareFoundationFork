@@ -22,24 +22,9 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts"
+import type { PerformanceMetric, SystemHealth } from "@/lib/types/ui"
 
-interface PerformanceMetric {
-  id: string
-  name: string
-  value: number
-  unit: string
-  status: "good" | "warning" | "critical"
-  trend: "up" | "down" | "stable"
-  history: { timestamp: Date; value: number }[]
-}
-
-interface SystemHealth {
-  overall: number
-  cpu: number
-  memory: number
-  network: number
-  storage: number
-}
+// Remove duplicate interfaces as they now come from centralized types
 
 const generateMockData = (points: number) => {
   return Array.from({ length: points }, (_, i) => ({

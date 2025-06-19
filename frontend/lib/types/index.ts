@@ -2,7 +2,11 @@
 export * from "./ai"
 export * from "./chat"
 export * from "./context"
+export * from "./database"
+export * from "./features"
+export * from "./ui"
 export * from "./user"
+export * from "./utils"
 export * from "./version"
 export * from "./workspace"
 

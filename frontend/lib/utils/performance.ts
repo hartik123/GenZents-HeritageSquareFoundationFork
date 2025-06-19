@@ -1,3 +1,5 @@
+import type { PerformanceMetrics } from "@/lib/types"
+
 // Performance monitoring utilities
 export class PerformanceMonitor {
   private static instance: PerformanceMonitor
@@ -34,7 +36,7 @@ export class PerformanceMonitor {
     }
   }
 
-  getMetrics(label: string): { avg: number; min: number; max: number; count: number } {
+  getMetrics(label: string): PerformanceMetrics {
     const values = this.metrics.get(label) || []
 
     if (values.length === 0) {
@@ -70,7 +72,7 @@ export class PerformanceMonitor {
 
 // Memory usage monitoring
 export const getMemoryUsage = (): { used: number; total: number; percentage: number } | null => {
-  if (typeof performance === "undefined" || !performance.memory) {
+  if (typeof performance === "undefined" || !(performance as any).memory) {
     return null
   }
 
