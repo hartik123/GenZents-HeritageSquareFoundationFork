@@ -26,7 +26,7 @@ import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { useSettings } from "@/components/providers/settings-provider"
+import { useSettings } from "@/hooks/settings-provider"
 import { useTheme } from "@/components/theme-provider"
 import { ThemeToggle } from "@/components/theme-toggle"
 
@@ -76,31 +76,32 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                     <SelectContent>
                       <SelectItem value="en">English</SelectItem>
                       <SelectItem value="es">Spanish</SelectItem>
-                      <SelectItem value="fr">French</SelectItem>
-                      <SelectItem value="de">German</SelectItem>
-                      <SelectItem value="ja">Japanese</SelectItem>
-                      <SelectItem value="zh">Chinese</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
+                <div className="flex items-center justify-between">
                   <Label>Show follow up suggestions in chats</Label>
                   <Switch
                     checked={settings.showFollowUpSuggestions}
                     onCheckedChange={(checked) => updateSetting("showFollowUpSuggestions", checked)}
                   />
                 </div>
-                
+
                 <Separator />
-                
+
                 <div>
                   <h4 className="font-medium mb-4 text-destructive">Danger Zone</h4>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Delete all chats</Label>
-                      <p className="text-sm text-muted-foreground">This will permanently delete all your chat history</p>
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Delete all chats</Label>
+                        <p className="text-sm text-muted-foreground">
+                          This will permanently delete all your chat history
+                        </p>
+                      </div>
                       <Button
-                        variant="destructive"
+                        variant="outline"
+                        className="text-destructive"
                         onClick={() => {
                           if (confirm("Are you sure you want to delete all chats? This action cannot be undone.")) {
                             updateSetting("chats", [])
@@ -111,32 +112,20 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                         Delete All Chats
                       </Button>
                     </div>
-                    
-                    <div className="space-y-2">
-                      <Label>Log out on this device</Label>
-                      <p className="text-sm text-muted-foreground">Sign out from this device only</p>
-                      <Button
-                        variant="destructive"
-                        onClick={() => {
-                          if (confirm("Are you sure you want to log out on this device?")) {
-                            // Call your logout function here
-                            console.log("Logging out from this device...")
-                            // Reset settings or redirect as needed
-                          }
-                        }}
-                      >
-                        <LogOut className="h-4 w-4 mr-2" />
-                        Log Out
-                      </Button>
-                    </div>
-                    
+
                     <div className="space-y-2">
                       <Label>Log out from all devices</Label>
-                      <p className="text-sm text-muted-foreground">Sign out from all devices where you&apos;re logged in</p>
+                      <p className="text-sm text-muted-foreground">
+                        Sign out from all devices where you&apos;re logged in
+                      </p>
                       <Button
                         variant="destructive"
                         onClick={() => {
-                          if (confirm("Are you sure you want to log out from all devices? You&apos;ll need to sign in again on all your devices.")) {
+                          if (
+                            confirm(
+                              "Are you sure you want to log out from all devices? You&apos;ll need to sign in again on all your devices."
+                            )
+                          ) {
                             // Call your logout from all devices function here
                             console.log("Logging out from all devices...")
                             // This would typically invalidate all sessions
@@ -147,15 +136,19 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                         Log Out From All Devices
                       </Button>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label>Delete account</Label>
-                      <p className="text-sm text-muted-foreground">Permanently delete your account and all associated data</p>
+                      <p className="text-sm text-muted-foreground">
+                        Permanently delete your account and all associated data
+                      </p>
                       <Button
                         variant="destructive"
                         onClick={() => {
-                          const confirmation = prompt("This action cannot be undone. Type 'DELETE' to confirm account deletion:")
-                          if (confirmation === 'DELETE') {
+                          const confirmation = prompt(
+                            "This action cannot be undone. Type 'DELETE' to confirm account deletion:"
+                          )
+                          if (confirmation === "DELETE") {
                             // Call your delete account function here
                             console.log("Deleting account...")
                             // This would typically delete all user data and sessions
@@ -251,7 +244,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                         rows={4}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label>Communication Style</Label>
                       <Select
@@ -270,7 +263,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label>Response Length Preference</Label>
                       <Select
@@ -288,12 +281,10 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label>Expertise Level</Label>
-                      <p className="text-sm text-muted-foreground">
-                        How technical should responses be?
-                      </p>
+                      <p className="text-sm text-muted-foreground">How technical should responses be?</p>
                       <Select
                         value={settings.expertiseLevel || "intermediate"}
                         onValueChange={(value) => updateSetting("expertiseLevel", value)}
@@ -311,18 +302,16 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                     </div>
                   </div>
                 </div>
-                
+
                 <Separator />
-                
+
                 {/* Model Configuration */}
                 <div>
                   <h4 className="font-medium mb-4">Model Configuration</h4>
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label>System Prompt</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Advanced: Override the default system prompt
-                      </p>
+                      <p className="text-sm text-muted-foreground">Advanced: Override the default system prompt</p>
                       <Textarea
                         value={settings.systemPrompt}
                         onChange={(e) => updateSetting("systemPrompt", e.target.value)}
@@ -330,10 +319,13 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                         rows={4}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label>Default Model</Label>
-                      <Select value={settings.defaultModel} onValueChange={(value) => updateSetting("defaultModel", value)}>
+                      <Select
+                        value={settings.defaultModel}
+                        onValueChange={(value) => updateSetting("defaultModel", value)}
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -348,12 +340,10 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label>Max Tokens</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Maximum length of AI responses (1-8192)
-                      </p>
+                      <p className="text-sm text-muted-foreground">Maximum length of AI responses (1-8192)</p>
                       <Input
                         type="number"
                         value={settings.maxTokens}
@@ -362,7 +352,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                         max={8192}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label>Temperature: {settings.temperature}</Label>
                       <p className="text-sm text-muted-foreground">
@@ -383,9 +373,9 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                     </div>
                   </div>
                 </div>
-                
+
                 <Separator />
-                
+
                 {/* Display Preferences */}
                 <div>
                   <h4 className="font-medium mb-4">Display Preferences</h4>
@@ -400,7 +390,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                         onCheckedChange={(checked) => updateSetting("showTimestamps", checked)}
                       />
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <div>
                         <Label>Show Word Count</Label>
@@ -411,7 +401,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                         onCheckedChange={(checked) => updateSetting("showWordCount", checked)}
                       />
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <div>
                         <Label>Show Model Info</Label>
@@ -546,7 +536,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                         onCheckedChange={(checked) => updateSetting("shareUsageWithIntegrations", checked)}
                       />
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <div>
                         <Label>Enable cross-platform sync</Label>
@@ -614,7 +604,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <h4 className="font-medium mb-4">Data Management</h4>
                   <div className="flex flex-wrap gap-4">
@@ -656,8 +646,8 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-4xl h-[80vh] p-0">
-        <div className="flex h-full">
+      <DialogContent className="max-w-4xl h-[80vh] p-0 flex flex-col">
+        <div className="flex flex-1 min-h-0">
           {/* Sidebar */}
           <div className="w-64 bg-muted/30 border-r">
             <DialogHeader className="p-6 pb-4">
@@ -682,8 +672,10 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Content */}
-          <div className="flex-1 flex flex-col">
-            <ScrollArea className="flex-1 p-6">{renderSectionContent()}</ScrollArea>
+          <div className="flex-1 flex flex-col min-h-0">
+            <ScrollArea className="flex-1">
+              <div className="p-6">{renderSectionContent()}</div>
+            </ScrollArea>
           </div>
         </div>
       </DialogContent>

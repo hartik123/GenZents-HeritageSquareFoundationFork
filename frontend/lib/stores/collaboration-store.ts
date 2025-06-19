@@ -1,35 +1,8 @@
 import { create } from "zustand"
 import { createClient } from "@/lib/supabase/client"
+import type { Collaborator, Comment, ShareSettings } from "@/lib/types/chat"
 
-export interface Collaborator {
-  id: string
-  email: string
-  name: string
-  avatar?: string
-  role: "owner" | "editor" | "viewer"
-  status: "online" | "offline" | "away"
-  lastSeen: string
-  cursor?: { x: number; y: number }
-}
-
-export interface Comment {
-  id: string
-  messageId: string
-  userId: string
-  content: string
-  created_at: string
-  resolved: boolean
-  replies: Comment[]
-}
-
-export interface ShareSettings {
-  isPublic: boolean
-  allowComments: boolean
-  allowEditing: boolean
-  expiresAt?: string
-  password?: string
-  domainRestriction?: string
-}
+// Remove duplicate interfaces as they now come from centralized types
 
 interface CollaborationState {
   collaborators: Collaborator[]

@@ -1,14 +1,14 @@
 import { Metadata } from "next"
-import { VersionHistory } from "@/components/version/version-history"
+import { VersionHistory } from "@/components/version"
 
 export const metadata: Metadata = {
-  title: "Version History",
+  title: "Version",
   description: "View and manage your version history.",
   keywords: ["version", "history", "management"],
   openGraph: {
-    title: "Version History",
+    title: "Version",
     description: "View and manage your version history.",
-    url: "/version-history",
+    url: "/version",
     type: "website",
   },
 }

@@ -229,19 +229,23 @@ export function ChatInput() {
 
     // Simple prompt enhancement logic
     let enhanced = input.trim()
-    
+
     // Add context request if not present
     if (!enhanced.toLowerCase().includes("please") && !enhanced.toLowerCase().includes("can you")) {
       enhanced = `Please ${enhanced.charAt(0).toLowerCase() + enhanced.slice(1)}`
     }
-    
+
     // Add specificity for short prompts
     if (enhanced.length < 50) {
       enhanced += ". Please provide detailed explanations and examples where helpful."
     }
-    
+
     // Add structure request for longer prompts
-    if (enhanced.length > 100 && !enhanced.toLowerCase().includes("step") && !enhanced.toLowerCase().includes("structure")) {
+    if (
+      enhanced.length > 100 &&
+      !enhanced.toLowerCase().includes("step") &&
+      !enhanced.toLowerCase().includes("structure")
+    ) {
       enhanced += " Please structure your response clearly with headings or bullet points."
     }
 
@@ -251,7 +255,7 @@ export function ChatInput() {
     }
 
     setInput(enhanced)
-    
+
     toast({
       title: "Prompt enhanced! ✨",
       description: "Your prompt has been improved for better AI responses.",

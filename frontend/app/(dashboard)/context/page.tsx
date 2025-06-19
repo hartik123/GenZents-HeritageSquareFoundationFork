@@ -1,5 +1,5 @@
 import { Metadata } from "next"
-import { ContextManager } from "@/components/context/context-manager"
+import { ContextManager } from "@/components/context"
 
 export const metadata: Metadata = {
   title: "Context",

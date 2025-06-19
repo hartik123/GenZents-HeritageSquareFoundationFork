@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { useChat } from "@/components/providers/chat-provider"
+import { useChat } from "@/hooks/chat-provider"
 import { formatDistanceToNow } from "date-fns"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 

@@ -8,7 +8,7 @@ import { Toaster } from "@/components/ui/toaster"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "drAIve",
+  title: "Archyx AI",
   description: "Your AI assistant for Google Drive",
 }
 

@@ -1,27 +1,9 @@
 import { create } from "zustand"
 import { createClient } from "@/lib/supabase/client"
-import type { Chat } from "./chat-store"
+import type { Chat } from "@/lib/types/chat"
+import type { Version, VersionDiff } from "@/lib/types/version"
 
-export interface Version {
-  id: string
-  chatId: string
-  version: number
-  title: string
-  description?: string
-  created_at: string
-  created_by: string
-  data: Chat
-  tags: string[]
-  branch?: string
-  parentVersion?: string
-}
-
-export interface VersionDiff {
-  type: "added" | "modified" | "deleted"
-  path: string
-  oldValue?: any
-  newValue?: any
-}
+// Remove duplicate interfaces as they now come from centralized types
 
 interface VersionState {
   versions: Version[]

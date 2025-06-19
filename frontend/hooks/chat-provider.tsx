@@ -3,44 +3,52 @@
 import type React from "react"
 import { createContext, useContext, useReducer, useCallback, useEffect } from "react"
 import { nanoid } from "nanoid"
+import type { Message, Attachment, ChatSession } from "@/lib/types/chat"
 
-export interface Message {
-  id: string
-  role: "user" | "assistant" | "system"
-  content: string
-  timestamp: Date
-  status?: "sending" | "sent" | "delivered" | "read" | "error"
-  reactions?: { type: "thumbs_up" | "thumbs_down"; userId?: string }[]
-  attachments?: Attachment[]
-  metadata?: {
-    model?: string
-    tokens?: number
-    cost?: number
-    processingTime?: number
-  }
-}
+// Helper function to create a proper message
+const createMessage = (
+  content: string,
+  role: "user" | "assistant" | "system" | "function",
+  chatId: string,
+  metadata?: any
+): Message => ({
+  id: nanoid(),
+  chat_id: chatId,
+  role,
+  content,
+  created_at: new Date().toISOString(),
+  timestamp: new Date(),
+  edited: false,
+  deleted: false,
+  metadata: {
+    model: metadata?.model,
+    tokens: metadata?.tokens,
+    cost: metadata?.cost,
+    processingTime: metadata?.processingTime,
+    confidence: undefined,
+    sources: [],
+    citations: [],
+    language: undefined,
+    sentiment: undefined,
+    topics: [],
+    entities: [],
+  },
+  attachments: metadata?.attachments || [],
+  reactions: [],
+  mentions: [],
+  status: {
+    sent: role === "user",
+    delivered: role !== "user",
+    read: false,
+    retries: 0,
+    status: role === "user" ? "sending" : "delivered",
+  },
+  encryption: {
+    encrypted: false,
+  },
+})
 
-export interface Attachment {
-  id: string
-  name: string
-  type: string
-  size: number
-  url?: string
-  content?: string
-  preview?: string
-}
-
-export interface ChatSession {
-  id: string
-  title: string
-  messages: Message[]
-  createdAt: Date
-  updatedAt: Date
-  tags?: string[]
-  bookmarked?: boolean
-  model?: string
-  systemPrompt?: string
-}
+// Remove duplicate interfaces as they now come from centralized types
 
 interface ChatState {
   sessions: ChatSession[]
@@ -59,7 +67,15 @@ type ChatAction =
   | { type: "SELECT_SESSION"; payload: string }
   | { type: "DELETE_SESSION"; payload: string }
   | { type: "UPDATE_SESSION"; payload: { id: string; updates: Partial<ChatSession> } }
-  | { type: "ADD_MESSAGE"; payload: { sessionId: string; message: Omit<Message, "id" | "timestamp"> } }
+  | {
+      type: "ADD_MESSAGE"
+      payload: {
+        sessionId: string
+        content: string
+        role: "user" | "assistant" | "system" | "function"
+        metadata?: any
+      }
+    }
   | { type: "UPDATE_MESSAGE"; payload: { sessionId: string; messageId: string; updates: Partial<Message> } }
   | { type: "DELETE_MESSAGE"; payload: { sessionId: string; messageId: string } }
   | { type: "SET_STREAMING"; payload: boolean }
@@ -129,12 +145,12 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       }
 
     case "ADD_MESSAGE": {
-      const message: Message = {
-        id: nanoid(),
-        timestamp: new Date(),
-        status: action.payload.role === "user" ? "sending" : "delivered",
-        ...action.payload,
-      }
+      const message = createMessage(
+        action.payload.content,
+        action.payload.role,
+        action.payload.sessionId,
+        action.payload.metadata
+      )
 
       return {
         ...state,
@@ -293,7 +309,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           sessionId: state.currentSessionId,
           role: "user",
           content,
-          attachments,
+          metadata: { attachments },
         },
       })
 

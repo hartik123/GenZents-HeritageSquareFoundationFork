@@ -7,11 +7,11 @@ import { useAuthStore } from "@/lib/stores/auth-store"
 import { ChatInterface } from "@/components/chat/chat-interface"
 
 // export const metadata: Metadata = {
-//   title: "drAIve",
+//   title: "Archyx AI",
 //   description: "Your AI assistant for Google Drive",
 //   keywords: ["chat", "AI"],
 //   openGraph: {
-//     title: "drAIve",
+//     title: "Archyx AI",
 //     description: "Your AI assistant for Google Drive",
 //     url: "/",
 //     type: "website",

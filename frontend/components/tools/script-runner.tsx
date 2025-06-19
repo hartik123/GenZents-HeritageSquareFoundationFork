@@ -13,18 +13,9 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import type { ScriptConfig } from "@/lib/types/user"
 
-interface ScriptConfig {
-  id: string
-  name: string
-  description: string
-  language: "javascript" | "python" | "bash" | "sql"
-  code: string
-  parameters: { name: string; type: string; value: string; description: string }[]
-  tags: string[]
-  lastRun?: Date
-  status?: "idle" | "running" | "completed" | "error"
-}
+// Remove duplicate ScriptConfig interface as it now comes from centralized types
 
 const sampleScripts: ScriptConfig[] = [
   {

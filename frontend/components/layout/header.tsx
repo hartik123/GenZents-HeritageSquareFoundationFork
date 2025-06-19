@@ -14,7 +14,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
-import { useChat } from "@/components/providers/chat-provider"
+import { useChat } from "@/hooks/chat-provider"
 import { SettingsDialog } from "@/components/settings/settings-dialog"
 
 export function Header() {
@@ -28,7 +28,7 @@ export function Header() {
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem className="hidden md:block">
-            <BreadcrumbLink href="#">drAIve</BreadcrumbLink>
+            <BreadcrumbLink href="/">Archyx AI</BreadcrumbLink>
           </BreadcrumbItem>
           {currentSession && (
             <>

@@ -6,12 +6,12 @@ interface SettingsState {
   fontSize: "small" | "medium" | "large"
   highContrast: boolean
   layoutDensity: string
-  
+
   // General
   language: string
   showFollowUpSuggestions: boolean
   chats: any[]
-  
+
   // Chat and AI model settings
   defaultModel: string
   temperature: number
@@ -21,12 +21,12 @@ interface SettingsState {
   communicationStyle: "professional" | "casual" | "friendly" | "balanced" | "technical"
   responseLength: "concise" | "balanced" | "detailed" | "comprehensive"
   expertiseLevel: "beginner" | "intermediate" | "advanced" | "expert"
-  
+
   // Display preferences
   showTimestamps: boolean
   showWordCount: boolean
   showModelInfo: boolean
-  
+
   // Privacy and data
   saveHistory: boolean
   shareAnalytics: boolean
@@ -34,7 +34,7 @@ interface SettingsState {
     openai?: string
     anthropic?: string
   }
-  
+
   // Connections and integrations
   googleDriveConnected: boolean
   googleDriveEmail: string
@@ -55,12 +55,12 @@ const defaultSettings = {
   fontSize: "medium" as const,
   highContrast: false,
   layoutDensity: "comfortable",
-  
+
   // General
   language: "en",
   showFollowUpSuggestions: true,
   chats: [],
-  
+
   // Chat and AI model settings
   defaultModel: "gpt-4",
   temperature: 0.7,
@@ -70,17 +70,17 @@ const defaultSettings = {
   communicationStyle: "balanced" as const,
   responseLength: "balanced" as const,
   expertiseLevel: "intermediate" as const,
-  
+
   // Display preferences
   showTimestamps: false,
   showWordCount: false,
   showModelInfo: false,
-  
+
   // Privacy and data
   saveHistory: true,
   shareAnalytics: false,
   apiKeys: {},
-  
+
   // Connections and integrations
   googleDriveConnected: false,
   googleDriveEmail: "",

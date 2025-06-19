@@ -19,16 +19,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import {
-  MessageSquare,
-  Plus,
-  LogOut,
-  MoreHorizontal,
-  User,
-  Wrench,
-  GitBranch,
-  FolderOpen,
-} from "lucide-react"
+import { MessageSquare, Plus, LogOut, MoreHorizontal, User, Wrench, GitBranch, FolderOpen } from "lucide-react"
 import { useChatStore } from "@/lib/stores/chat-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
 
@@ -59,14 +50,19 @@ export function AppSidebar() {
   const navigationItems = [
     { title: "Tools", url: "/tools", icon: Wrench },
     { title: "Context", url: "/context", icon: FolderOpen },
-    { title: "Version History", url: "/version-history", icon: GitBranch },
+    { title: "Version", url: "/version", icon: GitBranch },
   ]
 
   return (
     <Sidebar>
       <SidebarHeader>
         <div className="flex items-center justify-between p-2">
-          <h2 className="text-lg font-semibold">drAIve</h2>
+          <h2
+            className="text-lg font-semibold cursor-pointer hover:text-primary transition-colors"
+            onClick={() => router.push("/")}
+          >
+            Archyx AI
+          </h2>
           <div className="flex items-center gap-1">
             <Button onClick={handleNewChat} size="sm" variant="ghost">
               <Plus className="h-4 w-4" />

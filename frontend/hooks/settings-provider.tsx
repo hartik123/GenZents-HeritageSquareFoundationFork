@@ -2,33 +2,10 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import type { Settings } from "@/lib/types/user"
 
-interface Settings {
-  // Theme and appearance
-  fontSize: "small" | "medium" | "large"
-  highContrast: boolean
-  layoutDensity: string
-  
-  // General
-  language: string
-  showFollowUpSuggestions: boolean
-  chats: any[]
-  
-  // Chat and AI model settings
-  defaultModel: string
-  temperature: number
-  systemPrompt: string
-  maxTokens: number
-  customInstructions: string
-  communicationStyle: "professional" | "casual" | "friendly" | "balanced" | "technical"
-  responseLength: "concise" | "balanced" | "detailed" | "comprehensive"
-  expertiseLevel: "beginner" | "intermediate" | "advanced" | "expert"
-  
-  // Display preferences
-  showTimestamps: boolean
-  showWordCount: boolean
-  showModelInfo: boolean
-  
+// Extend the centralized Settings interface with additional properties specific to this provider
+interface ExtendedSettings extends Settings {
   // Privacy and data
   saveHistory: boolean
   shareAnalytics: boolean
@@ -36,7 +13,7 @@ interface Settings {
     openai?: string
     anthropic?: string
   }
-  
+
   // Connections and integrations
   googleDriveConnected: boolean
   googleDriveEmail: string
@@ -47,24 +24,24 @@ interface Settings {
 }
 
 interface SettingsContextProps {
-  settings: Settings
-  updateSetting: (key: keyof Settings, value: any) => void
+  settings: ExtendedSettings
+  updateSetting: (key: keyof ExtendedSettings, value: any) => void
   resetSettings: () => void
   exportSettings: () => void
-  importSettings: (importedSettings: Partial<Settings>) => void
+  importSettings: (importedSettings: Partial<ExtendedSettings>) => void
 }
 
-const defaultSettings: Settings = {
+const defaultSettings: ExtendedSettings = {
   // Theme and appearance
   fontSize: "medium",
   highContrast: false,
   layoutDensity: "comfortable",
-  
+
   // General
   language: "en",
   showFollowUpSuggestions: true,
   chats: [],
-  
+
   // Chat and AI model settings
   defaultModel: "gpt-4",
   temperature: 0.7,
@@ -74,17 +51,46 @@ const defaultSettings: Settings = {
   communicationStyle: "balanced",
   responseLength: "balanced",
   expertiseLevel: "intermediate",
-  
+
   // Display preferences
   showTimestamps: false,
   showWordCount: false,
   showModelInfo: false,
-  
+  showTokenCount: false,
+  compactMode: false,
+  fullScreenMode: false,
+
+  // Export settings
+  exportFormat: "json",
+  includeMetadata: true,
+  includeSystemMessages: true,
+
+  // Security and privacy
+  encryptMessages: false,
+  retentionDays: 30,
+  allowTelemetry: false,
+
+  // Developer settings
+  showDebugInfo: false,
+  enableAdvancedFeatures: false,
+  customCSS: "",
+  apiEndpoint: "",
+
+  // Collaboration
+  allowCollaboration: true,
+  defaultPermissions: "view",
+  invitationMode: "manual",
+
+  // Shortcuts and productivity
+  keyboardShortcuts: {},
+  autoSave: true,
+  autoSaveInterval: 30,
+
   // Privacy and data
   saveHistory: true,
   shareAnalytics: false,
   apiKeys: {},
-  
+
   // Connections and integrations
   googleDriveConnected: false,
   googleDriveEmail: "",
@@ -107,10 +113,10 @@ interface SettingsProviderProps {
 }
 
 export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {
-  const [settings, setSettings] = useState<Settings>(() => {
+  const [settings, setSettings] = useState<ExtendedSettings>(() => {
     try {
       const storedSettings = localStorage.getItem("settings")
-      return storedSettings ? JSON.parse(storedSettings) : defaultSettings
+      return storedSettings ? { ...defaultSettings, ...JSON.parse(storedSettings) } : defaultSettings
     } catch (error) {
       console.error("Error parsing stored settings:", error)
       return defaultSettings
@@ -121,7 +127,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     localStorage.setItem("settings", JSON.stringify(settings))
   }, [settings])
 
-  const updateSetting = (key: keyof Settings, value: any) => {
+  const updateSetting = (key: keyof ExtendedSettings, value: any) => {
     setSettings((prevSettings) => ({
       ...prevSettings,
       [key]: value,

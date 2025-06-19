@@ -33,19 +33,9 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import type { FileItem } from "@/lib/types/user"
 
-interface FileItem {
-  id: string
-  name: string
-  type: "file" | "folder"
-  size?: number
-  extension?: string
-  path: string
-  lastModified: Date
-  category?: string
-  tags?: string[]
-  preview?: string
-}
+// Remove duplicate FileItem interface as it now comes from centralized types
 
 const sampleFiles: FileItem[] = [
   {

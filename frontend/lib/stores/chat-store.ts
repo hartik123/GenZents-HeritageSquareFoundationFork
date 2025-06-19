@@ -2,61 +2,9 @@ import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { createClient } from "@/lib/supabase/client"
 import { nanoid } from "nanoid"
+import type { Chat, Message, Attachment, ContextFile } from "@/lib/types/chat"
 
-export interface Attachment {
-  id: string
-  name: string
-  type: string
-  size: number
-  url: string
-  uploadedAt: string
-}
-
-export interface Message {
-  id: string
-  chat_id: string
-  role: "user" | "assistant" | "system"
-  content: string
-  created_at: string
-  updated_at?: string
-  metadata?: {
-    model?: string
-    tokens?: number
-    cost?: number
-    processingTime?: number
-  }
-  attachments?: Attachment[]
-  reactions?: Array<{ type: "thumbs_up" | "thumbs_down"; userId: string }>
-  edited?: boolean
-  parentId?: string // for threading
-  status?: "sending" | "sent" | "delivered" | "error"
-}
-
-export interface Chat {
-  id: string
-  title: string
-  created_at: string
-  updated_at: string
-  user_id: string
-  model?: string
-  system_prompt?: string
-  tags?: string[]
-  bookmarked: boolean
-  archived: boolean
-  shared: boolean
-  collaborators?: string[]
-  version: number
-  parentVersion?: string
-  messages: Message[]
-}
-
-export interface ContextFile {
-  id: string
-  path: string
-  type: "file" | "folder" | "symbol" | "url" | "database"
-  content?: string
-  metadata?: any
-}
+// Remove duplicate interfaces as they now come from centralized types
 
 interface ChatState {
   chats: Chat[]
@@ -283,9 +231,35 @@ export const useChatStore = create<ChatState>()(
             role: "user",
             content,
             created_at: new Date().toISOString(),
-            status: "sending",
-            parentId,
+            edited: false,
+            deleted: false,
+            metadata: {
+              model: undefined,
+              tokens: undefined,
+              cost: undefined,
+              processingTime: undefined,
+              confidence: undefined,
+              sources: [],
+              citations: [],
+              language: undefined,
+              sentiment: undefined,
+              topics: [],
+              entities: [],
+            },
             attachments: get().attachments,
+            reactions: [],
+            mentions: [],
+            parentId,
+            status: {
+              sent: false,
+              delivered: false,
+              read: false,
+              retries: 0,
+              status: "sending",
+            },
+            encryption: {
+              encrypted: false,
+            },
           }
 
           // Save to database
@@ -301,7 +275,20 @@ export const useChatStore = create<ChatState>()(
           set((state) => ({
             chats: state.chats.map((chat) =>
               chat.id === targetChatId
-                ? { ...chat, messages: [...chat.messages, { ...userMessage, status: "sent" }] }
+                ? {
+                    ...chat,
+                    messages: [
+                      ...chat.messages,
+                      {
+                        ...userMessage,
+                        status: {
+                          ...userMessage.status,
+                          sent: true,
+                          status: "sent",
+                        },
+                      },
+                    ],
+                  }
                 : chat
             ),
             attachments: [], // Clear attachments after sending
@@ -315,10 +302,33 @@ export const useChatStore = create<ChatState>()(
               role: "assistant",
               content: `This is a simulated AI response to: "${content}". In a real implementation, this would be replaced with actual AI integration.`,
               created_at: new Date().toISOString(),
+              edited: false,
+              deleted: false,
               metadata: {
                 model: "gpt-4",
                 tokens: 150,
+                cost: undefined,
                 processingTime: 1500,
+                confidence: undefined,
+                sources: [],
+                citations: [],
+                language: undefined,
+                sentiment: undefined,
+                topics: [],
+                entities: [],
+              },
+              attachments: [],
+              reactions: [],
+              mentions: [],
+              status: {
+                sent: true,
+                delivered: true,
+                read: false,
+                retries: 0,
+                status: "sent",
+              },
+              encryption: {
+                encrypted: false,
               },
             }
 
@@ -407,17 +417,26 @@ export const useChatStore = create<ChatState>()(
               messages: chat.messages.map((msg) => {
                 if (msg.id === messageId) {
                   const reactions = msg.reactions || []
-                  const existingReaction = reactions.find((r) => r.userId === userId)
+                  const existingReaction = reactions.find((r) => r.user_id === userId)
 
                   if (existingReaction) {
                     return {
                       ...msg,
-                      reactions: reactions.filter((r) => r.userId !== userId),
+                      reactions: reactions.filter((r) => r.user_id !== userId),
                     }
                   } else {
                     return {
                       ...msg,
-                      reactions: [...reactions, { type: reaction, userId }],
+                      reactions: [
+                        ...reactions,
+                        {
+                          id: nanoid(),
+                          user_id: userId,
+                          type: reaction,
+                          emoji: reaction === "thumbs_up" ? "👍" : "👎",
+                          created_at: new Date().toISOString(),
+                        },
+                      ],
                     }
                   }
                 }

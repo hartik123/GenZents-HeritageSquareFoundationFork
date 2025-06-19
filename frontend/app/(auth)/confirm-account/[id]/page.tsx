@@ -44,7 +44,7 @@ export default function ConfirmAccountPage() {
           // For recovery, we don't redirect automatically since the user needs to
           // access the reset form while their session is still valid
         } else {
-          setMessage("Your account has been confirmed successfully! You can now start using drAIve.")
+          setMessage("Your account has been confirmed successfully! You can now start using Archyx AI.")
           // Start countdown for redirect
           const timer = setInterval(() => {
             setCountdown((prev) => {
@@ -101,7 +101,7 @@ export default function ConfirmAccountPage() {
 
             <CardDescription>
               {status === "loading" && "Please wait while we verify your email"}
-              {status === "confirmed" && (type === "recovery" ? "Email verified successfully" : "Welcome to drAIve")}
+              {status === "confirmed" && (type === "recovery" ? "Email verified successfully" : "Welcome to Archyx AI")}
               {status === "error" && "There was an issue with your confirmation link"}
             </CardDescription>
           </CardHeader>

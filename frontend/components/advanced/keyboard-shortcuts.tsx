@@ -16,7 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { useSettings } from "@/components/providers/settings-provider"
+import { useSettings } from "@/hooks/settings-provider"
 
 interface ShortcutCategory {
   id: string

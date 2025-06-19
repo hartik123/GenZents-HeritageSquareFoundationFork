@@ -2,7 +2,7 @@ type TranslationDictionary = Record<string, Record<string, string>>
 
 const translations: TranslationDictionary = {
   en: {
-    welcome: "Welcome to drAIve",
+    welcome: "Welcome to Archyx AI",
     newChat: "New Chat",
     settings: "Settings",
     logout: "Log out",
@@ -384,7 +384,7 @@ const translations: TranslationDictionary = {
     being: "Being",
   },
   es: {
-    welcome: "Bienvenido a drAIve",
+    welcome: "Bienvenido a Archyx AI",
     newChat: "Nuevo Chat",
     settings: "Configuración",
     logout: "Cerrar sesión",
