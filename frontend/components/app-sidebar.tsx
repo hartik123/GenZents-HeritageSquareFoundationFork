@@ -1,0 +1,160 @@
+"use client"
+
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuAction,
+  SidebarRail,
+} from "@/components/ui/sidebar"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  MessageSquare,
+  Plus,
+  LogOut,
+  MoreHorizontal,
+  User,
+  Wrench,
+  GitBranch,
+  FolderOpen,
+} from "lucide-react"
+import { useChatStore } from "@/lib/stores/chat-store"
+import { useAuthStore } from "@/lib/stores/auth-store"
+
+export function AppSidebar() {
+  const router = useRouter()
+  const { chats, createChat, selectChat, deleteChat, loadChats, currentChatId } = useChatStore()
+  const { user, signOut } = useAuthStore()
+
+  useEffect(() => {
+    loadChats()
+  }, [loadChats])
+
+  const handleNewChat = async () => {
+    const chatId = await createChat()
+    router.push(`/chat/${chatId}`)
+  }
+
+  const handleSelectChat = (chatId: string) => {
+    selectChat(chatId)
+    router.push(`/chat/${chatId}`)
+  }
+
+  const handleSignOut = async () => {
+    await signOut()
+    router.push("/auth")
+  }
+
+  const navigationItems = [
+    { title: "Tools", url: "/tools", icon: Wrench },
+    { title: "Context", url: "/context", icon: FolderOpen },
+    { title: "Version History", url: "/version-history", icon: GitBranch },
+  ]
+
+  return (
+    <Sidebar>
+      <SidebarHeader>
+        <div className="flex items-center justify-between p-2">
+          <h2 className="text-lg font-semibold">drAIve</h2>
+          <div className="flex items-center gap-1">
+            <Button onClick={handleNewChat} size="sm" variant="ghost">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </SidebarHeader>
+
+      <SidebarContent className="flex flex-col overflow-hidden">
+        <SidebarGroup className="flex-1 min-h-0">
+          <SidebarGroupLabel>Recent Chats</SidebarGroupLabel>
+          <SidebarGroupContent className="flex-1 overflow-auto">
+            <SidebarMenu>
+              {chats.map((chat) => (
+                <SidebarMenuItem key={chat.id}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={currentChatId === chat.id}
+                    onClick={() => handleSelectChat(chat.id)}
+                  >
+                    <button className="w-full text-left">
+                      <MessageSquare className="h-4 w-4" />
+                      <span className="truncate">{chat.title}</span>
+                    </button>
+                  </SidebarMenuButton>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <SidebarMenuAction>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </SidebarMenuAction>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => deleteChat(chat.id)}>Delete</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup className="mt-6 flex-shrink-0">
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="space-y-2">
+              {navigationItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <button onClick={() => router.push(item.url)} className="w-full text-left">
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </button>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton>
+                  <Avatar className="h-6 w-6">
+                    <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
+                  </Avatar>
+                  <span className="truncate">{user?.email}</span>
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" className="w-[--radix-popper-anchor-width]">
+                <DropdownMenuItem onClick={() => router.push("/account")}>
+                  <User className="h-4 w-4 mr-2" />
+                  Account
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+
+      <SidebarRail />
+    </Sidebar>
+  )
+}
