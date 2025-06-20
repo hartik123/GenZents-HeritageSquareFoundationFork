@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase/client"
+import { logger } from "@/lib/utils/logger"
 import type { Plugin, PluginSettings, PluginAPI } from "@/lib/types"
 
 // Remove duplicate interfaces - now using centralized types
@@ -36,7 +37,7 @@ export class PluginSystem {
         .eq("plugin_id", pluginId)
         .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
     } catch (error) {
-      console.error(`Failed to load plugin ${pluginId}:`, error)
+      logger.error(`Failed to load plugin ${pluginId}`, error as Error, { component: "plugin-system" })
       throw error
     }
   }
@@ -174,10 +175,10 @@ export class PluginSystem {
     // For now, return a mock plugin module
     return {
       initialize: async (api: PluginAPI, settings: PluginSettings) => {
-        console.log(`Initializing plugin ${plugin.name}`)
+        logger.info(`Initializing plugin ${plugin.name}`, { component: "plugin-system" })
       },
       cleanup: async () => {
-        console.log(`Cleaning up plugin ${plugin.name}`)
+        logger.info(`Cleaning up plugin ${plugin.name}`, { component: "plugin-system" })
       },
     }
   }

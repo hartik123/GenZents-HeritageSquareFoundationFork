@@ -2,6 +2,8 @@ import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { createClient } from "@/lib/supabase/client"
 import { nanoid } from "nanoid"
+import { AIService } from "@/lib/services/ai-service"
+import { logger } from "@/lib/utils/logger"
 import type { Chat, Message, Attachment, ContextFile } from "@/lib/types/chat"
 
 // Remove duplicate interfaces as they now come from centralized types
@@ -26,6 +28,7 @@ interface ChatState {
 
   // Messages
   sendMessage: (content: string, chatId?: string, parentId?: string) => Promise<string>
+  sendMessageStream: (content: string, chatId?: string) => Promise<string>
   editMessage: (messageId: string, content: string) => Promise<void>
   deleteMessage: (messageId: string) => Promise<void>
   reactToMessage: (messageId: string, reaction: "thumbs_up" | "thumbs_down") => Promise<void>
@@ -91,7 +94,7 @@ export const useChatStore = create<ChatState>()(
             loading: false,
           })
         } catch (error) {
-          console.error("Error loading chats:", error)
+          logger.error("Error loading chats", error as Error, { component: "chat-store" })
           set({ loading: false })
         }
       },
@@ -99,7 +102,9 @@ export const useChatStore = create<ChatState>()(
       createChat: async (title = "New Chat", template = {}) => {
         try {
           const supabase = createClient()
-          const chatId = nanoid()
+
+          // Create chat using AIService which handles backend API call
+          const chatId = await AIService.createChat(title, template.system_prompt)
 
           const newChat: Partial<Chat> = {
             id: chatId,
@@ -111,9 +116,6 @@ export const useChatStore = create<ChatState>()(
             version: 1,
             ...template,
           }
-
-          const { error } = await supabase.from("chats").insert(newChat)
-          if (error) throw error
 
           const chat: Chat = {
             ...(newChat as Chat),
@@ -129,7 +131,7 @@ export const useChatStore = create<ChatState>()(
 
           return chatId
         } catch (error) {
-          console.error("Error creating chat:", error)
+          logger.error("Error creating chat", error as Error, { component: "chat-store" })
           throw error
         }
       },
@@ -154,7 +156,7 @@ export const useChatStore = create<ChatState>()(
             currentChatId: state.currentChatId === chatId ? null : state.currentChatId,
           }))
         } catch (error) {
-          console.error("Error deleting chat:", error)
+          logger.error("Error deleting chat", error as Error, { component: "chat-store", chatId })
           throw error
         }
       },
@@ -174,7 +176,7 @@ export const useChatStore = create<ChatState>()(
             chats: state.chats.map((chat) => (chat.id === chatId ? { ...chat, ...updates } : chat)),
           }))
         } catch (error) {
-          console.error("Error updating chat:", error)
+          logger.error("Error updating chat", error as Error, { component: "chat-store", chatId })
           throw error
         }
       },
@@ -204,7 +206,7 @@ export const useChatStore = create<ChatState>()(
 
           return newChatId
         } catch (error) {
-          console.error("Error duplicating chat:", error)
+          logger.error("Error duplicating chat", error as Error, { component: "chat-store", chatId })
           throw error
         }
       },
@@ -215,7 +217,6 @@ export const useChatStore = create<ChatState>()(
 
       sendMessage: async (content: string, chatId?: string, parentId?: string) => {
         try {
-          const supabase = createClient()
           let targetChatId = chatId || get().currentChatId
 
           if (!targetChatId) {
@@ -224,7 +225,7 @@ export const useChatStore = create<ChatState>()(
 
           set({ isStreaming: true })
 
-          // Create user message
+          // Create user message for local state
           const userMessage: Message = {
             id: nanoid(),
             chat_id: targetChatId,
@@ -262,16 +263,7 @@ export const useChatStore = create<ChatState>()(
             },
           }
 
-          // Save to database
-          await supabase.from("messages").insert({
-            id: userMessage.id,
-            chat_id: userMessage.chat_id,
-            role: userMessage.role,
-            content: userMessage.content,
-            metadata: userMessage.metadata,
-          })
-
-          // Update local state
+          // Update local state with user message
           set((state) => ({
             chats: state.chats.map((chat) =>
               chat.id === targetChatId
@@ -291,66 +283,310 @@ export const useChatStore = create<ChatState>()(
                   }
                 : chat
             ),
-            attachments: [], // Clear attachments after sending
+            attachments: [],
           }))
 
-          // Simulate AI response (replace with actual AI integration)
-          setTimeout(async () => {
-            const aiMessage: Message = {
-              id: nanoid(),
-              chat_id: targetChatId,
-              role: "assistant",
-              content: `This is a simulated AI response to: "${content}". In a real implementation, this would be replaced with actual AI integration.`,
-              created_at: new Date().toISOString(),
-              edited: false,
-              deleted: false,
-              metadata: {
-                model: "gpt-4",
-                tokens: 150,
-                cost: undefined,
-                processingTime: 1500,
-                confidence: undefined,
-                sources: [],
-                citations: [],
-                language: undefined,
-                sentiment: undefined,
-                topics: [],
-                entities: [],
-              },
-              attachments: [],
-              reactions: [],
-              mentions: [],
-              status: {
-                sent: true,
-                delivered: true,
-                read: false,
-                retries: 0,
-                status: "sent",
-              },
-              encryption: {
-                encrypted: false,
-              },
-            }
+          // Send message to backend using AIService
+          const aiMessage = await AIService.sendMessage(targetChatId, content)
 
-            await supabase.from("messages").insert({
-              id: aiMessage.id,
-              chat_id: aiMessage.chat_id,
-              role: aiMessage.role,
-              content: aiMessage.content,
-              metadata: aiMessage.metadata,
-            })
-
-            set((state) => ({
-              chats: state.chats.map((chat) =>
-                chat.id === targetChatId ? { ...chat, messages: [...chat.messages, aiMessage] } : chat
-              ),
-              isStreaming: false,
-            }))
-          }, 1500)
+          // Add AI response to local state
+          set((state) => ({
+            chats: state.chats.map((chat) =>
+              chat.id === targetChatId
+                ? {
+                    ...chat,
+                    messages: [
+                      ...chat.messages,
+                      {
+                        id: aiMessage.id,
+                        chat_id: targetChatId,
+                        role: "assistant",
+                        content: aiMessage.content,
+                        created_at: aiMessage.created_at,
+                        edited: false,
+                        deleted: false,
+                        metadata: {
+                          model: "gemini-1.5-flash",
+                          tokens: undefined,
+                          cost: undefined,
+                          processingTime: undefined,
+                          confidence: undefined,
+                          sources: [],
+                          citations: [],
+                          language: undefined,
+                          sentiment: undefined,
+                          topics: [],
+                          entities: [],
+                        },
+                        attachments: [],
+                        reactions: [],
+                        mentions: [],
+                        status: {
+                          sent: true,
+                          delivered: true,
+                          read: false,
+                          retries: 0,
+                          status: "sent",
+                        },
+                        encryption: {
+                          encrypted: false,
+                        },
+                      },
+                    ],
+                  }
+                : chat
+            ),
+            isStreaming: false,
+          }))
 
           return targetChatId
         } catch (error) {
-          console.error("Error sending message:", error)
+          logger.error("Error sending message", error as Error, { component: "chat-store", chatId })
+          set({ isStreaming: false })
+          throw error
+        }
+      },
+
+      sendMessageStream: async (content: string, chatId?: string) => {
+        try {
+          let targetChatId = chatId || get().currentChatId
+
+          if (!targetChatId) {
+            targetChatId = await get().createChat()
+          }
+
+          set({ isStreaming: true })
+
+          // Create user message for local state
+          const userMessage: Message = {
+            id: nanoid(),
+            chat_id: targetChatId,
+            role: "user",
+            content,
+            created_at: new Date().toISOString(),
+            edited: false,
+            deleted: false,
+            metadata: {
+              model: undefined,
+              tokens: undefined,
+              cost: undefined,
+              processingTime: undefined,
+              confidence: undefined,
+              sources: [],
+              citations: [],
+              language: undefined,
+              sentiment: undefined,
+              topics: [],
+              entities: [],
+            },
+            attachments: get().attachments,
+            reactions: [],
+            mentions: [],
+            status: {
+              sent: true,
+              delivered: true,
+              read: false,
+              retries: 0,
+              status: "sent",
+            },
+            encryption: {
+              encrypted: false,
+            },
+          }
+
+          // Add user message to local state
+          set((state) => ({
+            chats: state.chats.map((chat) =>
+              chat.id === targetChatId
+                ? {
+                    ...chat,
+                    messages: [...chat.messages, userMessage],
+                  }
+                : chat
+            ),
+            attachments: [],
+          }))
+
+          // Create streaming AI message placeholder
+          const aiMessageId = nanoid()
+          const aiMessage: Message = {
+            id: aiMessageId,
+            chat_id: targetChatId,
+            role: "assistant",
+            content: "",
+            created_at: new Date().toISOString(),
+            edited: false,
+            deleted: false,
+            metadata: {
+              model: "gemini-1.5-flash",
+              tokens: undefined,
+              cost: undefined,
+              processingTime: undefined,
+              confidence: undefined,
+              sources: [],
+              citations: [],
+              language: undefined,
+              sentiment: undefined,
+              topics: [],
+              entities: [],
+            },
+            attachments: [],
+            reactions: [],
+            mentions: [],
+            status: {
+              sent: false,
+              delivered: false,
+              read: false,
+              retries: 0,
+              status: "sending",
+            },
+            encryption: {
+              encrypted: false,
+            },
+          }
+
+          // Add AI message placeholder
+          set((state) => ({
+            chats: state.chats.map((chat) =>
+              chat.id === targetChatId
+                ? {
+                    ...chat,
+                    messages: [...chat.messages, aiMessage],
+                  }
+                : chat
+            ),
+          }))
+
+          // Start streaming response
+          try {
+            const stream = await AIService.sendMessageStream(targetChatId, content)
+
+            for await (const response of AIService.parseStreamingResponse(stream)) {
+              if (response.type === "chunk" && response.content) {
+                // Update the AI message content with streaming chunks
+                set((state) => ({
+                  chats: state.chats.map((chat) =>
+                    chat.id === targetChatId
+                      ? {
+                          ...chat,
+                          messages: chat.messages.map((msg) =>
+                            msg.id === aiMessageId
+                              ? {
+                                  ...msg,
+                                  content: msg.content + response.content,
+                                }
+                              : msg
+                          ),
+                        }
+                      : chat
+                  ),
+                }))
+              } else if (response.type === "complete" && response.message) {
+                // Update with final message data from server
+                set((state) => ({
+                  chats: state.chats.map((chat) =>
+                    chat.id === targetChatId
+                      ? {
+                          ...chat,
+                          messages: chat.messages.map((msg) =>
+                            msg.id === aiMessageId
+                              ? {
+                                  ...msg,
+                                  id: response.message.id,
+                                  content: response.message.content,
+                                  created_at: response.message.created_at,
+                                  status: {
+                                    ...msg.status,
+                                    sent: true,
+                                    delivered: true,
+                                    status: "sent",
+                                  },
+                                }
+                              : msg
+                          ),
+                        }
+                      : chat
+                  ),
+                  isStreaming: false,
+                }))
+                break
+              } else if (response.type === "error") {
+                logger.error("Streaming error", undefined, { component: "chat-store", error: response.error })
+                throw new Error(response.error || "Failed to generate response")
+              }
+            }
+          } catch (streamError) {
+            logger.warn("Streaming failed, falling back to regular message", { component: "chat-store", streamError })
+
+            // Remove the placeholder AI message
+            set((state) => ({
+              chats: state.chats.map((chat) =>
+                chat.id === targetChatId
+                  ? {
+                      ...chat,
+                      messages: chat.messages.filter((msg) => msg.id !== aiMessageId),
+                    }
+                  : chat
+              ),
+            }))
+
+            // Fall back to regular message sending
+            const aiMessage = await AIService.sendMessage(targetChatId, content)
+
+            // Add the regular AI response
+            set((state) => ({
+              chats: state.chats.map((chat) =>
+                chat.id === targetChatId
+                  ? {
+                      ...chat,
+                      messages: [
+                        ...chat.messages,
+                        {
+                          id: aiMessage.id,
+                          chat_id: targetChatId,
+                          role: "assistant",
+                          content: aiMessage.content,
+                          created_at: aiMessage.created_at,
+                          edited: false,
+                          deleted: false,
+                          metadata: {
+                            model: "gemini-1.5-flash",
+                            tokens: undefined,
+                            cost: undefined,
+                            processingTime: undefined,
+                            confidence: undefined,
+                            sources: [],
+                            citations: [],
+                            language: undefined,
+                            sentiment: undefined,
+                            topics: [],
+                            entities: [],
+                          },
+                          attachments: [],
+                          reactions: [],
+                          mentions: [],
+                          status: {
+                            sent: true,
+                            delivered: true,
+                            read: false,
+                            retries: 0,
+                            status: "sent",
+                          },
+                          encryption: {
+                            encrypted: false,
+                          },
+                        },
+                      ],
+                    }
+                  : chat
+              ),
+              isStreaming: false,
+            }))
+          }
+
+          return targetChatId
+        } catch (error) {
+          logger.error("Error sending streaming message", error as Error, { component: "chat-store", chatId })
           set({ isStreaming: false })
           throw error
         }
@@ -380,7 +616,7 @@ export const useChatStore = create<ChatState>()(
             })),
           }))
         } catch (error) {
-          console.error("Error editing message:", error)
+          logger.error("Error editing message", error as Error, { component: "chat-store", messageId })
           throw error
         }
       },
@@ -399,7 +635,7 @@ export const useChatStore = create<ChatState>()(
             })),
           }))
         } catch (error) {
-          console.error("Error deleting message:", error)
+          logger.error("Error deleting message", error as Error, { component: "chat-store", messageId })
           throw error
         }
       },
@@ -445,7 +681,7 @@ export const useChatStore = create<ChatState>()(
             })),
           }))
         } catch (error) {
-          console.error("Error reacting to message:", error)
+          logger.error("Error reacting to message", error as Error, { component: "chat-store", messageId, reaction })
           throw error
         }
       },
@@ -467,7 +703,7 @@ export const useChatStore = create<ChatState>()(
           // Regenerate response
           await get().sendMessage(previousMessage.content, chat.id)
         } catch (error) {
-          console.error("Error regenerating message:", error)
+          logger.error("Error regenerating message", error as Error, { component: "chat-store", messageId })
           throw error
         }
       },
@@ -485,7 +721,7 @@ export const useChatStore = create<ChatState>()(
           if (error) throw error
           return messages || []
         } catch (error) {
-          console.error("Error searching messages:", error)
+          logger.error("Error searching messages", error as Error, { component: "chat-store", query })
           return []
         }
       },
@@ -562,7 +798,7 @@ export const useChatStore = create<ChatState>()(
               throw new Error("Unsupported format")
           }
         } catch (error) {
-          console.error("Error exporting chat:", error)
+          logger.error("Error exporting chat", error as Error, { component: "chat-store", chatId })
           throw error
         }
       },
@@ -589,7 +825,7 @@ export const useChatStore = create<ChatState>()(
             }
           }
         } catch (error) {
-          console.error("Error importing chat:", error)
+          logger.error("Error importing chat", error as Error, { component: "chat-store" })
           throw error
         }
       },

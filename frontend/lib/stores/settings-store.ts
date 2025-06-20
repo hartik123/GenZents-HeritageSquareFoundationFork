@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { logger } from "@/lib/utils/logger"
 
 interface SettingsState {
   // Theme and appearance
@@ -117,7 +118,7 @@ export const useSettingsStore = create<SettingsState>()(
           const settings = JSON.parse(settingsJson)
           set({ ...defaultSettings, ...settings })
         } catch (error) {
-          console.error("Failed to import settings:", error)
+          logger.error("Failed to import settings", error as Error, { component: "settings-store" })
         }
       },
     }),

@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { supabase } from "@/lib/supabase/client"
+import { logger } from "@/lib/utils/logger"
 import type { User, Session } from "@supabase/supabase-js"
 
 interface AuthState {
@@ -33,7 +34,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } = await supabase.auth.getSession()
 
       if (error) {
-        console.error("Error getting session:", error)
+        logger.error("Error getting session", error as Error, { component: "auth-store" })
       }
 
       set({
@@ -51,7 +52,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         })
       })
     } catch (error) {
-      console.error("Error initializing auth:", error)
+      logger.error("Error initializing auth", error as Error, { component: "auth-store" })
       set({ loading: false, initialized: true })
     }
   },
@@ -121,7 +122,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { error } = await supabase.auth.signOut()
 
       if (error) {
-        console.error("Error signing out:", error)
+        logger.error("Error signing out", error as Error, { component: "auth-store" })
       }
 
       set({
@@ -130,7 +131,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         loading: false,
       })
     } catch (error) {
-      console.error("Error signing out:", error)
+      logger.error("Error signing out", error as Error, { component: "auth-store" })
       set({ loading: false })
     }
   },

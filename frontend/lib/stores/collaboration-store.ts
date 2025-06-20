@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { createClient } from "@/lib/supabase/client"
+import { logger } from "@/lib/utils/logger"
 import type { Collaborator, Comment, ShareSettings } from "@/lib/types/chat"
 
 // Remove duplicate interfaces as they now come from centralized types
@@ -71,7 +72,7 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
         comments: comments || [],
       })
     } catch (error) {
-      console.error("Error connecting to chat:", error)
+      logger.error("Error connecting to chat", error as Error, { component: "collaboration-store", chatId })
     }
   },
 
@@ -81,7 +82,7 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
 
   updateCursor: (position: { x: number; y: number }) => {
     // Real-time cursor updates would be implemented here
-    console.log("Cursor updated:", position)
+    logger.debug("Cursor updated", { component: "collaboration-store", position })
   },
 
   inviteUser: async (email: string, role: Collaborator["role"]) => {
@@ -89,14 +90,14 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
       const supabase = createClient()
 
       // Send invitation (placeholder)
-      console.log(`Inviting ${email} as ${role}`)
+      logger.info(`Inviting ${email} as ${role}`, { component: "collaboration-store" })
 
       // In a real implementation, this would:
       // 1. Send an email invitation
       // 2. Create a pending invitation record
       // 3. Update the UI
     } catch (error) {
-      console.error("Error inviting user:", error)
+      logger.error("Error inviting user", error as Error, { component: "collaboration-store", email, role })
       throw error
     }
   },
@@ -111,7 +112,7 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
         collaborators: state.collaborators.filter((c) => c.id !== userId),
       }))
     } catch (error) {
-      console.error("Error removing user:", error)
+      logger.error("Error removing user", error as Error, { component: "collaboration-store", userId })
       throw error
     }
   },
@@ -126,7 +127,7 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
         collaborators: state.collaborators.map((c) => (c.id === userId ? { ...c, role } : c)),
       }))
     } catch (error) {
-      console.error("Error updating user role:", error)
+      logger.error("Error updating user role", error as Error, { component: "collaboration-store", userId, role })
       throw error
     }
   },
@@ -151,7 +152,7 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
         comments: [...state.comments, comment],
       }))
     } catch (error) {
-      console.error("Error adding comment:", error)
+      logger.error("Error adding comment", error as Error, { component: "collaboration-store", messageId, content })
       throw error
     }
   },
@@ -176,7 +177,11 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
         comments: state.comments.map((c) => (c.id === commentId ? { ...c, replies: [...c.replies, reply] } : c)),
       }))
     } catch (error) {
-      console.error("Error replying to comment:", error)
+      logger.error("Error replying to comment", error as Error, {
+        component: "collaboration-store",
+        commentId,
+        content,
+      })
       throw error
     }
   },
@@ -191,7 +196,7 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
         comments: state.comments.map((c) => (c.id === commentId ? { ...c, resolved: true } : c)),
       }))
     } catch (error) {
-      console.error("Error resolving comment:", error)
+      logger.error("Error resolving comment", error as Error, { component: "collaboration-store", commentId })
       throw error
     }
   },
@@ -206,7 +211,7 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
         comments: state.comments.filter((c) => c.id !== commentId),
       }))
     } catch (error) {
-      console.error("Error deleting comment:", error)
+      logger.error("Error deleting comment", error as Error, { component: "collaboration-store", commentId })
       throw error
     }
   },
@@ -221,7 +226,7 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
       const supabase = createClient()
       // Implementation would save share settings
     } catch (error) {
-      console.error("Error updating share settings:", error)
+      logger.error("Error updating share settings", error as Error, { component: "collaboration-store", settings })
       throw error
     }
   },
@@ -232,21 +237,21 @@ export const useCollaborationStore = create<CollaborationState>((set, get) => ({
       const shareId = Math.random().toString(36).substring(2, 15)
       return `${window.location.origin}/shared/${shareId}`
     } catch (error) {
-      console.error("Error generating share link:", error)
+      logger.error("Error generating share link", error as Error, { component: "collaboration-store" })
       throw error
     }
   },
 
   // Placeholder implementations for voice/video features
   startVoiceCall: async () => {
-    console.log("Voice call feature - to be implemented with WebRTC")
+    logger.info("Voice call feature - to be implemented with WebRTC", { component: "collaboration-store" })
   },
 
   startVideoCall: async () => {
-    console.log("Video call feature - to be implemented with WebRTC")
+    logger.info("Video call feature - to be implemented with WebRTC", { component: "collaboration-store" })
   },
 
   startScreenShare: async () => {
-    console.log("Screen share feature - to be implemented with WebRTC")
+    logger.info("Screen share feature - to be implemented with WebRTC", { component: "collaboration-store" })
   },
 }))

@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { logger } from "@/lib/utils/logger"
 import type { ScriptConfig } from "@/lib/types/user"
 
 // Remove duplicate ScriptConfig interface as it now comes from centralized types
@@ -61,11 +62,11 @@ print(result)`,
     const response = await fetch(endpoint, options);
     const result = await response.json();
     
-    console.log("Status:", response.status);
-    console.log("Response:", result);
+    logger.debug("Status", { component: 'script-runner', status: response.status });
+    logger.debug("Response", { component: 'script-runner', result });
     return result;
   } catch (error) {
-    console.error("Error:", error);
+    logger.error("Error", error as Error, { component: 'script-runner' });
   }
 }
 
@@ -130,7 +131,7 @@ export function ScriptRunner() {
   const handleSaveScript = () => {
     if (!selectedScript) return
     // Save script logic here
-    console.log("Saving script:", selectedScript)
+    logger.info("Saving script", { component: "script-runner", selectedScript })
   }
 
   const updateParameter = (paramName: string, value: string) => {

@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import { persist, subscribeWithSelector } from "zustand/middleware"
 import { supabase } from "@/lib/supabase/client"
+import { logger } from "@/lib/utils/logger"
 import type { Chat, Message, User, Workspace, Plugin, AIModel, Analytics, Integration } from "@/lib/types"
 
 interface ComprehensiveState {
@@ -37,6 +38,7 @@ interface ComprehensiveState {
   // Real-time Features
   onlineUsers: string[]
   typingUsers: Record<string, string[]>
+  chatChannels: Record<string, any>
 
   // Actions
   initialize: () => Promise<void>
@@ -82,6 +84,9 @@ interface ComprehensiveState {
   // Analytics
   trackEvent: (event: string, properties?: any) => void
   getAnalytics: (timeRange: string) => Promise<Analytics[]>
+
+  // AI Response Generation
+  generateAIResponse: (chatId: string, userMessage: string) => Promise<void>
 
   // Real-time
   subscribeToChat: (chatId: string) => void
@@ -153,6 +158,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
         },
         onlineUsers: [],
         typingUsers: {},
+        chatChannels: {},
 
         // Initialize
         initialize: async () => {
@@ -181,7 +187,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
 
             set({ loading: { ...get().loading, init: false } })
           } catch (error) {
-            console.error("Initialization error:", error)
+            logger.error("Initialization error", error as Error, { component: "comprehensive-store" })
             set({
               loading: { ...get().loading, init: false },
               errors: { ...get().errors, init: "Failed to initialize" },
@@ -198,7 +204,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
 
             set({ user: { ...get().user!, ...updates } })
           } catch (error) {
-            console.error("Update user error:", error)
+            logger.error("Update user error", error as Error, { component: "comprehensive-store" })
           }
         },
 
@@ -220,7 +226,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
             set({ workspaces: [...get().workspaces, data] })
             return data.id
           } catch (error) {
-            console.error("Create workspace error:", error)
+            logger.error("Create workspace error", error as Error, { component: "comprehensive-store" })
             throw error
           }
         },
@@ -235,7 +241,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
               workspaces: get().workspaces.map((w) => (w.id === id ? { ...w, ...updates } : w)),
             })
           } catch (error) {
-            console.error("Update workspace error:", error)
+            logger.error("Update workspace error", error as Error, { component: "comprehensive-store" })
           }
         },
 
@@ -250,7 +256,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
               currentWorkspace: get().currentWorkspace?.id === id ? null : get().currentWorkspace,
             })
           } catch (error) {
-            console.error("Delete workspace error:", error)
+            logger.error("Delete workspace error", error as Error, { component: "comprehensive-store" })
           }
         },
 
@@ -279,7 +285,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
             set({ chats: [...get().chats, data] })
             return data.id
           } catch (error) {
-            console.error("Create chat error:", error)
+            logger.error("Create chat error", error as Error, { component: "comprehensive-store" })
             throw error
           }
         },
@@ -294,7 +300,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
               chats: get().chats.map((c) => (c.id === id ? { ...c, ...updates } : c)),
             })
           } catch (error) {
-            console.error("Update chat error:", error)
+            logger.error("Update chat error", error as Error, { component: "comprehensive-store" })
           }
         },
 
@@ -309,7 +315,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
               currentChat: get().currentChat?.id === id ? null : get().currentChat,
             })
           } catch (error) {
-            console.error("Delete chat error:", error)
+            logger.error("Delete chat error", error as Error, { component: "comprehensive-store" })
           }
         },
 
@@ -344,7 +350,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
 
             return data.share_token
           } catch (error) {
-            console.error("Share chat error:", error)
+            logger.error("Share chat error", error as Error, { component: "comprehensive-store" })
             throw error
           }
         },
@@ -372,7 +378,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
             // Trigger AI response
             await get().generateAIResponse(chatId, content)
           } catch (error) {
-            console.error("Send message error:", error)
+            logger.error("Send message error", error as Error, { component: "comprehensive-store" })
           }
         },
 
@@ -386,7 +392,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
               messages: get().messages.map((m) => (m.id === id ? { ...m, content, edited: true } : m)),
             })
           } catch (error) {
-            console.error("Edit message error:", error)
+            logger.error("Edit message error", error as Error, { component: "comprehensive-store" })
           }
         },
 
@@ -400,7 +406,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
               messages: get().messages.map((m) => (m.id === id ? { ...m, deleted: true } : m)),
             })
           } catch (error) {
-            console.error("Delete message error:", error)
+            logger.error("Delete message error", error as Error, { component: "comprehensive-store" })
           }
         },
 
@@ -435,7 +441,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
               ),
             })
           } catch (error) {
-            console.error("React to message error:", error)
+            logger.error("React to message error", error as Error, { component: "comprehensive-store" })
           }
         },
 
@@ -451,7 +457,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
             if (error) throw error
             return data || []
           } catch (error) {
-            console.error("Search chats error:", error)
+            logger.error("Search chats error", error as Error, { component: "comprehensive-store" })
             return []
           }
         },
@@ -467,7 +473,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
             if (error) throw error
             return data || []
           } catch (error) {
-            console.error("Search messages error:", error)
+            logger.error("Search messages error", error as Error, { component: "comprehensive-store" })
             return []
           }
         },
@@ -490,7 +496,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
 
             set({ plugins: [...get().plugins, plugin] })
           } catch (error) {
-            console.error("Install plugin error:", error)
+            logger.error("Install plugin error", error as Error, { component: "comprehensive-store" })
           }
         },
 
@@ -506,7 +512,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
 
             set({ plugins: get().plugins.filter((p) => p.id !== id) })
           } catch (error) {
-            console.error("Uninstall plugin error:", error)
+            logger.error("Uninstall plugin error", error as Error, { component: "comprehensive-store" })
           }
         },
 
@@ -524,7 +530,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
               plugins: get().plugins.map((p) => (p.id === id ? { ...p, settings: config } : p)),
             })
           } catch (error) {
-            console.error("Configure plugin error:", error)
+            logger.error("Configure plugin error", error as Error, { component: "comprehensive-store" })
           }
         },
 
@@ -544,7 +550,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
 
             set({ integrations: [...get().integrations, data] })
           } catch (error) {
-            console.error("Add integration error:", error)
+            logger.error("Add integration error", error as Error, { component: "comprehensive-store" })
           }
         },
 
@@ -556,15 +562,23 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
 
             set({ integrations: get().integrations.filter((i) => i.id !== id) })
           } catch (error) {
-            console.error("Remove integration error:", error)
+            logger.error("Remove integration error", error as Error, { component: "comprehensive-store" })
           }
         },
 
         // Analytics
         trackEvent: (event, properties = {}) => {
-          const analyticsData = {
-            user_id: get().user?.id,
-            workspace_id: get().currentWorkspace?.id,
+          const user = get().user
+          const workspace = get().currentWorkspace
+
+          if (!user?.id) {
+            logger.warn("Cannot track event without user ID", { event, component: "comprehensive-store" })
+            return
+          }
+
+          const analyticsData: Analytics = {
+            user_id: user.id,
+            workspace_id: workspace?.id,
             event,
             properties,
             timestamp: new Date().toISOString(),
@@ -588,7 +602,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
             if (error) throw error
             return data || []
           } catch (error) {
-            console.error("Get analytics error:", error)
+            logger.error("Get analytics error", error as Error, { component: "comprehensive-store" })
             return []
           }
         },
@@ -610,10 +624,23 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
               }
             )
             .subscribe()
+
+          // Store channel reference for cleanup
+          set({
+            chatChannels: {
+              ...get().chatChannels,
+              [chatId]: channel,
+            },
+          })
         },
 
         unsubscribeFromChat: (chatId) => {
-          supabase.removeChannel(`chat:${chatId}`)
+          const channel = get().chatChannels[chatId]
+          if (channel) {
+            supabase.removeChannel(channel)
+            const { [chatId]: _, ...remainingChannels } = get().chatChannels
+            set({ chatChannels: remainingChannels })
+          }
         },
 
         updateTypingStatus: (chatId, typing) => {

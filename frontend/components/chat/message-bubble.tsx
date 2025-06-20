@@ -67,13 +67,16 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
     const existingReaction = message.reactions?.find((r) => r.type === type)
     const updatedReactions = existingReaction
       ? message.reactions?.filter((r) => r.type !== type) || []
-      : [...(message.reactions || []), { 
-          id: `${Date.now()}`, 
-          user_id: "current_user", 
-          type, 
-          emoji: type === "thumbs_up" ? "👍" : "👎", 
-          created_at: new Date().toISOString() 
-        }]
+      : [
+          ...(message.reactions || []),
+          {
+            id: `${Date.now()}`,
+            user_id: "current_user",
+            type,
+            emoji: type === "thumbs_up" ? "👍" : "👎",
+            created_at: new Date().toISOString(),
+          },
+        ]
 
     dispatch({
       type: "UPDATE_MESSAGE",

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase/client"
+import { logger } from "@/lib/utils/logger"
 import type { Collaborator, Permission } from "@/lib/types"
 
 export class CollaborationManager {
@@ -159,7 +160,7 @@ export class CollaborationManager {
   private static async sendInvitationEmail(email: string, token: string, chatId: string) {
     // Implementation for sending invitation email
     // This would integrate with your email service
-    console.log(`Sending invitation to ${email} with token ${token} for chat ${chatId}`)
+    logger.info(`Sending invitation to ${email} with token ${token} for chat ${chatId}`, { component: "collaboration" })
   }
 
   static async startVideoCall(chatId: string, participants: string[]) {

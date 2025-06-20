@@ -33,6 +33,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { logger } from "@/lib/utils/logger"
 import type { FileItem } from "@/lib/types/user"
 
 // Remove duplicate FileItem interface as it now comes from centralized types
@@ -190,7 +191,7 @@ export function FileOrganizer() {
   }
 
   const handleBulkAction = (action: string) => {
-    console.log(`Performing ${action} on files:`, selectedFiles)
+    logger.info(`Performing ${action} on files`, { component: "file-organizer", selectedFiles })
     // Implement bulk actions here
   }
 

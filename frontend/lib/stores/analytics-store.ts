@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { createClient } from "@/lib/supabase/client"
+import { logger } from "@/lib/utils/logger"
 
 export interface UsageMetrics {
   totalChats: number
@@ -112,7 +113,7 @@ export const useAnalyticsStore = create<AnalyticsState>((set, get) => ({
 
       set({ usageMetrics, loading: false })
     } catch (error) {
-      console.error("Error loading usage metrics:", error)
+      logger.error("Error loading usage metrics", error as Error, { component: "analytics-store" })
       set({ loading: false })
     }
   },
@@ -132,7 +133,7 @@ export const useAnalyticsStore = create<AnalyticsState>((set, get) => ({
 
       set({ performanceMetrics })
     } catch (error) {
-      console.error("Error loading performance metrics:", error)
+      logger.error("Error loading performance metrics", error as Error, { component: "analytics-store" })
     }
   },
 
@@ -150,7 +151,7 @@ export const useAnalyticsStore = create<AnalyticsState>((set, get) => ({
 
       set({ userActivity })
     } catch (error) {
-      console.error("Error loading user activity:", error)
+      logger.error("Error loading user activity", error as Error, { component: "analytics-store" })
     }
   },
 
@@ -195,14 +196,14 @@ export const useAnalyticsStore = create<AnalyticsState>((set, get) => ({
           throw new Error("Unsupported format")
       }
     } catch (error) {
-      console.error("Error exporting analytics:", error)
+      logger.error("Error exporting analytics", error as Error, { component: "analytics-store" })
       throw error
     }
   },
 
   startRealTimeMonitoring: () => {
     // Start real-time monitoring (would use WebSocket or Server-Sent Events)
-    console.log("Starting real-time monitoring...")
+    logger.info("Starting real-time monitoring", { component: "analytics-store" })
 
     const interval = setInterval(() => {
       get().loadPerformanceMetrics()
@@ -213,7 +214,7 @@ export const useAnalyticsStore = create<AnalyticsState>((set, get) => ({
   },
 
   stopRealTimeMonitoring: () => {
-    console.log("Stopping real-time monitoring...")
+    logger.info("Stopping real-time monitoring", { component: "analytics-store" })
 
     if ((window as any).monitoringInterval) {
       clearInterval((window as any).monitoringInterval)

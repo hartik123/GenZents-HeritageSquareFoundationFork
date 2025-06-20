@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Eye, EyeOff } from "lucide-react"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { supabase } from "@/lib/supabase/client"
+import { logger } from "@/lib/utils/logger"
 
 export default function ResetPasswordPage() {
   const searchParams = useSearchParams()
@@ -40,7 +41,7 @@ export default function ResetPasswordPage() {
           setStep("reset")
         }
       } catch (error) {
-        console.error("Session check error:", error)
+        logger.error("Session check error", error as Error, { component: "reset-password" })
       } finally {
         setIsVerifying(false)
       }
@@ -98,7 +99,7 @@ export default function ResetPasswordPage() {
         }, 2000)
       }
     } catch (error) {
-      console.error("Password reset error:", error)
+      logger.error("Password reset error", error as Error, { component: "reset-password" })
       setError("An error occurred while resetting your password. Please try again.")
     }
   }

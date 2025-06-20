@@ -29,6 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useSettings } from "@/hooks/settings-provider"
 import { useTheme } from "@/hooks/theme-provider"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { logger } from "@/lib/utils/logger"
 
 const settingsSections = [
   { id: "general", label: "General", icon: Settings },
@@ -52,7 +53,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
           const importedSettings = JSON.parse(e.target?.result as string)
           importSettings(importedSettings)
         } catch (error) {
-          console.error("Failed to import settings:", error)
+          logger.error("Failed to import settings", error as Error, { component: "settings-dialog" })
         }
       }
       reader.readAsText(file)
@@ -127,7 +128,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                             )
                           ) {
                             // Call your logout from all devices function here
-                            console.log("Logging out from all devices...")
+                            logger.info("Logging out from all devices", { component: "settings-dialog" })
                             // This would typically invalidate all sessions
                           }
                         }}
@@ -150,7 +151,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                           )
                           if (confirmation === "DELETE") {
                             // Call your delete account function here
-                            console.log("Deleting account...")
+                            logger.info("Deleting account", { component: "settings-dialog" })
                             // This would typically delete all user data and sessions
                           } else if (confirmation !== null) {
                             alert("Account deletion cancelled. Please type 'DELETE' exactly to confirm.")
@@ -451,7 +452,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                                   if (confirm("Are you sure you want to disconnect Google Drive?")) {
                                     updateSetting("googleDriveConnected", false)
                                     updateSetting("googleDriveEmail", "")
-                                    console.log("Disconnecting Google Drive...")
+                                    logger.info("Disconnecting Google Drive", { component: "settings-dialog" })
                                   }
                                 }}
                               >
@@ -462,7 +463,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                             <Button
                               onClick={() => {
                                 // This would typically open Google OAuth flow
-                                console.log("Connecting to Google Drive...")
+                                logger.info("Connecting to Google Drive", { component: "settings-dialog" })
                                 // Simulate connection for demo
                                 updateSetting("googleDriveConnected", true)
                                 updateSetting("googleDriveEmail", "user@gmail.com")

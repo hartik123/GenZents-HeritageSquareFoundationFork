@@ -3,6 +3,7 @@
 import type React from "react"
 import { createContext, useContext, useReducer, useCallback, useEffect } from "react"
 import { nanoid } from "nanoid"
+import { logger } from "@/lib/utils/logger"
 import type { Message, Attachment, ChatSession } from "@/lib/types/chat"
 
 // Helper function to create a proper message
@@ -283,7 +284,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         }))
         dispatch({ type: "LOAD_SESSIONS", payload: sessions })
       } catch (error) {
-        console.error("Failed to load sessions:", error)
+        logger.error("Failed to load sessions", error as Error, { component: "chat-provider" })
       }
     }
   }, [])
@@ -439,7 +440,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: "CREATE_SESSION", payload: { title: data.title } })
       }
     } catch (error) {
-      console.error("Failed to import chat:", error)
+      logger.error("Failed to import chat", error as Error, { component: "chat-provider" })
     }
   }, [])
 

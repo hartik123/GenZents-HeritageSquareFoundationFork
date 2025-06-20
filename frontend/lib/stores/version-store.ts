@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { createClient } from "@/lib/supabase/client"
+import { logger } from "@/lib/utils/logger"
 import type { Chat } from "@/lib/types/chat"
 import type { Version, VersionDiff } from "@/lib/types/version"
 
@@ -51,7 +52,7 @@ export const useVersionStore = create<VersionState>((set, get) => ({
 
       set({ versions: versions || [], loading: false })
     } catch (error) {
-      console.error("Error loading versions:", error)
+      logger.error("Error loading versions", error as Error, { component: "version-store", chatId })
       set({ loading: false })
     }
   },
@@ -106,7 +107,7 @@ export const useVersionStore = create<VersionState>((set, get) => ({
         versions: [version, ...state.versions],
       }))
     } catch (error) {
-      console.error("Error creating version:", error)
+      logger.error("Error creating version", error as Error, { component: "version-store", chatId, name })
       throw error
     }
   },
@@ -150,7 +151,7 @@ export const useVersionStore = create<VersionState>((set, get) => ({
       // Create a new version for the rollback
       await get().createVersion(chatData.id, `Rolled back to version ${version.version}`, ["rollback"])
     } catch (error) {
-      console.error("Error rolling back to version:", error)
+      logger.error("Error rolling back to version", error as Error, { component: "version-store", versionId })
       throw error
     }
   },
@@ -167,7 +168,7 @@ export const useVersionStore = create<VersionState>((set, get) => ({
         versions: state.versions.filter((v) => v.id !== versionId),
       }))
     } catch (error) {
-      console.error("Error deleting version:", error)
+      logger.error("Error deleting version", error as Error, { component: "version-store", versionId })
       throw error
     }
   },
@@ -196,7 +197,7 @@ export const useVersionStore = create<VersionState>((set, get) => ({
         branches: [...state.branches, branchName],
       }))
     } catch (error) {
-      console.error("Error creating branch:", error)
+      logger.error("Error creating branch", error as Error, { component: "version-store", versionId, branchName })
       throw error
     }
   },
@@ -204,7 +205,7 @@ export const useVersionStore = create<VersionState>((set, get) => ({
   mergeBranch: async (sourceBranch: string, targetBranch: string) => {
     try {
       // Placeholder for branch merging logic
-      console.log(`Merging ${sourceBranch} into ${targetBranch}`)
+      logger.info(`Merging ${sourceBranch} into ${targetBranch}`, { component: "version-store" })
 
       // In a real implementation, this would:
       // 1. Compare the branches
@@ -212,7 +213,7 @@ export const useVersionStore = create<VersionState>((set, get) => ({
       // 3. Create a merge commit
       // 4. Update the target branch
     } catch (error) {
-      console.error("Error merging branch:", error)
+      logger.error("Error merging branch", error as Error, { component: "version-store", sourceBranch, targetBranch })
       throw error
     }
   },
@@ -258,7 +259,7 @@ export const useVersionStore = create<VersionState>((set, get) => ({
 
       return diffs
     } catch (error) {
-      console.error("Error comparing versions:", error)
+      logger.error("Error comparing versions", error as Error, { component: "version-store", version1Id, version2Id })
       return []
     }
   },
@@ -270,7 +271,7 @@ export const useVersionStore = create<VersionState>((set, get) => ({
 
       return await get().compareVersions(version.parentVersion, versionId)
     } catch (error) {
-      console.error("Error getting version diff:", error)
+      logger.error("Error getting version diff", error as Error, { component: "version-store", versionId })
       return []
     }
   },
@@ -282,7 +283,7 @@ export const useVersionStore = create<VersionState>((set, get) => ({
 
       return JSON.stringify(version, null, 2)
     } catch (error) {
-      console.error("Error exporting version:", error)
+      logger.error("Error exporting version", error as Error, { component: "version-store", versionId })
       throw error
     }
   },
@@ -302,7 +303,7 @@ export const useVersionStore = create<VersionState>((set, get) => ({
 
       await get().loadVersions(version.chatId)
     } catch (error) {
-      console.error("Error importing version:", error)
+      logger.error("Error importing version", error as Error, { component: "version-store" })
       throw error
     }
   },

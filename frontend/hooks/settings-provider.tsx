@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { logger } from "@/lib/utils/logger"
 import type { Settings } from "@/lib/types/user"
 
 // Extend the centralized Settings interface with additional properties specific to this provider
@@ -120,7 +121,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       const storedSettings = localStorage.getItem("settings")
       return storedSettings ? { ...defaultSettings, ...JSON.parse(storedSettings) } : defaultSettings
     } catch (error) {
-      console.error("Error parsing stored settings:", error)
+      logger.error("Error parsing stored settings", error as Error, { component: "settings-provider" })
       return defaultSettings
     }
   })

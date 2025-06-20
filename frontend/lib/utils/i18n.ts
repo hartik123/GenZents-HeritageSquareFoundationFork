@@ -1,4 +1,5 @@
 import type { TranslationDictionary } from "@/lib/types"
+import { logger } from "./logger"
 
 const translations: TranslationDictionary = {
   en: {
@@ -488,7 +489,7 @@ export const setLanguage = (lang: string): void => {
   if (translations[lang]) {
     currentLanguage = lang
   } else {
-    console.warn(`Language ${lang} not supported, falling back to English`)
+    logger.warn(`Language ${lang} not supported, falling back to English`, { component: "i18n", lang })
     currentLanguage = "en"
   }
 }

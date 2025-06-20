@@ -3,6 +3,7 @@ from typing import List, Optional
 from storage.database import supabase, get_current_user
 from models.chat import ChatCreate, ChatResponse, ChatUpdate
 from models.user import User
+from utils.logger import logger
 import uuid
 from datetime import datetime
 
@@ -53,12 +54,12 @@ async def create_chat(
             "shared": False,
             "version": 1,
             "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
-        }
+            "updated_at": datetime.utcnow().isoformat()        }
         
         response = supabase.table("chats").insert(chat_data).execute()
         return response.data[0]
     except Exception as e:
+        logger.error(f"Error creating chat: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{chat_id}", response_model=ChatResponse)
@@ -127,60 +128,6 @@ async def delete_chat(
             raise HTTPException(status_code=404, detail="Chat not found")
             
         return {"message": "Chat deleted successfully"}
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/{chat_id}/archive")
-async def archive_chat(
-    chat_id: str,
-    current_user: User = Depends(get_current_user)
-):
-    """Archive/unarchive a chat"""
-    try:
-        # Get current chat
-        chat_response = supabase.table("chats").select("archived").eq("id", chat_id).eq("user_id", current_user.id).execute()
-        
-        if not chat_response.data:
-            raise HTTPException(status_code=404, detail="Chat not found")
-            
-        current_archived = chat_response.data[0]["archived"]
-        
-        # Toggle archived status
-        response = supabase.table("chats").update({
-            "archived": not current_archived,
-            "updated_at": datetime.utcnow().isoformat()
-        }).eq("id", chat_id).eq("user_id", current_user.id).execute()
-        
-        return {"message": "Chat archived" if not current_archived else "Chat unarchived"}
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/{chat_id}/bookmark")
-async def bookmark_chat(
-    chat_id: str,
-    current_user: User = Depends(get_current_user)
-):
-    """Bookmark/unbookmark a chat"""
-    try:
-        # Get current chat
-        chat_response = supabase.table("chats").select("bookmarked").eq("id", chat_id).eq("user_id", current_user.id).execute()
-        
-        if not chat_response.data:
-            raise HTTPException(status_code=404, detail="Chat not found")
-            
-        current_bookmarked = chat_response.data[0]["bookmarked"]
-        
-        # Toggle bookmarked status
-        response = supabase.table("chats").update({
-            "bookmarked": not current_bookmarked,
-            "updated_at": datetime.utcnow().isoformat()
-        }).eq("id", chat_id).eq("user_id", current_user.id).execute()
-        
-        return {"message": "Chat bookmarked" if not current_bookmarked else "Chat unbookmarked"}
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e

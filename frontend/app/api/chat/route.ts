@@ -1,12 +1,12 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { getSupabaseClient } from "@/lib/supabase/server"
+import { logger } from "@/lib/utils/logger"
 import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient()
+    const supabase = getSupabaseClient()
     const { message, chatId } = await request.json()
 
-    // Get the current user
     const {
       data: { user },
       error: authError,
@@ -16,35 +16,52 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Save user message
-    const { error: messageError } = await supabase.from("messages").insert({
-      chat_id: chatId,
-      role: "user",
-      content: message,
-    })
+    // Get the session token
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
 
-    if (messageError) {
-      return NextResponse.json({ error: "Failed to save message" }, { status: 500 })
+    if (!token) {
+      return NextResponse.json({ error: "No session token" }, { status: 401 })
     }
 
-    // Here you would integrate with your AI service (OpenAI, Anthropic, etc.)
-    // For now, we'll return a mock response
-    const aiResponse = "This is a simulated AI response. In a real implementation, this would call your AI service."
-
-    // Save AI response
-    const { error: aiMessageError } = await supabase.from("messages").insert({
-      chat_id: chatId,
-      role: "assistant",
-      content: aiResponse,
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000"
+    const res = await fetch(`${backendUrl}/api/messages/chat/${chatId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        role: "user",
+        content: message,
+      }),
     })
 
-    if (aiMessageError) {
-      return NextResponse.json({ error: "Failed to save AI response" }, { status: 500 })
+    if (!res.ok) {
+      const errorText = await res.text()
+      let errorData
+      try {
+        errorData = JSON.parse(errorText)
+      } catch {
+        errorData = { detail: errorText }
+      }
+      return NextResponse.json(
+        {
+          error: errorData.detail || "Failed to process message",
+        },
+        { status: res.status }
+      )
     }
 
-    return NextResponse.json({ response: aiResponse })
+    const data = await res.json()
+    return NextResponse.json(data)
   } catch (error) {
-    console.error("Chat API error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    logger.error("Chat API error", error as Error, { component: "chat-api" })
+    return NextResponse.json(
+      {
+        error: "Internal server error",
+      },
+      { status: 500 }
+    )
   }
 }

@@ -16,20 +16,27 @@ class Settings:
     # Server Settings
     HOST: str = os.getenv("HOST", "0.0.0.0")
     PORT: int = int(os.getenv("PORT", "8000"))
-    DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
+    DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"    # Google Generative AI
+    GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
+      # Google Drive Configuration
+    GOOGLE_CREDENTIALS_PATH: str = os.getenv("GOOGLE_CREDENTIALS_PATH", "credentials.json")
+    GOOGLE_TOKEN_PATH: str = os.getenv("GOOGLE_TOKEN_PATH", "token.json")
     
     @classmethod
     def validate(cls, raise_on_missing: bool = True):
         """Validate required environment variables"""
-        required_vars = ["SUPABASE_URL", "SUPABASE_ANON_KEY"]
+        from utils.logger import logger
+        
+        required_vars = ["SUPABASE_URL", "SUPABASE_ANON_KEY", "GOOGLE_API_KEY"]
         missing_vars = [var for var in required_vars if not getattr(cls, var)]
         
         if missing_vars:
             error_msg = f"Missing required environment variables: {', '.join(missing_vars)}"
-            print(f"Warning: {error_msg}")
-            print("Please create a .env file with your Supabase credentials:")
-            print("SUPABASE_URL=your_supabase_project_url")
-            print("SUPABASE_ANON_KEY=your_supabase_anon_key")
+            logger.warning(error_msg)
+            logger.info("Please create a .env file with your Supabase credentials:")
+            logger.info("SUPABASE_URL=your_supabase_project_url")
+            logger.info("SUPABASE_ANON_KEY=your_supabase_anon_key")
+            logger.info("GOOGLE_API_KEY=your_google_api_key")
             
             if raise_on_missing:
                 raise ValueError(error_msg)

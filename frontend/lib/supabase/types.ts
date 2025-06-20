@@ -10,14 +10,14 @@ export interface Database {
           avatar_url: string | null
           created_at: string
           updated_at: string
-          theme: 'light' | 'dark' | 'system'
+          theme: "light" | "dark" | "system"
           language: string
           timezone: string
-          subscription_plan: 'free' | 'pro' | 'enterprise'
+          subscription_plan: "free" | "pro" | "enterprise"
           subscription_features: string[]
           billing_amount: number
           billing_currency: string
-          billing_interval: 'monthly' | 'yearly' | null
+          billing_interval: "monthly" | "yearly" | null
           next_billing: string | null
           messages_per_day: number
           tokens_per_month: number
@@ -35,14 +35,14 @@ export interface Database {
           email: string
           full_name?: string | null
           avatar_url?: string | null
-          theme?: 'light' | 'dark' | 'system'
+          theme?: "light" | "dark" | "system"
           language?: string
           timezone?: string
-          subscription_plan?: 'free' | 'pro' | 'enterprise'
+          subscription_plan?: "free" | "pro" | "enterprise"
           subscription_features?: string[]
           billing_amount?: number
           billing_currency?: string
-          billing_interval?: 'monthly' | 'yearly' | null
+          billing_interval?: "monthly" | "yearly" | null
           next_billing?: string | null
           messages_per_day?: number
           tokens_per_month?: number
@@ -60,14 +60,14 @@ export interface Database {
           email?: string
           full_name?: string | null
           avatar_url?: string | null
-          theme?: 'light' | 'dark' | 'system'
+          theme?: "light" | "dark" | "system"
           language?: string
           timezone?: string
-          subscription_plan?: 'free' | 'pro' | 'enterprise'
+          subscription_plan?: "free" | "pro" | "enterprise"
           subscription_features?: string[]
           billing_amount?: number
           billing_currency?: string
-          billing_interval?: 'monthly' | 'yearly' | null
+          billing_interval?: "monthly" | "yearly" | null
           next_billing?: string | null
           messages_per_day?: number
           tokens_per_month?: number
@@ -92,23 +92,23 @@ export interface Database {
           sound_notifications: boolean
           mention_notifications: boolean
           reply_notifications: boolean
-          profile_visibility: 'public' | 'private' | 'friends'
+          profile_visibility: "public" | "private" | "friends"
           data_sharing: boolean
           analytics: boolean
           marketing: boolean
           high_contrast: boolean
           reduced_motion: boolean
           screen_reader: boolean
-          font_size: 'small' | 'medium' | 'large' | 'xl'
+          font_size: "small" | "medium" | "large" | "xl"
           keyboard_navigation: boolean
           default_model: string
           temperature: number
           system_prompt: string
           max_tokens: number
           custom_instructions: string
-          communication_style: 'professional' | 'casual' | 'friendly' | 'balanced' | 'technical'
-          response_length: 'concise' | 'balanced' | 'detailed' | 'comprehensive'
-          expertise_level: 'beginner' | 'intermediate' | 'advanced' | 'expert'
+          communication_style: "professional" | "casual" | "friendly" | "balanced" | "technical"
+          response_length: "concise" | "balanced" | "detailed" | "comprehensive"
+          expertise_level: "beginner" | "intermediate" | "advanced" | "expert"
           show_timestamps: boolean
           show_word_count: boolean
           show_model_info: boolean
@@ -131,23 +131,23 @@ export interface Database {
           sound_notifications?: boolean
           mention_notifications?: boolean
           reply_notifications?: boolean
-          profile_visibility?: 'public' | 'private' | 'friends'
+          profile_visibility?: "public" | "private" | "friends"
           data_sharing?: boolean
           analytics?: boolean
           marketing?: boolean
           high_contrast?: boolean
           reduced_motion?: boolean
           screen_reader?: boolean
-          font_size?: 'small' | 'medium' | 'large' | 'xl'
+          font_size?: "small" | "medium" | "large" | "xl"
           keyboard_navigation?: boolean
           default_model?: string
           temperature?: number
           system_prompt?: string
           max_tokens?: number
           custom_instructions?: string
-          communication_style?: 'professional' | 'casual' | 'friendly' | 'balanced' | 'technical'
-          response_length?: 'concise' | 'balanced' | 'detailed' | 'comprehensive'
-          expertise_level?: 'beginner' | 'intermediate' | 'advanced' | 'expert'
+          communication_style?: "professional" | "casual" | "friendly" | "balanced" | "technical"
+          response_length?: "concise" | "balanced" | "detailed" | "comprehensive"
+          expertise_level?: "beginner" | "intermediate" | "advanced" | "expert"
           show_timestamps?: boolean
           show_word_count?: boolean
           show_model_info?: boolean
@@ -168,23 +168,23 @@ export interface Database {
           sound_notifications?: boolean
           mention_notifications?: boolean
           reply_notifications?: boolean
-          profile_visibility?: 'public' | 'private' | 'friends'
+          profile_visibility?: "public" | "private" | "friends"
           data_sharing?: boolean
           analytics?: boolean
           marketing?: boolean
           high_contrast?: boolean
           reduced_motion?: boolean
           screen_reader?: boolean
-          font_size?: 'small' | 'medium' | 'large' | 'xl'
+          font_size?: "small" | "medium" | "large" | "xl"
           keyboard_navigation?: boolean
           default_model?: string
           temperature?: number
           system_prompt?: string
           max_tokens?: number
           custom_instructions?: string
-          communication_style?: 'professional' | 'casual' | 'friendly' | 'balanced' | 'technical'
-          response_length?: 'concise' | 'balanced' | 'detailed' | 'comprehensive'
-          expertise_level?: 'beginner' | 'intermediate' | 'advanced' | 'expert'
+          communication_style?: "professional" | "casual" | "friendly" | "balanced" | "technical"
+          response_length?: "concise" | "balanced" | "detailed" | "comprehensive"
+          expertise_level?: "beginner" | "intermediate" | "advanced" | "expert"
           show_timestamps?: boolean
           show_word_count?: boolean
           show_model_info?: boolean
@@ -204,11 +204,11 @@ export interface Database {
           id: string
           name: string
           provider: string
-          type: 'text' | 'image' | 'audio' | 'video' | 'multimodal'
+          type: "text" | "image" | "audio" | "video" | "multimodal"
           capabilities: any
           pricing: any
           limits: any
-          status: 'active' | 'deprecated' | 'beta'
+          status: "active" | "deprecated" | "beta"
           description: string | null
           created_at: string
           updated_at: string
@@ -216,21 +216,21 @@ export interface Database {
         Insert: {
           name: string
           provider: string
-          type: 'text' | 'image' | 'audio' | 'video' | 'multimodal'
+          type: "text" | "image" | "audio" | "video" | "multimodal"
           capabilities?: any
           pricing?: any
           limits?: any
-          status?: 'active' | 'deprecated' | 'beta'
+          status?: "active" | "deprecated" | "beta"
           description?: string | null
         }
         Update: {
           name?: string
           provider?: string
-          type?: 'text' | 'image' | 'audio' | 'video' | 'multimodal'
+          type?: "text" | "image" | "audio" | "video" | "multimodal"
           capabilities?: any
           pricing?: any
           limits?: any
-          status?: 'active' | 'deprecated' | 'beta'
+          status?: "active" | "deprecated" | "beta"
           description?: string | null
           updated_at?: string
         }
@@ -242,8 +242,8 @@ export interface Database {
           description: string | null
           user_id: string
           category: string
-          status: 'active' | 'archived' | 'deleted'
-          visibility: 'private' | 'shared' | 'public'
+          status: "active" | "archived" | "deleted"
+          visibility: "private" | "shared" | "public"
           is_template: boolean
           bookmarked: boolean
           archived: boolean
@@ -276,8 +276,8 @@ export interface Database {
           description?: string | null
           user_id: string
           category?: string
-          status?: 'active' | 'archived' | 'deleted'
-          visibility?: 'private' | 'shared' | 'public'
+          status?: "active" | "archived" | "deleted"
+          visibility?: "private" | "shared" | "public"
           is_template?: boolean
           bookmarked?: boolean
           archived?: boolean
@@ -308,8 +308,8 @@ export interface Database {
           description?: string | null
           user_id?: string
           category?: string
-          status?: 'active' | 'archived' | 'deleted'
-          visibility?: 'private' | 'shared' | 'public'
+          status?: "active" | "archived" | "deleted"
+          visibility?: "private" | "shared" | "public"
           is_template?: boolean
           bookmarked?: boolean
           archived?: boolean
@@ -342,7 +342,7 @@ export interface Database {
           id: string
           chat_id: string
           user_id: string | null
-          role: 'user' | 'assistant' | 'system' | 'function'
+          role: "user" | "assistant" | "system" | "function"
           content: string
           edited: boolean
           deleted: boolean
@@ -353,7 +353,7 @@ export interface Database {
           read: boolean
           error_message: string | null
           retries: number
-          status: 'sending' | 'sent' | 'delivered' | 'read' | 'error'
+          status: "sending" | "sent" | "delivered" | "read" | "error"
           encrypted: boolean
           algorithm: string | null
           key_id: string | null
@@ -363,7 +363,7 @@ export interface Database {
           processing_time: number | null
           confidence: number | null
           language: string | null
-          sentiment: 'positive' | 'negative' | 'neutral' | null
+          sentiment: "positive" | "negative" | "neutral" | null
           topics: string[]
           created_at: string
           updated_at: string
@@ -371,7 +371,7 @@ export interface Database {
         Insert: {
           chat_id: string
           user_id?: string | null
-          role: 'user' | 'assistant' | 'system' | 'function'
+          role: "user" | "assistant" | "system" | "function"
           content: string
           edited?: boolean
           deleted?: boolean
@@ -382,7 +382,7 @@ export interface Database {
           read?: boolean
           error_message?: string | null
           retries?: number
-          status?: 'sending' | 'sent' | 'delivered' | 'read' | 'error'
+          status?: "sending" | "sent" | "delivered" | "read" | "error"
           encrypted?: boolean
           algorithm?: string | null
           key_id?: string | null
@@ -392,13 +392,13 @@ export interface Database {
           processing_time?: number | null
           confidence?: number | null
           language?: string | null
-          sentiment?: 'positive' | 'negative' | 'neutral' | null
+          sentiment?: "positive" | "negative" | "neutral" | null
           topics?: string[]
         }
         Update: {
           chat_id?: string
           user_id?: string | null
-          role?: 'user' | 'assistant' | 'system' | 'function'
+          role?: "user" | "assistant" | "system" | "function"
           content?: string
           edited?: boolean
           deleted?: boolean
@@ -409,7 +409,7 @@ export interface Database {
           read?: boolean
           error_message?: string | null
           retries?: number
-          status?: 'sending' | 'sent' | 'delivered' | 'read' | 'error'
+          status?: "sending" | "sent" | "delivered" | "read" | "error"
           encrypted?: boolean
           algorithm?: string | null
           key_id?: string | null
@@ -419,7 +419,7 @@ export interface Database {
           processing_time?: number | null
           confidence?: number | null
           language?: string | null
-          sentiment?: 'positive' | 'negative' | 'neutral' | null
+          sentiment?: "positive" | "negative" | "neutral" | null
           topics?: string[]
           updated_at?: string
         }
@@ -430,9 +430,9 @@ export interface Database {
           chat_id: string
           user_id: string
           email: string | null
-          role: 'owner' | 'editor' | 'viewer' | 'commenter'
+          role: "owner" | "editor" | "viewer" | "commenter"
           permissions: any
-          status: 'pending' | 'active' | 'inactive' | 'online' | 'offline' | 'away'
+          status: "pending" | "active" | "inactive" | "online" | "offline" | "away"
           invited_at: string
           accepted_at: string | null
           last_seen: string | null
@@ -443,9 +443,9 @@ export interface Database {
           chat_id: string
           user_id: string
           email?: string | null
-          role: 'owner' | 'editor' | 'viewer' | 'commenter'
+          role: "owner" | "editor" | "viewer" | "commenter"
           permissions?: any
-          status?: 'pending' | 'active' | 'inactive' | 'online' | 'offline' | 'away'
+          status?: "pending" | "active" | "inactive" | "online" | "offline" | "away"
           invited_at?: string
           accepted_at?: string | null
           last_seen?: string | null
@@ -455,9 +455,9 @@ export interface Database {
           chat_id?: string
           user_id?: string
           email?: string | null
-          role?: 'owner' | 'editor' | 'viewer' | 'commenter'
+          role?: "owner" | "editor" | "viewer" | "commenter"
           permissions?: any
-          status?: 'pending' | 'active' | 'inactive' | 'online' | 'offline' | 'away'
+          status?: "pending" | "active" | "inactive" | "online" | "offline" | "away"
           invited_at?: string
           accepted_at?: string | null
           last_seen?: string | null
@@ -563,7 +563,7 @@ export interface Database {
           user_id: string
           start_pos: number
           end_pos: number
-          type: 'user' | 'channel' | 'file' | 'url'
+          type: "user" | "channel" | "file" | "url"
           created_at: string
         }
         Insert: {
@@ -571,14 +571,14 @@ export interface Database {
           user_id: string
           start_pos: number
           end_pos: number
-          type: 'user' | 'channel' | 'file' | 'url'
+          type: "user" | "channel" | "file" | "url"
         }
         Update: {
           message_id?: string
           user_id?: string
           start_pos?: number
           end_pos?: number
-          type?: 'user' | 'channel' | 'file' | 'url'
+          type?: "user" | "channel" | "file" | "url"
         }
       }
       chat_versions: {
@@ -735,32 +735,32 @@ export interface Database {
           id: string
           chat_id: string
           email: string
-          role: 'owner' | 'editor' | 'viewer' | 'commenter'
+          role: "owner" | "editor" | "viewer" | "commenter"
           permissions: any
           invited_by: string
           token: string
-          status: 'pending' | 'accepted' | 'rejected' | 'expired'
+          status: "pending" | "accepted" | "rejected" | "expired"
           expires_at: string
           created_at: string
         }
         Insert: {
           chat_id: string
           email: string
-          role: 'owner' | 'editor' | 'viewer' | 'commenter'
+          role: "owner" | "editor" | "viewer" | "commenter"
           permissions?: any
           invited_by: string
           token?: string
-          status?: 'pending' | 'accepted' | 'rejected' | 'expired'
+          status?: "pending" | "accepted" | "rejected" | "expired"
           expires_at: string
         }
         Update: {
           chat_id?: string
           email?: string
-          role?: 'owner' | 'editor' | 'viewer' | 'commenter'
+          role?: "owner" | "editor" | "viewer" | "commenter"
           permissions?: any
           invited_by?: string
           token?: string
-          status?: 'pending' | 'accepted' | 'rejected' | 'expired'
+          status?: "pending" | "accepted" | "rejected" | "expired"
           expires_at?: string
         }
       }

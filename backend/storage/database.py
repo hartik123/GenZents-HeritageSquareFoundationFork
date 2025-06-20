@@ -3,19 +3,20 @@ from fastapi import HTTPException, Depends, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from models.user import User
 from config import settings
+from utils.logger import logger
 
 # Initialize clients
 supabase: Client = None
 if settings.is_configured:
     try:
         supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
-        print("✅ Supabase client initialized successfully")
+        logger.info("Supabase client initialized successfully")
     except Exception as e:
-        print(f"❌ Failed to initialize Supabase client: {e}")
-        print("Please check your SUPABASE_URL and SUPABASE_ANON_KEY in .env file")
+        logger.error(f"Failed to initialize Supabase client: {e}")
+        logger.error("Please check your SUPABASE_URL and SUPABASE_ANON_KEY in .env file")
         supabase = None
 else:
-    print("⚠️  Supabase not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY in .env file")
+    logger.warning("Supabase not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY in .env file")
 
 security = HTTPBearer()
 
@@ -39,6 +40,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
                 detail="Invalid authentication credentials"
             )
     except Exception as e:
+        logger.error("Authentication failed: Invalid credentials")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials"

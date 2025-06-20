@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CheckCircle, XCircle, Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
+import { logger } from "@/lib/utils/logger"
 
 export default function ConfirmAccountPage() {
   const params = useParams()
@@ -58,7 +59,7 @@ export default function ConfirmAccountPage() {
           }, 1000)
         }
       } catch (error: any) {
-        console.error("Confirmation error:", error)
+        logger.error("Confirmation error", error as Error, { component: "confirm-account" })
         setStatus("error")
 
         if (error.message?.includes("Token has expired")) {

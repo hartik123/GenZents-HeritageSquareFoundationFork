@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useChatStore } from "@/lib/stores/chat-store"
+import { logger } from "@/lib/utils/logger"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -62,6 +63,7 @@ export function ChatInput() {
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   const {
     sendMessage,
+    sendMessageStream,
     isStreaming,
     getCurrentChat,
     attachments,
@@ -92,7 +94,8 @@ export function ChatInput() {
     setInput("")
 
     try {
-      const chatId = await sendMessage(messageContent, currentChat?.id)
+      // Use streaming for better user experience
+      const chatId = await sendMessageStream(messageContent, currentChat?.id)
 
       // If this was a new chat (no currentChat), navigate to the newly created chat
       if (wasNewChat && chatId) {
@@ -100,14 +103,14 @@ export function ChatInput() {
         router.push(`/chat/${chatId}`)
       }
     } catch (error) {
-      console.error("Error sending message:", error)
+      logger.error("Error sending message", error as Error, { component: "chat-input" })
       toast({
         title: "Error sending message",
         description: "Failed to send message. Please try again.",
         variant: "destructive",
       })
     }
-  }, [input, attachments, isStreaming, sendMessage, currentChat, selectChat, router, toast])
+  }, [input, attachments, isStreaming, sendMessageStream, currentChat, selectChat, router, toast])
 
   // Handle keyboard shortcuts
   React.useEffect(() => {
@@ -297,7 +300,7 @@ export function ChatInput() {
     }
 
     recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error)
+      logger.error("Speech recognition error", undefined, { component: "chat-input", error: event.error })
       setIsRecording(false)
       toast({
         title: "Speech recognition error",
