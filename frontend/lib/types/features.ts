@@ -87,20 +87,3 @@ export interface UploadOptions {
   virusScan?: boolean
   encrypt?: boolean
 }
-
-// Types for plugin system
-export interface PluginAPI {
-  // Core API methods available to plugins
-  sendMessage: (content: string, options?: any) => Promise<void>
-  getCurrentChat: () => any
-  getUser: () => any
-  showNotification: (message: string, type?: "info" | "success" | "warning" | "error") => void
-  registerCommand: (name: string, handler: Function) => void
-  registerShortcut: (keys: string[], handler: Function) => void
-  addMenuItem: (menu: string, item: any) => void
-  storage: {
-    get: (key: string) => Promise<any>
-    set: (key: string, value: any) => Promise<void>
-    remove: (key: string) => Promise<void>
-  }
-}

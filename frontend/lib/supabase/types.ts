@@ -22,12 +22,10 @@ export interface Database {
           messages_per_day: number
           tokens_per_month: number
           file_uploads: number
-          collaborators: number
           custom_models: number
           messages_count: number
           tokens_used: number
           files_uploaded: number
-          collaborations: number
           last_active: string
         }
         Insert: {
@@ -47,12 +45,10 @@ export interface Database {
           messages_per_day?: number
           tokens_per_month?: number
           file_uploads?: number
-          collaborators?: number
           custom_models?: number
           messages_count?: number
           tokens_used?: number
           files_uploaded?: number
-          collaborations?: number
           last_active?: string
         }
         Update: {
@@ -72,12 +68,10 @@ export interface Database {
           messages_per_day?: number
           tokens_per_month?: number
           file_uploads?: number
-          collaborators?: number
           custom_models?: number
           messages_count?: number
           tokens_used?: number
           files_uploaded?: number
-          collaborations?: number
           last_active?: string
           updated_at?: string
         }
@@ -424,46 +418,6 @@ export interface Database {
           updated_at?: string
         }
       }
-      collaborators: {
-        Row: {
-          id: string
-          chat_id: string
-          user_id: string
-          email: string | null
-          role: "owner" | "editor" | "viewer" | "commenter"
-          permissions: any
-          status: "pending" | "active" | "inactive" | "online" | "offline" | "away"
-          invited_at: string
-          accepted_at: string | null
-          last_seen: string | null
-          cursor_position: any | null
-          created_at: string
-        }
-        Insert: {
-          chat_id: string
-          user_id: string
-          email?: string | null
-          role: "owner" | "editor" | "viewer" | "commenter"
-          permissions?: any
-          status?: "pending" | "active" | "inactive" | "online" | "offline" | "away"
-          invited_at?: string
-          accepted_at?: string | null
-          last_seen?: string | null
-          cursor_position?: any | null
-        }
-        Update: {
-          chat_id?: string
-          user_id?: string
-          email?: string | null
-          role?: "owner" | "editor" | "viewer" | "commenter"
-          permissions?: any
-          status?: "pending" | "active" | "inactive" | "online" | "offline" | "away"
-          invited_at?: string
-          accepted_at?: string | null
-          last_seen?: string | null
-          cursor_position?: any | null
-        }
-      }
       attachments: {
         Row: {
           id: string
@@ -762,64 +716,6 @@ export interface Database {
           token?: string
           status?: "pending" | "accepted" | "rejected" | "expired"
           expires_at?: string
-        }
-      }
-      plugins: {
-        Row: {
-          id: string
-          name: string
-          description: string | null
-          version: string
-          author: string | null
-          category: string | null
-          permissions: string[]
-          settings: any
-          enabled: boolean
-          installed_at: string
-          updated_at: string
-        }
-        Insert: {
-          name: string
-          description?: string | null
-          version: string
-          author?: string | null
-          category?: string | null
-          permissions?: string[]
-          settings?: any
-          enabled?: boolean
-        }
-        Update: {
-          name?: string
-          description?: string | null
-          version?: string
-          author?: string | null
-          category?: string | null
-          permissions?: string[]
-          settings?: any
-          enabled?: boolean
-          updated_at?: string
-        }
-      }
-      user_plugins: {
-        Row: {
-          id: string
-          user_id: string
-          plugin_id: string
-          enabled: boolean
-          settings: any
-          installed_at: string
-        }
-        Insert: {
-          user_id: string
-          plugin_id: string
-          enabled?: boolean
-          settings?: any
-        }
-        Update: {
-          user_id?: string
-          plugin_id?: string
-          enabled?: boolean
-          settings?: any
         }
       }
     }

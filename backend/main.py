@@ -1,3 +1,4 @@
+from api import chats, messages
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -15,7 +16,6 @@ from utils.logger import logger
 load_dotenv()
 
 # Import routers
-from api import chats, messages
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -27,13 +27,16 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL, "http://localhost:3000", "https://your-frontend-domain.com"],
+    allow_origins=[settings.FRONTEND_URL, "http://localhost:3000",
+                   "https://your-frontend-domain.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Health check endpoint
+
+
 @app.get("/")
 async def root():
     logger.info("Health check endpoint accessed")
@@ -45,4 +48,5 @@ app.include_router(messages.router)
 
 if __name__ == "__main__":
     logger.info(f"Starting Archyx AI API on {settings.HOST}:{settings.PORT}")
-    uvicorn.run("main:app", host=settings.HOST, port=settings.PORT, reload=settings.DEBUG)
+    uvicorn.run("main:app", host=settings.HOST,
+                port=settings.PORT, reload=settings.DEBUG)

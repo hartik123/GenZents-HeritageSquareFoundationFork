@@ -5,7 +5,6 @@ export interface Chat {
   created_at: string
   updated_at: string
   user_id: string
-  collaborators: Collaborator[]
   settings: ChatSettings
   metadata: ChatMetadata
   messages: Message[]
@@ -44,30 +43,8 @@ export interface ChatMetadata {
   totalTokens: number
   averageResponseTime: number
   lastActivity: string
-  participants: string[]
   language: string
   domain: string
-}
-
-export interface Collaborator {
-  id?: string
-  user_id: string
-  email?: string
-  name?: string
-  avatar?: string
-  role: "owner" | "editor" | "viewer" | "commenter"
-  permissions: Permission[]
-  invited_at: string
-  accepted_at?: string
-  status: "pending" | "active" | "inactive" | "online" | "offline" | "away"
-  lastSeen?: string
-  cursor?: { x: number; y: number }
-}
-
-export interface Permission {
-  action: string
-  resource: string
-  granted: boolean
 }
 
 export interface Message {

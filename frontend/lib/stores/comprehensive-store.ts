@@ -2,7 +2,7 @@ import { create } from "zustand"
 import { persist, subscribeWithSelector } from "zustand/middleware"
 import { supabase } from "@/lib/supabase/client"
 import { logger } from "@/lib/utils/logger"
-import type { Chat, Message, User, Workspace, Plugin, AIModel, Analytics, Integration } from "@/lib/types"
+import type { Chat, Message, User, Workspace, AIModel, Analytics, Integration } from "@/lib/types"
 
 interface ComprehensiveState {
   // Core Data
@@ -17,8 +17,6 @@ interface ComprehensiveState {
   availableModels: AIModel[]
   currentModel: AIModel | null
 
-  // Plugins & Extensions
-  plugins: Plugin[]
   integrations: Integration[]
 
   // Analytics & Monitoring
@@ -71,11 +69,6 @@ interface ComprehensiveState {
   searchChats: (query: string) => Promise<Chat[]>
   searchMessages: (query: string) => Promise<Message[]>
   getRecommendations: () => Promise<Chat[]>
-
-  // Plugin Management
-  installPlugin: (plugin: Plugin) => Promise<void>
-  uninstallPlugin: (id: string) => Promise<void>
-  configurePlugin: (id: string, config: any) => Promise<void>
 
   // Integration Management
   addIntegration: (integration: Integration) => Promise<void>
@@ -133,7 +126,6 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
         messages: [],
         availableModels: [],
         currentModel: null,
-        plugins: [],
         integrations: [],
         analytics: [],
         performance: {
@@ -481,57 +473,6 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
         getRecommendations: async () => {
           // Implement recommendation algorithm
           return []
-        },
-
-        // Plugin Management
-        installPlugin: async (plugin) => {
-          try {
-            const { error } = await supabase.from("user_plugins").insert({
-              user_id: get().user?.id,
-              plugin_id: plugin.id,
-              settings: plugin.settings,
-            })
-
-            if (error) throw error
-
-            set({ plugins: [...get().plugins, plugin] })
-          } catch (error) {
-            logger.error("Install plugin error", error as Error, { component: "comprehensive-store" })
-          }
-        },
-
-        uninstallPlugin: async (id) => {
-          try {
-            const { error } = await supabase
-              .from("user_plugins")
-              .delete()
-              .eq("plugin_id", id)
-              .eq("user_id", get().user?.id)
-
-            if (error) throw error
-
-            set({ plugins: get().plugins.filter((p) => p.id !== id) })
-          } catch (error) {
-            logger.error("Uninstall plugin error", error as Error, { component: "comprehensive-store" })
-          }
-        },
-
-        configurePlugin: async (id, config) => {
-          try {
-            const { error } = await supabase
-              .from("user_plugins")
-              .update({ settings: config })
-              .eq("plugin_id", id)
-              .eq("user_id", get().user?.id)
-
-            if (error) throw error
-
-            set({
-              plugins: get().plugins.map((p) => (p.id === id ? { ...p, settings: config } : p)),
-            })
-          } catch (error) {
-            logger.error("Configure plugin error", error as Error, { component: "comprehensive-store" })
-          }
         },
 
         // Integration Management

@@ -2,17 +2,20 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
+
 class ChatCreate(BaseModel):
     title: str = "New Chat"
     model: Optional[str] = None
     system_prompt: Optional[str] = None
     tags: Optional[List[str]] = []
 
+
 class ChatUpdate(BaseModel):
     title: Optional[str] = None
     model: Optional[str] = None
     system_prompt: Optional[str] = None
     tags: Optional[List[str]] = None
+
 
 class ChatResponse(BaseModel):
     id: str

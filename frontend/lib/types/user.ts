@@ -1,4 +1,4 @@
-import type { ShortcutCategory, KeyboardShortcut } from "./ui"
+import type { ShortcutCategory } from "./ui"
 
 export interface User {
   id: string
@@ -56,7 +56,6 @@ export interface UsageLimits {
   messagesPerDay: number
   tokensPerMonth: number
   fileUploads: number
-  collaborators: number
   customModels: number
 }
 
@@ -71,7 +70,6 @@ export interface UsageStats {
   messagesCount: number
   tokensUsed: number
   filesUploaded: number
-  collaborations: number
   lastActive: string
 }
 
@@ -114,17 +112,6 @@ export interface Settings {
   encryptMessages: boolean
   retentionDays: number
   allowTelemetry: boolean
-
-  // Developer settings
-  showDebugInfo: boolean
-  enableAdvancedFeatures: boolean
-  customCSS: string
-  apiEndpoint: string
-
-  // Collaboration
-  allowCollaboration: boolean
-  defaultPermissions: string
-  invitationMode: string
 
   // Shortcuts and productivity
   keyboardShortcuts: Record<string, string>

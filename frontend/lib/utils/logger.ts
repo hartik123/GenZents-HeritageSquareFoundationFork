@@ -13,7 +13,7 @@ interface LogContext {
 }
 
 class Logger {
-  private isDev = process.env.NODE_ENV === "development"
+  private isDev = process.env.NEXT_PUBLIC_NODE_ENV === "development"
   private isClient = typeof window !== "undefined"
 
   private formatMessage(level: LogLevel, message: string, context?: LogContext): string {

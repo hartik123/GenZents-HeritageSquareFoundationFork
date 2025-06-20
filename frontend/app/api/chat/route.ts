@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No session token" }, { status: 401 })
     }
 
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000"
+    const backendUrl = process.env.BACKEND_URL || "http://127.0.0.1:8000"
     const res = await fetch(`${backendUrl}/api/messages/chat/${chatId}`, {
       method: "POST",
       headers: {

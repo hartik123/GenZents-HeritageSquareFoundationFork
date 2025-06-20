@@ -1,6 +1,3 @@
--- Enable RLS
-ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
-
 -- Create profiles table (extended user information)
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
@@ -22,19 +19,16 @@ CREATE TABLE IF NOT EXISTS profiles (
   billing_currency TEXT DEFAULT 'USD',
   billing_interval TEXT CHECK (billing_interval IN ('monthly', 'yearly')),
   next_billing TIMESTAMPTZ,
-  
-  -- Usage limits
+    -- Usage limits
   messages_per_day INTEGER DEFAULT 50,
   tokens_per_month INTEGER DEFAULT 100000,
   file_uploads INTEGER DEFAULT 10,
-  collaborators INTEGER DEFAULT 5,
   custom_models INTEGER DEFAULT 0,
   
   -- Usage stats
   messages_count INTEGER DEFAULT 0,
   tokens_used INTEGER DEFAULT 0,
   files_uploaded INTEGER DEFAULT 0,
-  collaborations INTEGER DEFAULT 0,
   last_active TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -105,7 +99,8 @@ CREATE TABLE IF NOT EXISTS ai_models (
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'deprecated', 'beta')),
   description TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(name, provider)
 );
 
 -- Create chats table (enhanced)
@@ -133,13 +128,11 @@ CREATE TABLE IF NOT EXISTS chats (
   auto_save BOOLEAN DEFAULT true,
   encryption BOOLEAN DEFAULT false,
   retention_days INTEGER DEFAULT 30,
-  
-  -- Metadata
+    -- Metadata
   total_messages INTEGER DEFAULT 0,
   total_tokens INTEGER DEFAULT 0,
   average_response_time DECIMAL(10,3) DEFAULT 0,
   last_activity TIMESTAMPTZ DEFAULT NOW(),
-  participants TEXT[] DEFAULT '{}',
   language TEXT DEFAULT 'en',
   domain TEXT DEFAULT 'general',
   
@@ -188,26 +181,7 @@ CREATE TABLE IF NOT EXISTS messages (
   language TEXT,
   sentiment TEXT CHECK (sentiment IN ('positive', 'negative', 'neutral')),
   topics TEXT[] DEFAULT '{}',
-  
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Create collaborators table
-CREATE TABLE IF NOT EXISTS collaborators (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  chat_id UUID REFERENCES chats(id) ON DELETE CASCADE NOT NULL,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  email TEXT,
-  role TEXT NOT NULL CHECK (role IN ('owner', 'editor', 'viewer', 'commenter')),
-  permissions JSONB DEFAULT '[]',
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'inactive', 'online', 'offline', 'away')),
-  invited_at TIMESTAMPTZ DEFAULT NOW(),
-  accepted_at TIMESTAMPTZ,
-  last_seen TIMESTAMPTZ,
-  cursor_position JSONB,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(chat_id, user_id)
+  created_at TIMESTAMPTZ DEFAULT NOW(),  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Create attachments table
@@ -323,48 +297,7 @@ CREATE TABLE IF NOT EXISTS analytics (
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   session_id TEXT,
   event TEXT NOT NULL,
-  properties JSONB DEFAULT '{}',
-  timestamp TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Create chat_invitations table
-CREATE TABLE IF NOT EXISTS chat_invitations (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  chat_id UUID REFERENCES chats(id) ON DELETE CASCADE NOT NULL,
-  email TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('owner', 'editor', 'viewer', 'commenter')),
-  permissions JSONB DEFAULT '[]',
-  invited_by UUID REFERENCES auth.users(id) ON DELETE SET NULL NOT NULL,
-  token TEXT UNIQUE DEFAULT gen_random_uuid()::text,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected', 'expired')),
-  expires_at TIMESTAMPTZ NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Create plugins table
-CREATE TABLE IF NOT EXISTS plugins (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name TEXT NOT NULL,
-  description TEXT,
-  version TEXT NOT NULL,
-  author TEXT,
-  category TEXT,
-  permissions TEXT[] DEFAULT '{}',
-  settings JSONB DEFAULT '{}',
-  enabled BOOLEAN DEFAULT false,
-  installed_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Create user_plugins table (many-to-many relationship)
-CREATE TABLE IF NOT EXISTS user_plugins (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  plugin_id UUID REFERENCES plugins(id) ON DELETE CASCADE NOT NULL,
-  enabled BOOLEAN DEFAULT false,
-  settings JSONB DEFAULT '{}',
-  installed_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, plugin_id)
+  properties JSONB DEFAULT '{}',  timestamp TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Enable RLS on all tables
@@ -373,7 +306,6 @@ ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_models ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE collaborators ENABLE ROW LEVEL SECURITY;
 ALTER TABLE attachments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE mentions ENABLE ROW LEVEL SECURITY;
@@ -382,9 +314,6 @@ ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE context_files ENABLE ROW LEVEL SECURITY;
 ALTER TABLE share_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE analytics ENABLE ROW LEVEL SECURITY;
-ALTER TABLE chat_invitations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE plugins ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_plugins ENABLE ROW LEVEL SECURITY;
 
 -- Create comprehensive RLS policies
 
@@ -414,30 +343,13 @@ CREATE POLICY "Authenticated users can view AI models" ON ai_models
 
 -- Chats policies
 CREATE POLICY "Users can view own chats" ON chats
-  FOR SELECT USING (
-    auth.uid() = user_id OR 
-    EXISTS (
-      SELECT 1 FROM collaborators 
-      WHERE collaborators.chat_id = chats.id 
-      AND collaborators.user_id = auth.uid()
-      AND collaborators.status = 'active'
-    )
-  );
+  FOR SELECT USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can create own chats" ON chats
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update own chats or shared chats with edit permission" ON chats
-  FOR UPDATE USING (
-    auth.uid() = user_id OR 
-    EXISTS (
-      SELECT 1 FROM collaborators 
-      WHERE collaborators.chat_id = chats.id 
-      AND collaborators.user_id = auth.uid()
-      AND collaborators.role IN ('owner', 'editor')
-      AND collaborators.status = 'active'
-    )
-  );
+CREATE POLICY "Users can update own chats" ON chats
+  FOR UPDATE USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete own chats" ON chats
   FOR DELETE USING (auth.uid() = user_id);
@@ -448,15 +360,7 @@ CREATE POLICY "Users can view messages in accessible chats" ON messages
     EXISTS (
       SELECT 1 FROM chats 
       WHERE chats.id = messages.chat_id 
-      AND (
-        chats.user_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM collaborators 
-          WHERE collaborators.chat_id = chats.id 
-          AND collaborators.user_id = auth.uid()
-          AND collaborators.status = 'active'
-        )
-      )
+      AND chats.user_id = auth.uid()
     )
   );
 
@@ -465,64 +369,18 @@ CREATE POLICY "Users can create messages in accessible chats" ON messages
     EXISTS (
       SELECT 1 FROM chats 
       WHERE chats.id = messages.chat_id 
-      AND (
-        chats.user_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM collaborators 
-          WHERE collaborators.chat_id = chats.id 
-          AND collaborators.user_id = auth.uid()
-          AND collaborators.role IN ('owner', 'editor', 'commenter')
-          AND collaborators.status = 'active'
-        )
-      )
+      AND chats.user_id = auth.uid()
     )
   );
 
-CREATE POLICY "Users can update own messages or messages in editable chats" ON messages
+CREATE POLICY "Users can update own messages" ON messages
   FOR UPDATE USING (
     auth.uid() = user_id OR
     EXISTS (
       SELECT 1 FROM chats 
       WHERE chats.id = messages.chat_id 
-      AND (
-        chats.user_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM collaborators 
-          WHERE collaborators.chat_id = chats.id 
-          AND collaborators.user_id = auth.uid()
-          AND collaborators.role IN ('owner', 'editor')
-          AND collaborators.status = 'active'
-        )
-      )
-    )
-  );
-
--- Collaborators policies
-CREATE POLICY "Users can view collaborators of their chats" ON collaborators
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM chats 
-      WHERE chats.id = collaborators.chat_id 
-      AND (
-        chats.user_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM collaborators c2
-          WHERE c2.chat_id = chats.id 
-          AND c2.user_id = auth.uid()
-          AND c2.status = 'active'
-        )
-      )
-    )
-  );
-
-CREATE POLICY "Chat owners can manage collaborators" ON collaborators
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM chats 
-      WHERE chats.id = collaborators.chat_id 
       AND chats.user_id = auth.uid()
-    )
-  );
+    )  );
 
 -- Attachments policies
 CREATE POLICY "Users can view attachments in accessible chats/messages" ON attachments
@@ -531,28 +389,12 @@ CREATE POLICY "Users can view attachments in accessible chats/messages" ON attac
       SELECT 1 FROM messages m
       JOIN chats c ON c.id = m.chat_id
       WHERE m.id = attachments.message_id 
-      AND (
-        c.user_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM collaborators 
-          WHERE collaborators.chat_id = c.id 
-          AND collaborators.user_id = auth.uid()
-          AND collaborators.status = 'active'
-        )
-      )
+      AND c.user_id = auth.uid()
     )) OR
     (chat_id IS NOT NULL AND EXISTS (
       SELECT 1 FROM chats 
       WHERE chats.id = attachments.chat_id 
-      AND (
-        chats.user_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM collaborators 
-          WHERE collaborators.chat_id = chats.id 
-          AND collaborators.user_id = auth.uid()
-          AND collaborators.status = 'active'
-        )
-      )
+      AND chats.user_id = auth.uid()
     ))
   );
 
@@ -563,15 +405,7 @@ CREATE POLICY "Users can view reactions in accessible messages" ON reactions
       SELECT 1 FROM messages m
       JOIN chats c ON c.id = m.chat_id
       WHERE m.id = reactions.message_id 
-      AND (
-        c.user_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM collaborators 
-          WHERE collaborators.chat_id = c.id 
-          AND collaborators.user_id = auth.uid()
-          AND collaborators.status = 'active'
-        )
-      )
+      AND c.user_id = auth.uid()
     )
   );
 
@@ -585,25 +419,6 @@ CREATE POLICY "Users can view own analytics" ON analytics
 CREATE POLICY "System can insert analytics" ON analytics
   FOR INSERT WITH CHECK (true);
 
--- Invitations policies
-CREATE POLICY "Users can view invitations for their chats or invitations sent to them" ON chat_invitations
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM chats 
-      WHERE chats.id = chat_invitations.chat_id 
-      AND chats.user_id = auth.uid()
-    ) OR
-    chat_invitations.email = (SELECT email FROM auth.users WHERE id = auth.uid())::text
-  );
-
--- Plugins policies (read-only for authenticated users)
-CREATE POLICY "Authenticated users can view plugins" ON plugins
-  FOR SELECT USING (auth.role() = 'authenticated');
-
--- User plugins policies
-CREATE POLICY "Users can manage own plugin installations" ON user_plugins
-  FOR ALL USING (auth.uid() = user_id);
-
 -- Additional policies for other tables following similar patterns...
 CREATE POLICY "Users can view mentions in accessible messages" ON mentions
   FOR SELECT USING (
@@ -611,15 +426,7 @@ CREATE POLICY "Users can view mentions in accessible messages" ON mentions
       SELECT 1 FROM messages m
       JOIN chats c ON c.id = m.chat_id
       WHERE m.id = mentions.message_id 
-      AND (
-        c.user_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM collaborators 
-          WHERE collaborators.chat_id = c.id 
-          AND collaborators.user_id = auth.uid()
-          AND collaborators.status = 'active'
-        )
-      )
+      AND c.user_id = auth.uid()
     )
   );
 
@@ -628,15 +435,7 @@ CREATE POLICY "Users can view versions of accessible chats" ON chat_versions
     EXISTS (
       SELECT 1 FROM chats 
       WHERE chats.id = chat_versions.chat_id 
-      AND (
-        chats.user_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM collaborators 
-          WHERE collaborators.chat_id = chats.id 
-          AND collaborators.user_id = auth.uid()
-          AND collaborators.status = 'active'
-        )
-      )
+      AND chats.user_id = auth.uid()
     )
   );
 
@@ -646,15 +445,7 @@ CREATE POLICY "Users can view comments in accessible messages" ON comments
       SELECT 1 FROM messages m
       JOIN chats c ON c.id = m.chat_id
       WHERE m.id = comments.message_id 
-      AND (
-        c.user_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM collaborators 
-          WHERE collaborators.chat_id = c.id 
-          AND collaborators.user_id = auth.uid()
-          AND collaborators.status = 'active'
-        )
-      )
+      AND c.user_id = auth.uid()
     )
   );
 
@@ -663,15 +454,7 @@ CREATE POLICY "Users can view context files in accessible chats" ON context_file
     EXISTS (
       SELECT 1 FROM chats 
       WHERE chats.id = context_files.chat_id 
-      AND (
-        chats.user_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM collaborators 
-          WHERE collaborators.chat_id = chats.id 
-          AND collaborators.user_id = auth.uid()
-          AND collaborators.status = 'active'
-        )
-      )
+      AND chats.user_id = auth.uid()
     )
   );
 
@@ -744,10 +527,6 @@ CREATE TRIGGER update_share_settings_updated_at
   BEFORE UPDATE ON share_settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_plugins_updated_at
-  BEFORE UPDATE ON plugins
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
 -- Function to update chat metadata when messages are added
 CREATE OR REPLACE FUNCTION update_chat_metadata()
 RETURNS TRIGGER AS $$
@@ -816,10 +595,6 @@ CREATE INDEX IF NOT EXISTS idx_messages_role ON messages(role);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_messages_parent_id ON messages(parent_id);
 CREATE INDEX IF NOT EXISTS idx_messages_thread_id ON messages(thread_id);
-
-CREATE INDEX IF NOT EXISTS idx_collaborators_chat_id ON collaborators(chat_id);
-CREATE INDEX IF NOT EXISTS idx_collaborators_user_id ON collaborators(user_id);
-CREATE INDEX IF NOT EXISTS idx_collaborators_status ON collaborators(status);
 
 CREATE INDEX IF NOT EXISTS idx_attachments_message_id ON attachments(message_id);
 CREATE INDEX IF NOT EXISTS idx_attachments_chat_id ON attachments(chat_id);

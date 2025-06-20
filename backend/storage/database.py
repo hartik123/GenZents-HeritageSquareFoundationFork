@@ -9,25 +9,30 @@ from utils.logger import logger
 supabase: Client = None
 if settings.is_configured:
     try:
-        supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+        supabase = create_client(
+            settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
         logger.info("Supabase client initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize Supabase client: {e}")
-        logger.error("Please check your SUPABASE_URL and SUPABASE_ANON_KEY in .env file")
+        logger.error(
+            "Please check your SUPABASE_URL and SUPABASE_ANON_KEY in .env file")
         supabase = None
 else:
-    logger.warning("Supabase not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY in .env file")
+    logger.warning(
+        "Supabase not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY in .env file")
 
 security = HTTPBearer()
 
 # Dependency to get current user
+
+
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> User:
     if not supabase:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database service not configured"
         )
-    
+
     token = credentials.credentials
     try:
         # Verify JWT token with Supabase

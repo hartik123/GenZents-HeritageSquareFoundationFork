@@ -29,20 +29,3 @@ export interface ModelLimits {
   max_requests_per_day: number
   context_window: number
 }
-
-export interface Plugin {
-  id: string
-  name: string
-  description: string
-  version: string
-  author: string
-  category: string
-  permissions: string[]
-  settings: PluginSettings
-  enabled: boolean
-  installed_at: string
-}
-
-export interface PluginSettings {
-  [key: string]: any
-}
