@@ -352,7 +352,11 @@ export const useChatStore = create<ChatState>()(
           let targetChatId = chatId || get().currentChatId
 
           if (!targetChatId) {
+            logger.info("Creating new chat for message stream", { component: "chat-store" })
             targetChatId = await get().createChat()
+            
+            // Wait a moment for the chat to be fully created
+            await new Promise(resolve => setTimeout(resolve, 100))
           }
 
           set({ isStreaming: true })
@@ -459,6 +463,7 @@ export const useChatStore = create<ChatState>()(
 
           // Start streaming response
           try {
+            logger.info("Starting message stream", { component: "chat-store", chatId: targetChatId })
             const stream = await AIService.sendMessageStream(targetChatId, content)
 
             for await (const response of AIService.parseStreamingResponse(stream)) {
@@ -531,57 +536,63 @@ export const useChatStore = create<ChatState>()(
             }))
 
             // Fall back to regular message sending
-            const aiMessage = await AIService.sendMessage(targetChatId, content)
+            try {
+              const aiMessage = await AIService.sendMessage(targetChatId, content)
 
-            // Add the regular AI response
-            set((state) => ({
-              chats: state.chats.map((chat) =>
-                chat.id === targetChatId
-                  ? {
-                      ...chat,
-                      messages: [
-                        ...chat.messages,
-                        {
-                          id: aiMessage.id,
-                          chat_id: targetChatId,
-                          role: "assistant",
-                          content: aiMessage.content,
-                          created_at: aiMessage.created_at,
-                          edited: false,
-                          deleted: false,
-                          metadata: {
-                            model: "gemini-1.5-flash",
-                            tokens: undefined,
-                            cost: undefined,
-                            processingTime: undefined,
-                            confidence: undefined,
-                            sources: [],
-                            citations: [],
-                            language: undefined,
-                            sentiment: undefined,
-                            topics: [],
-                            entities: [],
+              // Add the regular AI response
+              set((state) => ({
+                chats: state.chats.map((chat) =>
+                  chat.id === targetChatId
+                    ? {
+                        ...chat,
+                        messages: [
+                          ...chat.messages,
+                          {
+                            id: aiMessage.id,
+                            chat_id: targetChatId,
+                            role: "assistant",
+                            content: aiMessage.content,
+                            created_at: aiMessage.created_at,
+                            edited: false,
+                            deleted: false,
+                            metadata: {
+                              model: "gemini-1.5-flash",
+                              tokens: undefined,
+                              cost: undefined,
+                              processingTime: undefined,
+                              confidence: undefined,
+                              sources: [],
+                              citations: [],
+                              language: undefined,
+                              sentiment: undefined,
+                              topics: [],
+                              entities: [],
+                            },
+                            attachments: [],
+                            reactions: [],
+                            mentions: [],
+                            status: {
+                              sent: true,
+                              delivered: true,
+                              read: false,
+                              retries: 0,
+                              status: "sent",
+                            },
+                            encryption: {
+                              encrypted: false,
+                            },
                           },
-                          attachments: [],
-                          reactions: [],
-                          mentions: [],
-                          status: {
-                            sent: true,
-                            delivered: true,
-                            read: false,
-                            retries: 0,
-                            status: "sent",
-                          },
-                          encryption: {
-                            encrypted: false,
-                          },
-                        },
-                      ],
-                    }
-                  : chat
-              ),
-              isStreaming: false,
-            }))
+                        ],
+                      }
+                    : chat
+                ),
+                isStreaming: false,
+              }))
+            } catch (fallbackError) {
+              logger.error("Both streaming and regular message failed", fallbackError as Error, { component: "chat-store", chatId: targetChatId })
+              set({ isStreaming: false })
+              throw fallbackError
+            }
           }
 
           return targetChatId

@@ -16,7 +16,7 @@ export interface StreamingResponse {
 }
 
 export class AIService {
-  private static baseURL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000"
+  private static baseURL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"
 
   static async getAuthToken(): Promise<string | null> {
     const supabase = createClient()
@@ -31,7 +31,10 @@ export class AIService {
       throw new Error("User not authenticated")
     }
 
-    const response = await fetch(`${this.baseURL}/api/messages/chat/${chatId}`, {
+    const url = `${this.baseURL}/api/messages/chat/${chatId}`
+    logger.info("Sending message", { component: "ai-service", url, chatId })
+
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -44,8 +47,20 @@ export class AIService {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.detail || "Failed to send message")
+      let errorDetail = "Failed to send message"
+      try {
+        const error = await response.json()
+        errorDetail = error.detail || errorDetail
+      } catch {
+        errorDetail = `HTTP ${response.status}: ${response.statusText}`
+      }
+      
+      if (response.status === 404) {
+        throw new Error("Chat not found")
+      }
+      
+      logger.error("Send message failed", new Error(errorDetail), { component: "ai-service", status: response.status })
+      throw new Error(errorDetail)
     }
 
     return response.json()
@@ -58,7 +73,10 @@ export class AIService {
       throw new Error("User not authenticated")
     }
 
-    const response = await fetch(`${this.baseURL}/api/chats/`, {
+    const url = `${this.baseURL}/api/chats/`
+    logger.info("Creating chat", { component: "ai-service", url, title })
+
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -71,11 +89,20 @@ export class AIService {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.detail || "Failed to create chat")
+      let errorDetail = "Failed to create chat"
+      try {
+        const error = await response.json()
+        errorDetail = error.detail || errorDetail
+      } catch {
+        errorDetail = `HTTP ${response.status}: ${response.statusText}`
+      }
+      
+      logger.error("Create chat failed", new Error(errorDetail), { component: "ai-service", status: response.status })
+      throw new Error(errorDetail)
     }
 
     const chat = await response.json()
+    logger.info("Chat created successfully", { component: "ai-service", chatId: chat.id })
     return chat.id
   }
 
@@ -86,7 +113,10 @@ export class AIService {
       throw new Error("User not authenticated")
     }
 
-    const response = await fetch(`${this.baseURL}/api/messages/chat/${chatId}/stream`, {
+    const url = `${this.baseURL}/api/messages/chat/${chatId}/stream`
+    logger.info("Starting message stream", { component: "ai-service", url, chatId })
+
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -99,8 +129,20 @@ export class AIService {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.detail || "Failed to send message")
+      let errorDetail = "Failed to send message"
+      try {
+        const error = await response.json()
+        errorDetail = error.detail || errorDetail
+      } catch {
+        errorDetail = `HTTP ${response.status}: ${response.statusText}`
+      }
+      
+      if (response.status === 404) {
+        throw new Error("Chat not found")
+      }
+      
+      logger.error("Send message stream failed", new Error(errorDetail), { component: "ai-service", status: response.status })
+      throw new Error(errorDetail)
     }
 
     return response.body!
