@@ -712,40 +712,6 @@ export interface Database {
           timestamp?: string
         }
       }
-      chat_invitations: {
-        Row: {
-          id: string
-          chat_id: string
-          email: string
-          role: "owner" | "editor" | "viewer" | "commenter"
-          permissions: any
-          invited_by: string
-          token: string
-          status: "pending" | "accepted" | "rejected" | "expired"
-          expires_at: string
-          created_at: string
-        }
-        Insert: {
-          chat_id: string
-          email: string
-          role: "owner" | "editor" | "viewer" | "commenter"
-          permissions?: any
-          invited_by: string
-          token?: string
-          status?: "pending" | "accepted" | "rejected" | "expired"
-          expires_at: string
-        }
-        Update: {
-          chat_id?: string
-          email?: string
-          role?: "owner" | "editor" | "viewer" | "commenter"
-          permissions?: any
-          invited_by?: string
-          token?: string
-          status?: "pending" | "accepted" | "rejected" | "expired"
-          expires_at?: string
-        }
-      }
     }
     Views: {
       [_ in never]: never

@@ -21,7 +21,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Loader2, UserPlus, MoreHorizontal, Trash2, UserCheck, UserX, Settings } from "lucide-react"
-import type { UserPermission, UserStatus } from "@/lib/supabase/types"
+import type { UserPermission, UserStatus } from "@/lib/types/database"
 
 const PERMISSION_OPTIONS: { value: UserPermission; label: string; description: string }[] = [
   { value: "ai_chat", label: "AI Chat", description: "Can chat with AI assistants" },

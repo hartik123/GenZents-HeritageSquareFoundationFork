@@ -5,7 +5,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { Loader2 } from "lucide-react"
-import type { UserPermission } from "@/lib/supabase/types"
+import type { UserPermission } from "@/lib/types/database"
 
 interface AuthGuardProps {
   children: React.ReactNode

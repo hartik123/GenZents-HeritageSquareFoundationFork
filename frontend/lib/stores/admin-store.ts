@@ -1,7 +1,7 @@
 import { create } from "zustand"
 import { supabase } from "@/lib/supabase/client"
 import { logger } from "@/lib/utils/logger"
-import type { Database, UserPermission, UserStatus } from "@/lib/supabase/types"
+import type { Database, UserPermission, UserStatus } from "@/lib/types/database"
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"]
 type ProfileInsert = Database["public"]["Tables"]["profiles"]["Insert"]

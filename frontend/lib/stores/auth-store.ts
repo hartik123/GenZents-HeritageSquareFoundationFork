@@ -2,7 +2,7 @@ import { create } from "zustand"
 import { supabase } from "@/lib/supabase/client"
 import { logger } from "@/lib/utils/logger"
 import type { User, Session } from "@supabase/supabase-js"
-import type { Database, UserPermission, UserStatus } from "@/lib/supabase/types"
+import type { Database, UserPermission, UserStatus } from "@/lib/types/database"
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"]
 
@@ -94,64 +94,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signIn: async (email: string, password: string) => {
     try {
       set({ loading: true })
-
-      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@example.com"
-      const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "secure_admin_password_123"
-
-      if (email === adminEmail && password === adminPassword) {
-        // Admin login: try to sign in with Supabase, create account if needed
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: adminEmail,
-          password: "dummy-password", // Supabase password (different from app password)
-        })
-
-        if (error && error.message.includes("Invalid login credentials")) {
-          // Admin account doesn't exist in Supabase, create it
-          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-            email: adminEmail,
-            password: "dummy-password",
-            options: {
-              data: {
-                full_name: "Administrator",
-                is_admin: true,
-              },
-            },
-          })
-
-          if (signUpError) {
-            set({ loading: false })
-            return { error: signUpError.message }
-          }
-
-          // If email confirmation is required, sign in directly
-          if (signUpData.user && !signUpData.session) {
-            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-              email: adminEmail,
-              password: "dummy-password",
-            })
-
-            if (signInError) {
-              set({ loading: false })
-              return { error: signInError.message }
-            }
-          }
-
-          await get().refreshProfile()
-          set({ loading: false })
-          return {}
-        }
-
-        if (error) {
-          set({ loading: false })
-          return { error: error.message }
-        }
-
-        await get().refreshProfile()
-        set({ loading: false })
-        return {}
-      }
-
-      // Regular user login
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,

@@ -573,7 +573,7 @@ BEGIN
     COALESCE((NEW.raw_user_meta_data->>'is_admin')::boolean, false),
     COALESCE(NEW.raw_user_meta_data->>'status', 'active'),
     COALESCE(
-      ARRAY(SELECT json_array_elements_text(NEW.raw_user_meta_data->'permissions')),
+      ARRAY(SELECT jsonb_array_elements_text(NEW.raw_user_meta_data->'permissions')),
       '{}'::text[]
     )
   );
@@ -842,5 +842,4 @@ ON CONFLICT (name, provider) DO NOTHING;
 -- =====================================================
 
 -- Promote admin user if they exist
--- Note: You'll need to create the admin@example.com user first through the app
-SELECT promote_user_to_admin('admin@example.com');
+-- SELECT promote_user_to_admin('admin@example.com');
