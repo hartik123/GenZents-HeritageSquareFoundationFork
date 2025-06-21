@@ -427,18 +427,41 @@ CREATE POLICY "Users can insert own settings" ON user_settings
 CREATE POLICY "Authenticated users can view AI models" ON ai_models
   FOR SELECT USING (auth.role() = 'authenticated');
 
--- Chats policies
+-- Drop existing chat policies to avoid conflicts (in case of re-running script)
+DROP POLICY IF EXISTS "Users can view own chats" ON chats;
+DROP POLICY IF EXISTS "Users can create own chats" ON chats;
+DROP POLICY IF EXISTS "Users can update own chats" ON chats;
+DROP POLICY IF EXISTS "Users can delete own chats" ON chats;
+DROP POLICY IF EXISTS "Admins can manage all chats" ON chats;
+
+-- Chats policies (recreated with proper permissions)
 CREATE POLICY "Users can view own chats" ON chats
-  FOR SELECT USING (auth.uid() = user_id);
+  FOR SELECT 
+  TO authenticated
+  USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can create own chats" ON chats
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+  FOR INSERT 
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can update own chats" ON chats
-  FOR UPDATE USING (auth.uid() = user_id);
+  FOR UPDATE 
+  TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete own chats" ON chats
-  FOR DELETE USING (auth.uid() = user_id);
+  FOR DELETE 
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+-- Admin policies for chats
+CREATE POLICY "Admins can manage all chats" ON chats
+  FOR ALL 
+  TO authenticated
+  USING (is_admin())
+  WITH CHECK (is_admin());
 
 -- Messages policies
 CREATE POLICY "Users can view messages in accessible chats" ON messages

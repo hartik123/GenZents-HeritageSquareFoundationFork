@@ -70,12 +70,16 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader>
         <div className="flex items-center justify-between p-2">
-          <h2
+          <a
+            href="/"
             className="text-lg font-semibold cursor-pointer hover:text-primary transition-colors"
-            onClick={() => router.push("/")}
+            onClick={(e) => {
+              e.preventDefault()
+              router.push("/")
+            }}
           >
             Archyx AI
-          </h2>
+          </a>
           <div className="flex items-center gap-1">
             <Button onClick={handleNewChat} size="sm" variant="ghost">
               <Plus className="h-4 w-4" />
@@ -94,12 +98,18 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={currentChatId === chat.id}
-                    onClick={() => handleSelectChat(chat.id)}
                   >
-                    <button className="w-full text-left">
+                    <a 
+                      href={`/chat/${chat.id}`}
+                      className="w-full text-left"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        handleSelectChat(chat.id)
+                      }}
+                    >
                       <MessageSquare className="h-4 w-4" />
                       <span className="truncate">{chat.title}</span>
-                    </button>
+                    </a>
                   </SidebarMenuButton>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -124,10 +134,17 @@ export function AppSidebar() {
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <button onClick={() => router.push(item.url)} className="w-full text-left">
+                    <a 
+                      href={item.url}
+                      className="w-full text-left"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        router.push(item.url)
+                      }}
+                    >
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
-                    </button>
+                    </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
