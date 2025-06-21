@@ -16,17 +16,24 @@ import {
   SidebarMenuAction,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { MessageSquare, Plus, LogOut, MoreHorizontal, User, Wrench, GitBranch, FolderOpen } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { MessageSquare, Plus, LogOut, MoreHorizontal, User, Wrench, GitBranch, FolderOpen, Shield } from "lucide-react"
 import { useChatStore } from "@/lib/stores/chat-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
 
 export function AppSidebar() {
   const router = useRouter()
   const { chats, createChat, selectChat, deleteChat, loadChats, currentChatId } = useChatStore()
-  const { user, signOut } = useAuthStore()
+  const { user, profile, signOut, isAdmin, hasPermission } = useAuthStore()
 
   useEffect(() => {
     loadChats()
@@ -48,10 +55,10 @@ export function AppSidebar() {
   }
 
   const navigationItems = [
-    { title: "Tools", url: "/tools", icon: Wrench },
-    { title: "Context", url: "/context", icon: FolderOpen },
-    { title: "Version", url: "/version", icon: GitBranch },
-  ]
+    { title: "Tools", url: "/tools", icon: Wrench, permission: "tools_access" },
+    { title: "Context", url: "/context", icon: FolderOpen, permission: "context_management" },
+    { title: "Version", url: "/version", icon: GitBranch, permission: "version_history" },
+  ].filter((item) => hasPermission(item.permission as any))
 
   return (
     <Sidebar>
@@ -132,7 +139,14 @@ export function AppSidebar() {
                   <Avatar className="h-6 w-6">
                     <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
                   </Avatar>
-                  <span className="truncate">{user?.email}</span>
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <span className="truncate text-sm">{profile?.full_name || user?.email}</span>
+                    {isAdmin() && (
+                      <Badge variant="outline" className="text-xs w-fit">
+                        Admin
+                      </Badge>
+                    )}
+                  </div>
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" className="w-[--radix-popper-anchor-width]">
@@ -140,6 +154,16 @@ export function AppSidebar() {
                   <User className="h-4 w-4 mr-2" />
                   Account
                 </DropdownMenuItem>
+                {isAdmin() && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => router.push("/admin")}>
+                      <Shield className="h-4 w-4 mr-2" />
+                      Admin Panel
+                    </DropdownMenuItem>
+                  </>
+                )}
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="h-4 w-4 mr-2" />
                   Sign Out
