@@ -17,9 +17,7 @@ export function createSupabaseServerClient() {
         },
         setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
+            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
           } catch {
             // Handle cookie setting errors in middleware/server components
           }

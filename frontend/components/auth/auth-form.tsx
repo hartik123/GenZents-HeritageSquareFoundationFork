@@ -16,13 +16,13 @@ export function AuthForm() {
   const [isResetMode, setIsResetMode] = useState(false)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  
+
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
   const { signIn, resetPassword, loading } = useAuthStore()
 
-  const redirectTo = searchParams.get("redirect") || "/dashboard"
+  const redirectTo = searchParams.get("redirect") || "/"
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,9 +75,7 @@ export function AuthForm() {
   return (
     <Card>
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl text-center">
-          {isResetMode ? "Reset Password" : "Sign In"}
-        </CardTitle>
+        <CardTitle className="text-2xl text-center">{isResetMode ? "Reset Password" : "Sign In"}</CardTitle>
         <CardDescription className="text-center">
           {isResetMode
             ? "Enter your email to receive a password reset link"
@@ -120,29 +118,14 @@ export function AuthForm() {
             </Alert>
           )}
 
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isLoading || loading}
-          >
-            {isLoading || loading
-              ? "Please wait..."
-              : isResetMode
-              ? "Send Reset Email"
-              : "Sign In"}
+          <Button type="submit" className="w-full" disabled={isLoading || loading}>
+            {isLoading || loading ? "Please wait..." : isResetMode ? "Send Reset Email" : "Sign In"}
           </Button>
         </form>
 
         <div className="text-center">
-          <Button
-            variant="link"
-            onClick={handleModeToggle}
-            disabled={isLoading || loading}
-            className="text-sm"
-          >
-            {isResetMode
-              ? "Back to sign in"
-              : "Forgot your password?"}
+          <Button variant="link" onClick={handleModeToggle} disabled={isLoading || loading} className="text-sm">
+            {isResetMode ? "Back to sign in" : "Forgot your password?"}
           </Button>
         </div>
 

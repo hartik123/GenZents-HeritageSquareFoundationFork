@@ -368,6 +368,22 @@ ALTER TABLE share_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE analytics ENABLE ROW LEVEL SECURITY;
 
 -- =====================================================
+-- HELPER FUNCTIONS
+-- =====================================================
+
+-- Function to check if current user is admin (security definer to bypass RLS)
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN
+LANGUAGE SQL
+SECURITY DEFINER
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE id = auth.uid() AND is_admin = true
+  );
+$$;
+
+-- =====================================================
 -- ROW LEVEL SECURITY POLICIES
 -- =====================================================
 
@@ -381,33 +397,21 @@ CREATE POLICY "Users can update own profile" ON profiles
 CREATE POLICY "Users can insert own profile" ON profiles
   FOR INSERT WITH CHECK (auth.uid() = id);
 
--- Admin policies for profiles
+-- Admin policies for profiles (using security definer function)
 CREATE POLICY "Admins can view all profiles" ON profiles
   FOR SELECT 
   TO authenticated
-  USING (
-    auth.uid() IN (
-      SELECT id FROM profiles WHERE is_admin = true
-    )
-  );
+  USING (is_admin());
 
 CREATE POLICY "Admins can update all profiles" ON profiles
   FOR UPDATE 
   TO authenticated
-  USING (
-    auth.uid() IN (
-      SELECT id FROM profiles WHERE is_admin = true
-    )
-  );
+  USING (is_admin());
 
 CREATE POLICY "Admins can delete all profiles" ON profiles
   FOR DELETE 
   TO authenticated
-  USING (
-    auth.uid() IN (
-      SELECT id FROM profiles WHERE is_admin = true
-    )
-  );
+  USING (is_admin());
 
 -- User settings policies
 CREATE POLICY "Users can view own settings" ON user_settings

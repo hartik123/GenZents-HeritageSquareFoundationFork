@@ -34,10 +34,16 @@ export function AppSidebar() {
   const router = useRouter()
   const { chats, createChat, selectChat, deleteChat, loadChats, currentChatId } = useChatStore()
   const { user, profile, signOut, isAdmin, hasPermission } = useAuthStore()
-
   useEffect(() => {
     loadChats()
   }, [loadChats])
+
+  const handleDeleteChat = async (chatId: string) => {
+    await deleteChat(chatId)
+    if (currentChatId === chatId) {
+      router.push("/")
+    }
+  }
 
   const handleNewChat = async () => {
     const chatId = await createChat()
@@ -100,9 +106,9 @@ export function AppSidebar() {
                       <SidebarMenuAction>
                         <MoreHorizontal className="h-4 w-4" />
                       </SidebarMenuAction>
-                    </DropdownMenuTrigger>
+                    </DropdownMenuTrigger>{" "}
                     <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => deleteChat(chat.id)}>Delete</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDeleteChat(chat.id)}>Delete</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </SidebarMenuItem>

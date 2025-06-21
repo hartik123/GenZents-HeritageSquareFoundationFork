@@ -2,7 +2,6 @@ from api import chats, messages
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-from dotenv import load_dotenv
 from config import settings
 from utils.logger import logger
 
@@ -11,9 +10,6 @@ from utils.logger import logger
 
 # # Add the parent directory to the path so we can import our modules
 # sys.path.append(str(Path(__file__).parent))
-
-# Load environment variables
-load_dotenv()
 
 # Import routers
 

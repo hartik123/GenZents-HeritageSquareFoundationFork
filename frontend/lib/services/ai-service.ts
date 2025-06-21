@@ -16,7 +16,7 @@ export interface StreamingResponse {
 }
 
 export class AIService {
-  private static baseURL = process.env.BACKEND_URL || "http://127.0.0.1:8000"
+  private static baseURL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000"
 
   static async getAuthToken(): Promise<string | null> {
     const supabase = createClient()
