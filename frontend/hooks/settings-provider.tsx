@@ -40,6 +40,12 @@ interface ExtendedSettings extends Settings {
   googleDriveSyncFrequency: "realtime" | "hourly" | "daily" | "weekly"
   shareUsageWithIntegrations: boolean
   crossPlatformSync: boolean
+
+  // Tools and commands
+  enableCommands: boolean
+  autoCommandSuggestions: boolean
+  showCommandHelp: boolean
+  enabledCommands: string[]
 }
 
 interface SettingsContextProps {
@@ -119,6 +125,12 @@ const defaultSettings: ExtendedSettings = {
   googleDriveSyncFrequency: "daily",
   shareUsageWithIntegrations: false,
   crossPlatformSync: true,
+
+  // Tools and commands
+  enableCommands: true,
+  autoCommandSuggestions: true,
+  showCommandHelp: true,
+  enabledCommands: ["organize", "folder", "search", "cleanup", "help"],
 }
 
 const SettingsContext = createContext<SettingsContextProps>({

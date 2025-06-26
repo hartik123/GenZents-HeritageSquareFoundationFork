@@ -1,6 +1,7 @@
 // Export all types from centralized type files
 export * from "./ai"
 export * from "./chat"
+export * from "./commands"
 export * from "./context"
 export * from "./database"
 export * from "./features"

@@ -35,8 +35,6 @@ export function Header() {
     }
     
     switch (pathname) {
-      case "/tools":
-        return "Tools"
       case "/context":
         return "Context"
       case "/version":

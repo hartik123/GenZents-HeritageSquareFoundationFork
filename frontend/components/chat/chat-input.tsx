@@ -39,6 +39,8 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import { sanitizeInput } from "@/lib/utils/security"
+import { commandProcessor } from "@/lib/services/command-processor"
+import { CommandSuggestions } from "./command-suggestions"
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const ALLOWED_FILE_TYPES = [
@@ -58,6 +60,7 @@ export function ChatInput() {
   const [isRecording, setIsRecording] = React.useState(false)
   const [isDragOver, setIsDragOver] = React.useState(false)
   const [uploadProgress, setUploadProgress] = React.useState<Record<string, number>>({})
+  const [showCommandSuggestions, setShowCommandSuggestions] = React.useState(false)
   const router = useRouter()
 
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
@@ -89,11 +92,50 @@ export function ChatInput() {
     if (!input.trim() && attachments.length === 0) return
     if (isStreaming) return
 
+    // Check if it's a command
+    if (commandProcessor.isCommand(input)) {
+      try {
+        const result = await commandProcessor.processCommand(input)
+        
+        if (result.success) {
+          toast({
+            title: "Command executed",
+            description: result.message,
+          })
+          
+          // Add command result as a system message if there are suggestions
+          if (result.suggestions && result.suggestions.length > 0) {
+            const commandMessage = `**Command: ${input}**\n\n${result.message}\n\n${result.suggestions.map(s => `• ${s}`).join('\n')}`
+            await sendMessageStream(commandMessage, currentChat?.id)
+          }
+        } else {
+          toast({
+            title: "Command failed",
+            description: result.message,
+            variant: "destructive",
+          })
+        }
+        
+        setInput("")
+        setShowCommandSuggestions(false)
+        return
+      } catch (error) {
+        logger.error("Command processing failed", error as Error, { component: "chat-input" })
+        toast({
+          title: "Command error",
+          description: "Failed to process command",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
     // Sanitize input to prevent XSS attacks
     const messageContent = sanitizeInput(input.trim())
     const wasNewChat = !currentChat
 
     setInput("")
+    setShowCommandSuggestions(false)
 
     try {
       logger.info("Attempting to send message", {
@@ -336,8 +378,28 @@ export function ChatInput() {
   const characterCount = input.length
   const maxCharacters = 4000
 
+  // Show command suggestions when typing commands
+  React.useEffect(() => {
+    setShowCommandSuggestions(input.startsWith('/') || (!input.trim() && !isStreaming))
+  }, [input, isStreaming])
+
+  const handleCommandSelect = (command: string) => {
+    setInput(command + " ")
+    textareaRef.current?.focus()
+  }
+
   return (
     <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      {/* Command Suggestions */}
+      {showCommandSuggestions && (
+        <div className="p-4 border-b">
+          <CommandSuggestions 
+            input={input} 
+            onCommandSelect={handleCommandSelect}
+          />
+        </div>
+      )}
+
       {/* Attachments */}
       {(attachments.length > 0 || Object.keys(uploadProgress).length > 0) && (
         <div className="p-4 border-b">
@@ -442,7 +504,7 @@ export function ChatInput() {
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={isStreaming ? "AI is responding..." : "Type your message..."}
+              placeholder={isStreaming ? "AI is responding..." : "Type your message or use /commands..."}
               disabled={isStreaming}
               className="min-h-[44px] max-h-[200px] resize-none pr-20"
               onKeyDown={(e) => {
