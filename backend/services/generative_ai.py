@@ -32,7 +32,8 @@ def format_chat_history(history: List[Dict[str, str]]) -> List[Dict[str, str]]:
     return formatted_history
 
 
-def generate_text(prompt: str, history: List[Dict[str, str]] = [], system_prompt: Optional[str] = None) -> str:
+def generate_text(prompt: str, history: List[Dict[str, str]] = [
+], system_prompt: Optional[str] = None) -> str:
     """
     Generates text using the Google Generative AI API with chat context.
 
@@ -50,7 +51,7 @@ def generate_text(prompt: str, history: List[Dict[str, str]] = [], system_prompt
     # Input validation
     if not prompt or len(prompt.strip()) == 0:
         return "Please provide a valid message."
-    
+
     if len(prompt) > 8000:
         return "Message too long. Please limit your message to 8000 characters."
 
@@ -97,7 +98,8 @@ def generate_text(prompt: str, history: List[Dict[str, str]] = [], system_prompt
         return "I apologize, but I'm experiencing technical difficulties. Please try again in a moment."
 
 
-async def generate_text_stream(prompt: str, history: List[Dict[str, str]] = [], system_prompt: Optional[str] = None) -> AsyncIterator[str]:
+async def generate_text_stream(prompt: str, history: List[Dict[str, str]] = [
+], system_prompt: Optional[str] = None) -> AsyncIterator[str]:
     """
     Generates streaming text using the Google Generative AI API with chat context.
 

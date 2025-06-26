@@ -9,25 +9,25 @@ import type { Chat, Message, Attachment, ContextFile } from "@/lib/types/chat"
 // Helper function to generate chat title from message content
 const generateChatTitle = (content: string): string => {
   // Remove any leading/trailing whitespace and normalize line breaks
-  let cleaned = content.trim().replace(/\s+/g, ' ')
-  
+  let cleaned = content.trim().replace(/\s+/g, " ")
+
   // Remove basic markdown formatting
   cleaned = cleaned
-    .replace(/\*\*(.*?)\*\*/g, '$1') // Bold
-    .replace(/\*(.*?)\*/g, '$1')     // Italic
-    .replace(/`(.*?)`/g, '$1')       // Inline code
-    .replace(/#{1,6}\s/g, '')        // Headers
-  
+    .replace(/\*\*(.*?)\*\*/g, "$1") // Bold
+    .replace(/\*(.*?)\*/g, "$1") // Italic
+    .replace(/`(.*?)`/g, "$1") // Inline code
+    .replace(/#{1,6}\s/g, "") // Headers
+
   // Split into words and take first 4-6 words
-  const words = cleaned.split(/\s+/).filter(word => word.length > 0)
+  const words = cleaned.split(/\s+/).filter((word) => word.length > 0)
   const titleWords = words.slice(0, Math.min(6, words.length))
-  
+
   // Join words and limit to 50 characters
-  let title = titleWords.join(' ')
+  let title = titleWords.join(" ")
   if (title.length > 50) {
-    title = title.substring(0, 47) + '...'
+    title = title.substring(0, 47) + "..."
   }
-  
+
   // Ensure we have a fallback title
   return title || "New Chat"
 }
@@ -319,31 +319,29 @@ export const useChatStore = create<ChatState>()(
 
           // Check if this is the first message in the chat and update title
           const currentState = get()
-          const targetChat = currentState.chats.find(chat => chat.id === targetChatId)
+          const targetChat = currentState.chats.find((chat) => chat.id === targetChatId)
           if (targetChat && targetChat.messages.length === 1 && targetChat.title === "New Chat") {
             const newTitle = generateChatTitle(content)
-            logger.info("Updating chat title based on first message", { 
-              component: "chat-store", 
-              chatId: targetChatId, 
-              newTitle 
+            logger.info("Updating chat title based on first message", {
+              component: "chat-store",
+              chatId: targetChatId,
+              newTitle,
             })
-            
+
             // Update title in local state
             set((state) => ({
-              chats: state.chats.map((chat) =>
-                chat.id === targetChatId
-                  ? { ...chat, title: newTitle }
-                  : chat
-              ),
+              chats: state.chats.map((chat) => (chat.id === targetChatId ? { ...chat, title: newTitle } : chat)),
             }))
-            
+
             // Update title in database (fire and forget)
-            get().updateChat(targetChatId, { title: newTitle }).catch(error => 
-              logger.error("Failed to update chat title in database", error, { 
-                component: "chat-store", 
-                chatId: targetChatId 
-              })
-            )
+            get()
+              .updateChat(targetChatId, { title: newTitle })
+              .catch((error) =>
+                logger.error("Failed to update chat title in database", error, {
+                  component: "chat-store",
+                  chatId: targetChatId,
+                })
+              )
           }
 
           // Send message to backend using AIService
@@ -414,9 +412,9 @@ export const useChatStore = create<ChatState>()(
           if (!targetChatId) {
             logger.info("Creating new chat for message stream", { component: "chat-store" })
             targetChatId = await get().createChat()
-            
+
             // Wait a moment for the chat to be fully created
-            await new Promise(resolve => setTimeout(resolve, 100))
+            await new Promise((resolve) => setTimeout(resolve, 100))
           }
 
           // Validate that we have a proper chat ID
@@ -424,7 +422,11 @@ export const useChatStore = create<ChatState>()(
             throw new Error("Failed to create or get chat ID")
           }
 
-          logger.info("Starting message stream", { component: "chat-store", chatId: targetChatId, content: content.substring(0, 50) + "..." })
+          logger.info("Starting message stream", {
+            component: "chat-store",
+            chatId: targetChatId,
+            content: content.substring(0, 50) + "...",
+          })
 
           set({ isStreaming: true })
 
@@ -480,31 +482,29 @@ export const useChatStore = create<ChatState>()(
 
           // Check if this is the first message in the chat and update title
           const currentState = get()
-          const targetChat = currentState.chats.find(chat => chat.id === targetChatId)
+          const targetChat = currentState.chats.find((chat) => chat.id === targetChatId)
           if (targetChat && targetChat.messages.length === 1 && targetChat.title === "New Chat") {
             const newTitle = generateChatTitle(content)
-            logger.info("Updating chat title based on first message", { 
-              component: "chat-store", 
-              chatId: targetChatId, 
-              newTitle 
+            logger.info("Updating chat title based on first message", {
+              component: "chat-store",
+              chatId: targetChatId,
+              newTitle,
             })
-            
+
             // Update title in local state
             set((state) => ({
-              chats: state.chats.map((chat) =>
-                chat.id === targetChatId
-                  ? { ...chat, title: newTitle }
-                  : chat
-              ),
+              chats: state.chats.map((chat) => (chat.id === targetChatId ? { ...chat, title: newTitle } : chat)),
             }))
-            
+
             // Update title in database (fire and forget)
-            get().updateChat(targetChatId, { title: newTitle }).catch(error => 
-              logger.error("Failed to update chat title in database", error, { 
-                component: "chat-store", 
-                chatId: targetChatId 
-              })
-            )
+            get()
+              .updateChat(targetChatId, { title: newTitle })
+              .catch((error) =>
+                logger.error("Failed to update chat title in database", error, {
+                  component: "chat-store",
+                  chatId: targetChatId,
+                })
+              )
           }
 
           // Create streaming AI message placeholder
@@ -565,8 +565,46 @@ export const useChatStore = create<ChatState>()(
 
             for await (const response of AIService.parseStreamingResponse(stream)) {
               logger.debug("Received streaming response", { component: "chat-store", responseType: response.type })
-              
-              if (response.type === "chunk" && response.content) {
+
+              if (response.type === "command" && response.content) {
+                // Handle command response - add as a separate message
+                const commandMessage: Message = {
+                  id: nanoid(),
+                  chat_id: targetChatId,
+                  role: "assistant",
+                  content: response.content,
+                  created_at: new Date().toISOString(),
+                  edited: false,
+                  deleted: false,
+                  status: {
+                    sent: true,
+                    delivered: true,
+                    read: false,
+                    retries: 0,
+                    status: "sent",
+                  },
+                  metadata: {
+                    model: "command-processor",
+                    processingTime: 0,
+                    tokens: 0,
+                  },
+                  attachments: [],
+                  reactions: [],
+                  mentions: [],
+                  encryption: { encrypted: false },
+                }
+
+                set((state) => ({
+                  chats: state.chats.map((chat) =>
+                    chat.id === targetChatId
+                      ? {
+                          ...chat,
+                          messages: [...chat.messages, commandMessage],
+                        }
+                      : chat
+                  ),
+                }))
+              } else if (response.type === "chunk" && response.content) {
                 // Update the AI message content with streaming chunks
                 set((state) => ({
                   chats: state.chats.map((chat) =>
@@ -637,7 +675,10 @@ export const useChatStore = create<ChatState>()(
 
             // Fall back to regular message sending
             try {
-              logger.info("Attempting fallback to regular message sending", { component: "chat-store", chatId: targetChatId })
+              logger.info("Attempting fallback to regular message sending", {
+                component: "chat-store",
+                chatId: targetChatId,
+              })
               const aiMessage = await AIService.sendMessage(targetChatId, content)
               logger.info("Fallback message sent successfully", { component: "chat-store", messageId: aiMessage.id })
 
@@ -691,7 +732,10 @@ export const useChatStore = create<ChatState>()(
                 isStreaming: false,
               }))
             } catch (fallbackError) {
-              logger.error("Both streaming and regular message failed", fallbackError as Error, { component: "chat-store", chatId: targetChatId })
+              logger.error("Both streaming and regular message failed", fallbackError as Error, {
+                component: "chat-store",
+                chatId: targetChatId,
+              })
               set({ isStreaming: false })
               throw fallbackError
             }

@@ -39,7 +39,6 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import { sanitizeInput } from "@/lib/utils/security"
-import { commandProcessor } from "@/lib/services/command-processor"
 import { CommandSuggestions } from "./command-suggestions"
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
@@ -92,44 +91,6 @@ export function ChatInput() {
     if (!input.trim() && attachments.length === 0) return
     if (isStreaming) return
 
-    // Check if it's a command
-    if (commandProcessor.isCommand(input)) {
-      try {
-        const result = await commandProcessor.processCommand(input)
-        
-        if (result.success) {
-          toast({
-            title: "Command executed",
-            description: result.message,
-          })
-          
-          // Add command result as a system message if there are suggestions
-          if (result.suggestions && result.suggestions.length > 0) {
-            const commandMessage = `**Command: ${input}**\n\n${result.message}\n\n${result.suggestions.map(s => `• ${s}`).join('\n')}`
-            await sendMessageStream(commandMessage, currentChat?.id)
-          }
-        } else {
-          toast({
-            title: "Command failed",
-            description: result.message,
-            variant: "destructive",
-          })
-        }
-        
-        setInput("")
-        setShowCommandSuggestions(false)
-        return
-      } catch (error) {
-        logger.error("Command processing failed", error as Error, { component: "chat-input" })
-        toast({
-          title: "Command error",
-          description: "Failed to process command",
-          variant: "destructive",
-        })
-        return
-      }
-    }
-
     // Sanitize input to prevent XSS attacks
     const messageContent = sanitizeInput(input.trim())
     const wasNewChat = !currentChat
@@ -144,7 +105,7 @@ export function ChatInput() {
         messageLength: messageContent.length,
       })
 
-      // Use streaming for better user experience
+      // Use streaming for better user experience - backend will handle commands
       const chatId = await sendMessageStream(messageContent, currentChat?.id)
 
       logger.info("Message sent successfully", { component: "chat-input", chatId, wasNewChat })
@@ -380,25 +341,113 @@ export function ChatInput() {
 
   // Show command suggestions when typing commands
   React.useEffect(() => {
-    setShowCommandSuggestions(input.startsWith('/') || (!input.trim() && !isStreaming))
-  }, [input, isStreaming])
+    if (!textareaRef.current) {
+      setShowCommandSuggestions(false)
+      return
+    }
+
+    const textarea = textareaRef.current
+    const cursorPosition = textarea.selectionStart || 0
+    const textBeforeCursor = input.substring(0, cursorPosition)
+    const currentLine = textBeforeCursor.split("\n").pop() || ""
+
+    // Show dropdown when line starts with / and contains only word characters (no spaces)
+    const shouldShow = currentLine.startsWith("/") && /^\/\w*$/.test(currentLine)
+
+    // Temporary debug
+    if (input.includes("/")) {
+      console.log("Debug command detection:", {
+        input,
+        currentLine,
+        startsWithSlash: currentLine.startsWith("/"),
+        regexTest: /^\/\w*$/.test(currentLine),
+        shouldShow,
+      })
+    }
+
+    setShowCommandSuggestions(shouldShow)
+  }, [input])
+
+  // Also check when cursor position changes
+  const handleCursorChange = React.useCallback(() => {
+    if (!textareaRef.current) return
+
+    const textarea = textareaRef.current
+    const cursorPosition = textarea.selectionStart || 0
+    const textBeforeCursor = input.substring(0, cursorPosition)
+    const currentLine = textBeforeCursor.split("\n").pop() || ""
+
+    const shouldShow = currentLine.startsWith("/") && /^\/\w*$/.test(currentLine)
+    setShowCommandSuggestions(shouldShow)
+  }, [input])
 
   const handleCommandSelect = (command: string) => {
-    setInput(command + " ")
-    textareaRef.current?.focus()
+    if (command === "") {
+      // Escape pressed - exit command mode
+      setShowCommandSuggestions(false)
+      return
+    }
+
+    if (!textareaRef.current) return
+
+    const textarea = textareaRef.current
+    const cursorPosition = textarea.selectionStart || 0
+    const textBeforeCursor = input.substring(0, cursorPosition)
+    const textAfterCursor = input.substring(cursorPosition)
+
+    // Find the line with the command around the cursor
+    const lines = textBeforeCursor.split("\n")
+    const currentLineIndex = lines.length - 1
+    const currentLine = lines[currentLineIndex]
+
+    if (currentLine.startsWith("/")) {
+      // Replace the command part with selected command + space
+      lines[currentLineIndex] = command + " "
+      const newTextBeforeCursor = lines.join("\n")
+      const newInput = newTextBeforeCursor + textAfterCursor
+
+      setInput(newInput)
+      setShowCommandSuggestions(false)
+
+      // Focus textarea and set cursor position after the command
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus()
+          const newPosition = newTextBeforeCursor.length
+          textareaRef.current.setSelectionRange(newPosition, newPosition)
+        }
+      }, 0)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // When command suggestions are visible, let the CommandSuggestions component handle navigation
+    if (showCommandSuggestions) {
+      // Only prevent default Enter and Tab to avoid sending the message
+      if ((e.key === "Enter" || e.key === "Tab") && !e.shiftKey) {
+        e.preventDefault()
+        return
+      }
+      // Let all other keys pass through to CommandSuggestions component
+      return
+    }
+
+    // Handle regular Enter for sending message (only when not showing commands)
+    if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+      e.preventDefault()
+      handleSend()
+    }
   }
 
   return (
     <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      {/* Command Suggestions */}
-      {showCommandSuggestions && (
-        <div className="p-4 border-b">
-          <CommandSuggestions 
-            input={input} 
-            onCommandSelect={handleCommandSelect}
-          />
-        </div>
-      )}
+      {/* Command Suggestions Dropdown */}
+      <CommandSuggestions
+        input={input}
+        onCommandSelect={handleCommandSelect}
+        textareaRef={textareaRef}
+        visible={showCommandSuggestions}
+      />
 
       {/* Attachments */}
       {(attachments.length > 0 || Object.keys(uploadProgress).length > 0) && (
@@ -504,15 +553,12 @@ export function ChatInput() {
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onSelect={handleCursorChange}
+              onKeyUp={handleCursorChange}
               placeholder={isStreaming ? "AI is responding..." : "Type your message or use /commands..."}
               disabled={isStreaming}
               className="min-h-[44px] max-h-[200px] resize-none pr-20"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
-                  e.preventDefault()
-                  handleSend()
-                }
-              }}
+              onKeyDown={handleKeyDown}
             />
 
             {/* Character Count */}

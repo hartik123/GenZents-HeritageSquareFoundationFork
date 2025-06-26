@@ -449,9 +449,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                     <div className="flex items-center justify-between">
                       <div>
                         <Label>Auto-suggestions</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Show command suggestions as you type
-                        </p>
+                        <p className="text-sm text-muted-foreground">Show command suggestions as you type</p>
                       </div>
                       <Switch
                         checked={settings.autoCommandSuggestions !== false}
@@ -462,9 +460,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                     <div className="flex items-center justify-between">
                       <div>
                         <Label>Show command help</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Display help text for commands
-                        </p>
+                        <p className="text-sm text-muted-foreground">Display help text for commands</p>
                       </div>
                       <Switch
                         checked={settings.showCommandHelp !== false}
@@ -478,32 +474,26 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
 
                 <div>
                   <h4 className="font-medium mb-4">Available Commands</h4>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Enable or disable specific commands
-                  </p>
+                  <p className="text-sm text-muted-foreground mb-4">Enable or disable specific commands</p>
                   <div className="space-y-3">
                     {DEFAULT_COMMANDS.map((command) => (
                       <div key={command.name} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <code className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                              /{command.name}
-                            </code>
+                            <code className="text-sm font-mono bg-muted px-2 py-1 rounded">/{command.name}</code>
                             <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
                               {command.category}
                             </span>
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            {command.description}
-                          </p>
+                          <p className="text-sm text-muted-foreground">{command.description}</p>
                         </div>
                         <Switch
                           checked={settings.enabledCommands?.includes(command.name) !== false}
                           onCheckedChange={(checked) => {
-                            const current = settings.enabledCommands || DEFAULT_COMMANDS.map(c => c.name)
-                            const updated = checked 
-                              ? [...current.filter(c => c !== command.name), command.name]
-                              : current.filter(c => c !== command.name)
+                            const current = settings.enabledCommands || DEFAULT_COMMANDS.map((c) => c.name)
+                            const updated = checked
+                              ? [...current.filter((c) => c !== command.name), command.name]
+                              : current.filter((c) => c !== command.name)
                             updateSetting("enabledCommands", updated)
                             commandProcessor.updateCommandsConfig(updated)
                           }}

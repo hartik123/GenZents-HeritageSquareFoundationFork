@@ -20,7 +20,8 @@ class GoogleDriveService:
         'https://www.googleapis.com/auth/drive.metadata'
     ]
 
-    def __init__(self, credentials_path: Optional[str] = None, token_path: Optional[str] = None):
+    def __init__(
+            self, credentials_path: Optional[str] = None, token_path: Optional[str] = None):
         self.credentials_path = credentials_path or settings.GOOGLE_CREDENTIALS_PATH
         self.token_path = token_path or settings.GOOGLE_TOKEN_PATH
         self.service = None
@@ -63,7 +64,8 @@ class GoogleDriveService:
         self.service = build('drive', 'v3', credentials=creds)
         logger.info("Google Drive service initialized")
 
-    def get_file_info(self, file_id: str, fields: Optional[str] = None) -> Dict[str, Any]:
+    def get_file_info(self, file_id: str,
+                      fields: Optional[str] = None) -> Dict[str, Any]:
         """Get detailed information about a file"""
         try:
             default_fields = 'id,name,mimeType,size,createdTime,modifiedTime,parents,webViewLink,webContentLink,owners,permissions'
@@ -101,7 +103,8 @@ class GoogleDriveService:
             logger.error(f"Failed to list files: {e}")
             raise
 
-    def create_folder(self, name: str, parent_id: Optional[str] = None) -> Dict[str, Any]:
+    def create_folder(
+            self, name: str, parent_id: Optional[str] = None) -> Dict[str, Any]:
         """Create a new folder"""
         try:
             folder_metadata = {
@@ -179,7 +182,8 @@ class GoogleDriveService:
             logger.error(f"Failed to delete file {file_id}: {e}")
             return False
 
-    def move_file(self, file_id: str, new_parent_id: str, old_parent_id: Optional[str] = None) -> Dict[str, Any]:
+    def move_file(self, file_id: str, new_parent_id: str,
+                  old_parent_id: Optional[str] = None) -> Dict[str, Any]:
         """Move a file to a different folder"""
         try:
             if not old_parent_id:
@@ -215,7 +219,8 @@ class GoogleDriveService:
             logger.error(f"Failed to rename file {file_id}: {e}")
             raise
 
-    def search_files(self, query: str, max_results: int = 50) -> List[Dict[str, Any]]:
+    def search_files(self, query: str,
+                     max_results: int = 50) -> List[Dict[str, Any]]:
         """Search for files by name or content"""
         try:
             search_query = f"name contains '{query}' or fullText contains '{query}'"
@@ -224,7 +229,8 @@ class GoogleDriveService:
             logger.error(f"Failed to search files with query '{query}': {e}")
             raise
 
-    def get_folder_structure(self, folder_id: Optional[str] = None, max_depth: int = 3) -> Dict[str, Any]:
+    def get_folder_structure(
+            self, folder_id: Optional[str] = None, max_depth: int = 3) -> Dict[str, Any]:
         """Get hierarchical folder structure"""
         try:
             if not folder_id:
@@ -263,7 +269,8 @@ class GoogleDriveService:
             logger.error(f"Failed to get permissions for file {file_id}: {e}")
             raise
 
-    def share_file(self, file_id: str, email: str, role: str = 'reader') -> Dict[str, Any]:
+    def share_file(self, file_id: str, email: str,
+                   role: str = 'reader') -> Dict[str, Any]:
         """Share a file with a user"""
         try:
             permission = {
@@ -284,7 +291,8 @@ class GoogleDriveService:
             logger.error(f"Failed to share file {file_id} with {email}: {e}")
             raise
 
-    def organize_by_type(self, source_folder_id: str) -> Dict[str, List[Dict[str, Any]]]:
+    def organize_by_type(
+            self, source_folder_id: str) -> Dict[str, List[Dict[str, Any]]]:
         """Organize files by type within a folder"""
         try:
             files = self.list_files(source_folder_id)
@@ -386,6 +394,7 @@ class GoogleDriveService:
         return {k: v for k, v in formatted.items() if v is not None}
 
 
-def create_drive_service(credentials_path: Optional[str] = None, token_path: Optional[str] = None) -> GoogleDriveService:
+def create_drive_service(
+        credentials_path: Optional[str] = None, token_path: Optional[str] = None) -> GoogleDriveService:
     """Factory function to create a Google Drive service instance"""
     return GoogleDriveService(credentials_path, token_path)

@@ -5,7 +5,7 @@ from typing import Optional
 class User(BaseModel):
     """Simple user model to avoid Supabase import issues"""
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: str
     email: Optional[str] = None
 

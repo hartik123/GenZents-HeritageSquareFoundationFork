@@ -16,13 +16,17 @@ app = FastAPI(
 # Security middleware - restrict hosts in production
 if not settings.DEBUG:
     app.add_middleware(
-        TrustedHostMiddleware, 
-        allowed_hosts=["localhost", "127.0.0.1", "*.herokuapp.com", "*.vercel.app"]
+        TrustedHostMiddleware,
+        allowed_hosts=[
+            "localhost",
+            "127.0.0.1",
+            "*.herokuapp.com",
+            "*.vercel.app"]
     )
 
 # CORS middleware
 allowed_origins = [
-    settings.FRONTEND_URL, 
+    settings.FRONTEND_URL,
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
@@ -44,6 +48,8 @@ app.add_middleware(
 )
 
 # Add preflight handler for CORS
+
+
 @app.options("/{full_path:path}")
 async def options_handler(full_path: str):
     return {"detail": "OK"}

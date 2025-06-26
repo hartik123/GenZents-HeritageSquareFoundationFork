@@ -28,12 +28,12 @@ export function Header() {
     if (pathname === "/") {
       return "Archyx AI"
     }
-    
+
     if (pathname.startsWith("/chat/")) {
       const currentChat = getCurrentChat()
       return currentChat?.title || "Chat"
     }
-    
+
     switch (pathname) {
       case "/context":
         return "Context"
@@ -46,9 +46,7 @@ export function Header() {
       default:
         // For any other paths, capitalize the first segment
         const segments = pathname.split("/").filter(Boolean)
-        return segments.length > 0 
-          ? segments[0].charAt(0).toUpperCase() + segments[0].slice(1)
-          : "Archyx AI"
+        return segments.length > 0 ? segments[0].charAt(0).toUpperCase() + segments[0].slice(1) : "Archyx AI"
     }
   }
 

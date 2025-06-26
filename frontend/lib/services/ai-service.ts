@@ -8,7 +8,7 @@ export interface ChatMessage {
 }
 
 export interface StreamingResponse {
-  type: "chunk" | "complete" | "error" | "message" | "done"
+  type: "chunk" | "complete" | "error" | "message" | "done" | "command"
   data?: any
   content?: string
   message?: any
@@ -58,14 +58,21 @@ export class AIService {
           logger.error("Backend error response", undefined, { component: "ai-service", error, status: response.status })
         } catch {
           errorDetail = `HTTP ${response.status}: ${response.statusText}`
-          logger.error("Failed to parse error response", undefined, { component: "ai-service", status: response.status, statusText: response.statusText })
+          logger.error("Failed to parse error response", undefined, {
+            component: "ai-service",
+            status: response.status,
+            statusText: response.statusText,
+          })
         }
-        
+
         if (response.status === 404) {
           throw new Error("Chat not found")
         }
-        
-        logger.error("Send message failed", new Error(errorDetail), { component: "ai-service", status: response.status })
+
+        logger.error("Send message failed", new Error(errorDetail), {
+          component: "ai-service",
+          status: response.status,
+        })
         throw new Error(errorDetail)
       }
 
@@ -102,19 +109,31 @@ export class AIService {
         }),
       })
 
-      logger.info("Chat creation response received", { component: "ai-service", status: response.status, ok: response.ok })
+      logger.info("Chat creation response received", {
+        component: "ai-service",
+        status: response.status,
+        ok: response.ok,
+      })
 
       if (!response.ok) {
         let errorDetail = "Failed to create chat"
         try {
           const error = await response.json()
           errorDetail = error.detail || errorDetail
-          logger.error("Backend chat creation error", undefined, { component: "ai-service", error, status: response.status })
+          logger.error("Backend chat creation error", undefined, {
+            component: "ai-service",
+            error,
+            status: response.status,
+          })
         } catch {
           errorDetail = `HTTP ${response.status}: ${response.statusText}`
-          logger.error("Failed to parse chat creation error", undefined, { component: "ai-service", status: response.status, statusText: response.statusText })
+          logger.error("Failed to parse chat creation error", undefined, {
+            component: "ai-service",
+            status: response.status,
+            statusText: response.statusText,
+          })
         }
-        
+
         logger.error("Create chat failed", new Error(errorDetail), { component: "ai-service", status: response.status })
         throw new Error(errorDetail)
       }
@@ -159,17 +178,28 @@ export class AIService {
         try {
           const error = await response.json()
           errorDetail = error.detail || errorDetail
-          logger.error("Backend stream error response", undefined, { component: "ai-service", error, status: response.status })
+          logger.error("Backend stream error response", undefined, {
+            component: "ai-service",
+            error,
+            status: response.status,
+          })
         } catch {
           errorDetail = `HTTP ${response.status}: ${response.statusText}`
-          logger.error("Failed to parse stream error response", undefined, { component: "ai-service", status: response.status, statusText: response.statusText })
+          logger.error("Failed to parse stream error response", undefined, {
+            component: "ai-service",
+            status: response.status,
+            statusText: response.statusText,
+          })
         }
-        
+
         if (response.status === 404) {
           throw new Error("Chat not found")
         }
-        
-        logger.error("Send message stream failed", new Error(errorDetail), { component: "ai-service", status: response.status })
+
+        logger.error("Send message stream failed", new Error(errorDetail), {
+          component: "ai-service",
+          status: response.status,
+        })
         throw new Error(errorDetail)
       }
 

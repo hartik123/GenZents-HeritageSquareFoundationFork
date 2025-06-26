@@ -23,14 +23,16 @@ else:
 
 security = HTTPBearer()
 
-# Function to get authenticated supabase client for user requests  
+# Function to get authenticated supabase client for user requests
+
+
 def get_user_supabase_client(token: str) -> Client:
     """Create a Supabase client with user authentication token for RLS"""
     try:
         # Validate token format
         if not token or len(token) < 10:
             raise ValueError("Invalid token format")
-            
+
         # Create options with proper headers
         options = ClientOptions(
             headers={
@@ -38,14 +40,14 @@ def get_user_supabase_client(token: str) -> Client:
                 "apikey": settings.SUPABASE_ANON_KEY
             }
         )
-        
+
         # Create a new client with user authentication
         user_client = create_client(
             settings.SUPABASE_URL,
             settings.SUPABASE_ANON_KEY,
             options=options
         )
-        
+
         return user_client
     except Exception as e:
         logger.error(f"Failed to create authenticated Supabase client: {e}")
@@ -55,7 +57,10 @@ def get_user_supabase_client(token: str) -> Client:
         )
 
 # Dependency to get current user
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> User:
+
+
+async def get_current_user(
+        credentials: HTTPAuthorizationCredentials = Depends(security)) -> User:
     if not supabase:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -63,14 +68,15 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         )
 
     token = credentials.credentials
-    
+
     # Basic token format validation
-    if not token or len(token) < 10 or not token.replace('-', '').replace('_', '').replace('.', '').isalnum():
+    if not token or len(token) < 10 or not token.replace(
+            '-', '').replace('_', '').replace('.', '').isalnum():
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token format"
         )
-    
+
     try:
         # Verify JWT token with Supabase
         response = supabase.auth.get_user(token)

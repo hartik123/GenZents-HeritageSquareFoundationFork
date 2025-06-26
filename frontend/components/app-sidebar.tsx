@@ -94,11 +94,8 @@ export function AppSidebar() {
             <SidebarMenu>
               {chats.map((chat) => (
                 <SidebarMenuItem key={chat.id}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={currentChatId === chat.id}
-                  >
-                    <a 
+                  <SidebarMenuButton asChild isActive={currentChatId === chat.id}>
+                    <a
                       href={`/chat/${chat.id}`}
                       className="w-full text-left"
                       onClick={(e) => {
@@ -133,7 +130,7 @@ export function AppSidebar() {
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <a 
+                    <a
                       href={item.url}
                       className="w-full text-left"
                       onClick={(e) => {

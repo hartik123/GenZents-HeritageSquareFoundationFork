@@ -5,7 +5,9 @@ from datetime import datetime
 
 class ChatCreate(BaseModel):
     title: str = Field(default="New Chat", min_length=1, max_length=100)
-    model: Optional[str] = Field(default="gemini-1.5-flash", pattern=r"^(gemini-1\.5-flash|gemini-1\.5-pro)$")
+    model: Optional[str] = Field(
+        default="gemini-1.5-flash",
+        pattern=r"^(gemini-1\.5-flash|gemini-1\.5-pro)$")
     system_prompt: Optional[str] = Field(None, max_length=2000)
     tags: Optional[List[str]] = Field(None)
 
@@ -31,7 +33,7 @@ class ChatUpdate(BaseModel):
 
 class ChatResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: str
     title: str
     created_at: str
