@@ -89,7 +89,7 @@ def generate_text(prompt: str, history: List[Dict[str, str]] = [], system_prompt
 
         # Send the new message
         response = chat.send_message(prompt)
-
+        print(prompt)
         return response.text
 
     except Exception as e:

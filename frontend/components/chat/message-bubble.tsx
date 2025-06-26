@@ -141,7 +141,7 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
     >
       {!isSystem && !isUser && settings.showAvatars && (
         <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarImage src="/placeholder.svg?height=32&width=32" />
+          {/* <AvatarImage src="/placeholder.svg?height=32&width=32" /> */}
           <AvatarFallback>AI</AvatarFallback>
         </Avatar>
       )}
@@ -203,13 +203,12 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
             </div>
           )}
         </div>
-      </div>
 
-      {!isSystem && (isHovered || isLast) && (
+        {!isSystem && (isHovered || isLast) && (
+        <>
         <div
           className={cn(
-            "flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity",
-            isUser && "order-first"
+            "flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
           )}
         >
           <Button variant="ghost" size="sm" onClick={handleCopy} className="h-8 w-8 p-0">
@@ -279,11 +278,15 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+      </>
       )}
+      </div>
+
+      
 
       {isUser && settings.showAvatars && (
         <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarImage src="/placeholder.svg?height=32&width=32" />
+          {/* <AvatarImage src="/placeholder.svg?height=32&width=32" /> */}
           <AvatarFallback>U</AvatarFallback>
         </Avatar>
       )}
