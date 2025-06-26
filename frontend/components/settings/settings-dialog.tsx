@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import {
   Settings,
   User,
@@ -29,6 +30,8 @@ import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useSettings } from "@/hooks/settings-provider"
 import { useTheme } from "@/hooks/theme-provider"
+import { useAuthStore } from "@/lib/stores/auth-store"
+import { useToast } from "@/hooks/use-toast"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { logger } from "@/lib/utils/logger"
 import { commandProcessor } from "@/lib/services/command-processor"
@@ -47,6 +50,9 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
   const [activeSection, setActiveSection] = useState("general")
   const { settings, updateSetting, resetSettings, exportSettings, importSettings } = useSettings()
   const { theme, setTheme } = useTheme()
+  const { signOutAllDevices } = useAuthStore()
+  const { toast } = useToast()
+  const router = useRouter()
 
   const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -125,15 +131,25 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                       </p>
                       <Button
                         variant="destructive"
-                        onClick={() => {
+                        onClick={async () => {
                           if (
                             confirm(
-                              "Are you sure you want to log out from all devices? You&apos;ll need to sign in again on all your devices."
+                              "Are you sure you want to log out from all devices? You'll need to sign in again on all your devices."
                             )
                           ) {
-                            // Call your logout from all devices function here
-                            logger.info("Logging out from all devices", { component: "settings-dialog" })
-                            // This would typically invalidate all sessions
+                            try {
+                              await signOutAllDevices()
+                              router.push("/auth")
+                            } catch (error) {
+                              logger.error("Failed to log out from all devices", error as Error, {
+                                component: "settings-dialog",
+                              })
+                              toast({
+                                title: "Error",
+                                description: "Failed to log out from all devices. Please try again.",
+                                variant: "destructive",
+                              })
+                            }
                           }
                         }}
                       >

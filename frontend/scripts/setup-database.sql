@@ -105,7 +105,10 @@ CREATE TABLE IF NOT EXISTS user_settings (
   retention_days INTEGER DEFAULT 30,
   
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  
+  -- Ensure each user has only one settings record
+  UNIQUE(user_id)
 );
 
 -- =====================================================

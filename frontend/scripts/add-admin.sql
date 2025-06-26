@@ -86,49 +86,70 @@ BEGIN
     updated_at = NOW()
   WHERE user_id = admin_user_id AND provider = 'email';
   
-  -- Update the profile created by trigger with admin-specific settings
-  UPDATE public.profiles SET
-    full_name = 'System Administrator',
-    is_admin = TRUE,
-    status = 'active',
-    permissions = ARRAY['admin_access', 'ai_chat', 'file_organization', 'version_history', 'context_management', 'tools_access']::TEXT[],
-    subscription_plan = 'enterprise',
-    subscription_features = ARRAY['basic_chat', 'file_upload', 'advanced_models', 'custom_models', 'priority_support']::TEXT[],
-    billing_currency = 'USD',
-    messages_per_day = 10000,
-    tokens_per_month = 10000000,
-    file_uploads = 1000,
-    custom_models = 50,
+  -- Insert or update the profile (handle case where trigger might not fire)
+  INSERT INTO public.profiles (
+    id, 
+    email, 
+    full_name, 
+    is_admin, 
+    status, 
+    permissions,
+    subscription_plan,
+    subscription_features,
+    billing_currency,
+    messages_per_day,
+    tokens_per_month,
+    file_uploads,
+    custom_models,
+    last_active
+  ) VALUES (
+    admin_user_id,
+    'admin@example.com',
+    'System Administrator',
+    TRUE,
+    'active',
+    ARRAY['admin_access', 'ai_chat', 'file_organization', 'version_history', 'context_management', 'tools_access']::TEXT[],
+    'enterprise',
+    ARRAY['basic_chat', 'file_upload', 'advanced_models', 'custom_models', 'priority_support']::TEXT[],
+    'USD',
+    10000,
+    10000000,
+    1000,
+    50,
+    NOW()
+  ) ON CONFLICT (id) DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    is_admin = EXCLUDED.is_admin,
+    status = EXCLUDED.status,
+    permissions = EXCLUDED.permissions,
+    subscription_plan = EXCLUDED.subscription_plan,
+    subscription_features = EXCLUDED.subscription_features,
+    billing_currency = EXCLUDED.billing_currency,
+    messages_per_day = EXCLUDED.messages_per_day,
+    tokens_per_month = EXCLUDED.tokens_per_month,
+    file_uploads = EXCLUDED.file_uploads,
+    custom_models = EXCLUDED.custom_models,
     last_active = NOW(),
-    updated_at = NOW()
-  WHERE id = admin_user_id;  
-  -- Update user settings (created by trigger) with admin preferences
-  UPDATE user_settings SET
-    default_model = 'gpt-4',
-    communication_style = 'professional',
-    response_length = 'detailed',
-    expertise_level = 'expert',
-    updated_at = NOW()
-  WHERE user_id = admin_user_id;
-  
-  -- Create welcome chat for admin (only if it doesn't exist)
-  IF NOT EXISTS (SELECT 1 FROM chats WHERE user_id = admin_user_id AND title = 'Admin Welcome - Archyx AI') THEN
-    INSERT INTO chats (
-      user_id,
-      title,
-      description,
-      category,
-      model,
-      system_prompt
-    ) VALUES (
-      admin_user_id,
-      'Admin Welcome - Archyx AI',
-      'Administrator welcome chat with system overview',
-      'admin',
-      'gpt-4',
-      'You are an AI assistant for the Archyx AI system administrator. Provide detailed system information and help with administrative tasks.'
-    );
-  END IF;
+    updated_at = NOW();  
+  -- Insert or update user settings (handle case where trigger might not fire)
+  INSERT INTO user_settings (
+    user_id,
+    default_model,
+    communication_style,
+    response_length,
+    expertise_level
+  ) VALUES (
+    admin_user_id,
+    'gpt-4',
+    'professional',
+    'detailed',
+    'expert'
+  ) ON CONFLICT (user_id) DO UPDATE SET
+    default_model = EXCLUDED.default_model,
+    communication_style = EXCLUDED.communication_style,
+    response_length = EXCLUDED.response_length,
+    expertise_level = EXCLUDED.expertise_level,
+    updated_at = NOW();
   
   RAISE NOTICE 'Admin user created/updated successfully with ID: %', admin_user_id;
   RAISE NOTICE 'Admin credentials: admin@example.com / admin_example_password';
@@ -162,18 +183,6 @@ FROM user_settings us
 JOIN profiles p ON p.id = us.user_id
 WHERE p.email = 'admin@example.com';
 
--- Check welcome chat was created
-SELECT 
-  c.id,
-  c.title,
-  c.description,
-  c.category,
-  c.model,
-  c.created_at
-FROM chats c
-JOIN profiles p ON p.id = c.user_id
-WHERE p.email = 'admin@example.com';
-
 -- =====================================================
 -- SIMPLIFIED SETUP INSTRUCTIONS
 -- =====================================================
@@ -187,7 +196,6 @@ This script will:
 1. Create the auth user directly in the database
 2. Set up the admin profile with full permissions
 3. Create user settings optimized for admin use
-4. Add a welcome chat for the administrator
 
 ADMIN USER CREDENTIALS:
 Email: admin@example.com

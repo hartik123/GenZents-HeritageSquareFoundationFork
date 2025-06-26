@@ -9,8 +9,6 @@ interface InternalTaskStore extends TaskStoreInterface {
   subscriptionCleanup?: () => void
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
-
 export const useTaskStore = create<InternalTaskStore>((set, get) => ({
   tasks: [],
   taskStats: {
@@ -35,33 +33,36 @@ export const useTaskStore = create<InternalTaskStore>((set, get) => ({
         throw new Error("No authentication session")
       }
 
-      let url = `${API_BASE}/api/tasks/`
-      if (filters) {
-        const params = new URLSearchParams()
-        if (filters.status) params.append("status", filters.status.join(","))
-        if (filters.type) params.append("type", filters.type.join(","))
-        if (filters.chat_id) params.append("chat_id", filters.chat_id)
-        if (filters.limit) params.append("limit", filters.limit.toString())
-        if (filters.offset) params.append("offset", filters.offset.toString())
+      // Build query based on filters
+      let query = supabase
+        .from("tasks")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .order("created_at", { ascending: false })
 
-        if (params.toString()) {
-          url += `?${params.toString()}`
-        }
+      if (filters?.status && filters.status.length > 0) {
+        query = query.in("status", filters.status)
+      }
+      if (filters?.type && filters.type.length > 0) {
+        query = query.in("type", filters.type)
+      }
+      if (filters?.chat_id) {
+        query = query.eq("chat_id", filters.chat_id)
+      }
+      if (filters?.limit) {
+        query = query.limit(filters.limit)
+      }
+      if (filters?.offset) {
+        query = query.range(filters.offset, filters.offset + (filters.limit || 50) - 1)
       }
 
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          "Content-Type": "application/json",
-        },
-      })
+      const { data: tasks, error } = await query
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch tasks: ${response.statusText}`)
+      if (error) {
+        throw error
       }
 
-      const data = await response.json()
-      set({ tasks: data.tasks || [], loading: false })
+      set({ tasks: tasks || [], loading: false })
 
       // Update stats
       await get().fetchTaskStats()
@@ -105,17 +106,17 @@ export const useTaskStore = create<InternalTaskStore>((set, get) => ({
         throw new Error("No authentication session")
       }
 
-      const response = await fetch(`${API_BASE}/api/tasks/${taskId}/cancel`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ reason: "User requested cancellation" }),
-      })
+      const { error } = await supabase
+        .from("tasks")
+        .update({
+          status: "cancelled",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", taskId)
+        .eq("user_id", session.user.id)
 
-      if (!response.ok) {
-        throw new Error(`Failed to cancel task: ${response.statusText}`)
+      if (error) {
+        throw error
       }
 
       // Refresh tasks list
@@ -138,16 +139,10 @@ export const useTaskStore = create<InternalTaskStore>((set, get) => ({
         throw new Error("No authentication session")
       }
 
-      const response = await fetch(`${API_BASE}/api/tasks/${taskId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          "Content-Type": "application/json",
-        },
-      })
+      const { error } = await supabase.from("tasks").delete().eq("id", taskId).eq("user_id", session.user.id)
 
-      if (!response.ok) {
-        throw new Error(`Failed to delete task: ${response.statusText}`)
+      if (error) {
+        throw error
       }
 
       // Remove from local state
@@ -172,18 +167,18 @@ export const useTaskStore = create<InternalTaskStore>((set, get) => ({
         throw new Error("No authentication session")
       }
 
-      const response = await fetch(`${API_BASE}/api/tasks/${taskId}`, {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          "Content-Type": "application/json",
-        },
-      })
+      const { data: task, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("id", taskId)
+        .eq("user_id", session.user.id)
+        .single()
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch task: ${response.statusText}`)
+      if (error) {
+        throw error
       }
 
-      return await response.json()
+      return task
     } catch (error) {
       logger.error("Error fetching task", error as Error, { component: "task-store" })
       return null
@@ -191,6 +186,14 @@ export const useTaskStore = create<InternalTaskStore>((set, get) => ({
   },
 
   subscribeToTasks: () => {
+    // Get current user session for filtering
+    const getUserSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      return session
+    }
+
     // Subscribe to real-time updates from Supabase
     const subscription = supabase
       .channel("tasks")
@@ -201,9 +204,33 @@ export const useTaskStore = create<InternalTaskStore>((set, get) => ({
           schema: "public",
           table: "tasks",
         },
-        () => {
-          // Refresh tasks when changes occur
-          get().fetchTasks()
+        async (payload) => {
+          const session = await getUserSession()
+          if (!session) return
+
+          // Only process changes for the current user's tasks
+          const newRecord = payload.new as any
+          const oldRecord = payload.old as any
+
+          if (payload.eventType === "INSERT" && newRecord?.user_id === session.user.id) {
+            // Add new task to local state
+            set((state) => ({
+              tasks: [newRecord, ...state.tasks],
+            }))
+          } else if (payload.eventType === "UPDATE" && newRecord?.user_id === session.user.id) {
+            // Update existing task
+            set((state) => ({
+              tasks: state.tasks.map((task) => (task.id === newRecord.id ? newRecord : task)),
+            }))
+          } else if (payload.eventType === "DELETE" && oldRecord?.user_id === session.user.id) {
+            // Remove deleted task
+            set((state) => ({
+              tasks: state.tasks.filter((task) => task.id !== oldRecord.id),
+            }))
+          }
+
+          // Recalculate stats after any change
+          get().fetchTaskStats()
         }
       )
       .subscribe()

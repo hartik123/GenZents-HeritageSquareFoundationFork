@@ -14,6 +14,7 @@ interface AuthState {
   initialized: boolean
   signIn: (email: string, password: string) => Promise<{ error?: string }>
   signOut: () => Promise<void>
+  signOutAllDevices: () => Promise<void>
   initialize: () => Promise<void>
   updateProfile: (updates: Partial<Profile>) => Promise<{ error?: string }>
   resetPassword: (email: string) => Promise<{ error?: string }>
@@ -59,7 +60,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (event === "SIGNED_IN" && session?.user) {
           await get().refreshProfile()
         } else if (event === "SIGNED_OUT") {
-          set({ profile: null })
+          set({ profile: null, user: null, session: null })
         }
 
         set({
@@ -121,10 +122,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { error } = await supabase.auth.signOut()
       if (error) {
         logger.error("Error signing out", error as Error, { component: "auth-store" })
+        throw error
       }
       set({ user: null, profile: null, session: null })
     } catch (error) {
       logger.error("Error signing out", error as Error, { component: "auth-store" })
+      set({ user: null, profile: null, session: null })
+      throw error
+    }
+  },
+
+  signOutAllDevices: async () => {
+    try {
+      const { error } = await supabase.auth.signOut({ scope: "global" })
+      if (error) {
+        logger.error("Error signing out from all devices", error as Error, { component: "auth-store" })
+        throw error
+      }
+      set({ user: null, profile: null, session: null })
+    } catch (error) {
+      logger.error("Error signing out from all devices", error as Error, { component: "auth-store" })
+      set({ user: null, profile: null, session: null })
+      throw error
     }
   },
 
