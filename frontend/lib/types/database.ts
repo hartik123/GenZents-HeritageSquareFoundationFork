@@ -712,6 +712,71 @@ export interface Database {
           timestamp?: string
         }
       }
+      tasks: {
+        Row: {
+          id: string
+          user_id: string
+          chat_id: string | null
+          type: "organize" | "search" | "cleanup" | "folder_operation" | "backup" | "analysis"
+          command: string
+          parameters: any
+          status: "pending" | "running" | "completed" | "failed" | "cancelled"
+          progress: number
+          result: any | null
+          error_message: string | null
+          logs: string[]
+          created_at: string
+          started_at: string | null
+          completed_at: string | null
+          estimated_duration: number | null
+          priority: number
+          retry_count: number
+          max_retries: number
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          chat_id?: string | null
+          type: "organize" | "search" | "cleanup" | "folder_operation" | "backup" | "analysis"
+          command: string
+          parameters?: any
+          status?: "pending" | "running" | "completed" | "failed" | "cancelled"
+          progress?: number
+          result?: any | null
+          error_message?: string | null
+          logs?: string[]
+          created_at?: string
+          started_at?: string | null
+          completed_at?: string | null
+          estimated_duration?: number | null
+          priority?: number
+          retry_count?: number
+          max_retries?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          chat_id?: string | null
+          type?: "organize" | "search" | "cleanup" | "folder_operation" | "backup" | "analysis"
+          command?: string
+          parameters?: any
+          status?: "pending" | "running" | "completed" | "failed" | "cancelled"
+          progress?: number
+          result?: any | null
+          error_message?: string | null
+          logs?: string[]
+          created_at?: string
+          started_at?: string | null
+          completed_at?: string | null
+          estimated_duration?: number | null
+          priority?: number
+          retry_count?: number
+          max_retries?: number
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

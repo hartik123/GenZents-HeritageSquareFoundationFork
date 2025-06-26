@@ -40,6 +40,20 @@ class CommandProcessor:
         """Check if text starts with a command"""
         return text.strip().startswith('/')
 
+    def is_long_running_command(self, text: str) -> bool:
+        """Check if command should be processed as a background task"""
+        command_text = text.strip().lower()
+
+        long_running_commands = [
+            "/organize", "/search", "/cleanup"
+        ]
+
+        # Check if it's a command and if it's long-running
+        if self.is_command(command_text):
+            return any(cmd in command_text for cmd in long_running_commands)
+
+        return False
+
     def extract_command_and_message(
             self, prompt: str) -> Tuple[Optional[CommandResult], Optional[str]]:
         """

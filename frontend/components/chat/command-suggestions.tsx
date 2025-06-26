@@ -4,8 +4,60 @@ import * as React from "react"
 import { Command, Terminal, Search, Folder, Sparkles, HelpCircle } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { commandProcessor } from "@/lib/services/command-processor"
 import { cn } from "@/lib/utils"
+
+// Available commands from our chat command processor
+const AVAILABLE_COMMANDS = [
+  {
+    command: "/organize",
+    description: "Organize files in a directory",
+    example: "/organize Downloads",
+    category: "file-management",
+    isLongRunning: true,
+  },
+  {
+    command: "/search",
+    description: "Search for files and content",
+    example: "/search 'important document'",
+    category: "search",
+    isLongRunning: true,
+  },
+  {
+    command: "/cleanup",
+    description: "Clean up temporary files and duplicates",
+    example: "/cleanup",
+    category: "file-management",
+    isLongRunning: true,
+  },
+  {
+    command: "/backup",
+    description: "Create a backup of your files",
+    example: "/backup",
+    category: "file-management",
+    isLongRunning: true,
+  },
+  {
+    command: "/folder:name create",
+    description: "Create a new organized folder",
+    example: "/folder:Documents create",
+    category: "file-management",
+    isLongRunning: true,
+  },
+  {
+    command: "/help",
+    description: "Show available commands",
+    example: "/help",
+    category: "system",
+    isLongRunning: false,
+  },
+  {
+    command: "/status",
+    description: "Show system status",
+    example: "/status",
+    category: "system",
+    isLongRunning: false,
+  },
+]
 
 interface CommandSuggestionsProps {
   input: string
@@ -30,8 +82,7 @@ export function CommandSuggestions({
   textareaRef,
   visible,
 }: CommandSuggestionsProps) {
-  const [suggestions, setSuggestions] = React.useState<string[]>([])
-  const [availableCommands, setAvailableCommands] = React.useState(commandProcessor.getAvailableCommands())
+  const [suggestions, setSuggestions] = React.useState<typeof AVAILABLE_COMMANDS>([])
   const [selectedIndex, setSelectedIndex] = React.useState(0)
   const [position, setPosition] = React.useState({ top: 0, left: 0 })
   const dropdownRef = React.useRef<HTMLDivElement>(null)
@@ -40,6 +91,19 @@ export function CommandSuggestions({
   React.useEffect(() => {
     console.log("CommandSuggestions visibility changed:", visible)
   }, [visible])
+
+  // Get command suggestions based on input
+  const getSuggestions = (input: string) => {
+    const query = input.toLowerCase().trim()
+    if (!query.startsWith("/")) return []
+
+    const searchTerm = query.substring(1)
+    if (!searchTerm) return AVAILABLE_COMMANDS
+
+    return AVAILABLE_COMMANDS.filter(
+      (cmd) => cmd.command.toLowerCase().includes(searchTerm) || cmd.description.toLowerCase().includes(searchTerm)
+    )
+  }
 
   // Update suggestions based on input
   React.useEffect(() => {
@@ -61,7 +125,7 @@ export function CommandSuggestions({
     const currentLine = textBeforeCursor.split("\n").pop() || ""
 
     if (currentLine.startsWith("/")) {
-      const newSuggestions = commandProcessor.getSuggestions(currentLine)
+      const newSuggestions = getSuggestions(currentLine)
       setSuggestions(newSuggestions)
       setSelectedIndex(0)
     } else {
@@ -69,11 +133,6 @@ export function CommandSuggestions({
       setSelectedIndex(0)
     }
   }, [input, visible, textareaRef])
-
-  // Update available commands
-  React.useEffect(() => {
-    setAvailableCommands(commandProcessor.getAvailableCommands())
-  }, [])
 
   // Calculate dropdown position based on textarea position
   React.useEffect(() => {
@@ -136,8 +195,8 @@ export function CommandSuggestions({
           e.preventDefault()
           e.stopPropagation()
           if (suggestions[selectedIndex]) {
-            const commandPart = suggestions[selectedIndex].split(" - ")[0]
-            onCommandSelect(commandPart)
+            const selectedCommand = suggestions[selectedIndex]
+            onCommandSelect(selectedCommand.command)
           }
           return
         case "Escape":
@@ -185,16 +244,15 @@ export function CommandSuggestions({
           </div>
           <div className="space-y-0 max-h-60 overflow-y-auto">
             {suggestions.map((suggestion, index) => {
-              const commandName = suggestion.split(" - ")[0].substring(1) // Remove leading /
-              const Icon = COMMAND_ICONS[commandName as keyof typeof COMMAND_ICONS] || Terminal
+              const commandName = suggestion.command.substring(1) // Remove leading /
+              const Icon = COMMAND_ICONS[commandName.split(":")[0] as keyof typeof COMMAND_ICONS] || Terminal
               const isSelected = index === selectedIndex
 
               return (
                 <button
                   key={index}
                   onClick={() => {
-                    const commandPart = suggestion.split(" - ")[0]
-                    onCommandSelect(commandPart)
+                    onCommandSelect(suggestion.command)
                   }}
                   className={cn(
                     "flex items-center gap-3 w-full text-left p-2 rounded text-sm transition-colors",
@@ -204,19 +262,34 @@ export function CommandSuggestions({
                 >
                   <Icon className="h-4 w-4 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium">{suggestion.split(" - ")[0]}</div>
+                    <div className="font-medium">{suggestion.command}</div>
                     <div
                       className={cn(
                         "text-xs truncate",
                         isSelected ? "text-primary-foreground/80" : "text-muted-foreground"
                       )}
                     >
-                      {suggestion.split(" - ")[1]}
+                      {suggestion.description}
+                    </div>
+                    <div
+                      className={cn(
+                        "text-xs truncate font-mono",
+                        isSelected ? "text-primary-foreground/60" : "text-muted-foreground/60"
+                      )}
+                    >
+                      {suggestion.example}
                     </div>
                   </div>
-                  <Badge variant={isSelected ? "secondary" : "outline"} className="text-xs flex-shrink-0">
-                    {availableCommands.find((cmd) => cmd.name === commandName)?.category || "command"}
-                  </Badge>
+                  <div className="flex flex-col gap-1 flex-shrink-0">
+                    <Badge variant={isSelected ? "secondary" : "outline"} className="text-xs">
+                      {suggestion.category}
+                    </Badge>
+                    {suggestion.isLongRunning && (
+                      <Badge variant="outline" className="text-xs">
+                        Task
+                      </Badge>
+                    )}
+                  </div>
                 </button>
               )
             })}

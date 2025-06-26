@@ -350,6 +350,44 @@ CREATE TABLE IF NOT EXISTS analytics (
 );
 
 -- =====================================================
+-- TASK MANAGEMENT TABLE
+-- =====================================================
+
+-- Create tasks table for managing long-running background tasks
+CREATE TABLE IF NOT EXISTS tasks (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  chat_id UUID REFERENCES chats(id) ON DELETE CASCADE,
+  
+  -- Task details
+  type TEXT NOT NULL CHECK (type IN ('organize', 'search', 'cleanup', 'folder_operation', 'backup', 'analysis')),
+  command TEXT NOT NULL,
+  parameters JSONB DEFAULT '{}',
+  
+  -- Status tracking
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled')),
+  progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
+  
+  -- Results and logs
+  result JSONB,
+  error_message TEXT,
+  logs TEXT[] DEFAULT '{}',
+  
+  -- Timing
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  estimated_duration INTEGER, -- seconds
+  
+  -- Metadata
+  priority INTEGER DEFAULT 5 CHECK (priority >= 1 AND priority <= 10),
+  retry_count INTEGER DEFAULT 0,
+  max_retries INTEGER DEFAULT 3,
+  
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
 -- ENABLE ROW LEVEL SECURITY
 -- =====================================================
 
@@ -366,6 +404,7 @@ ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE context_files ENABLE ROW LEVEL SECURITY;
 ALTER TABLE share_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE analytics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 
 -- =====================================================
 -- HELPER FUNCTIONS
@@ -577,6 +616,39 @@ CREATE POLICY "Users can view share settings of own chats" ON share_settings
     )
   );
 
+-- Tasks policies
+CREATE POLICY "Users can view own tasks" ON tasks
+  FOR SELECT 
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create own tasks" ON tasks
+  FOR INSERT 
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own tasks" ON tasks
+  FOR UPDATE 
+  TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own tasks" ON tasks
+  FOR DELETE 
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+-- Admin policies for tasks
+CREATE POLICY "Admins can view all tasks" ON tasks
+  FOR SELECT 
+  TO authenticated
+  USING (is_admin());
+
+CREATE POLICY "Admins can update all tasks" ON tasks
+  FOR UPDATE 
+  TO authenticated
+  USING (is_admin());
+
 -- =====================================================
 -- FUNCTIONS AND TRIGGERS
 -- =====================================================
@@ -749,6 +821,11 @@ CREATE TRIGGER update_share_settings_updated_at
   BEFORE UPDATE ON share_settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- Trigger for tasks
+CREATE TRIGGER update_tasks_updated_at
+  BEFORE UPDATE ON tasks
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Triggers for chat metadata updates
 CREATE TRIGGER update_chat_metadata_on_message_insert
   AFTER INSERT ON messages
@@ -806,6 +883,14 @@ CREATE INDEX IF NOT EXISTS idx_analytics_timestamp ON analytics(timestamp);
 
 CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON user_settings(user_id);
 
+-- Task management indexes
+CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_type ON tasks(type);
+CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
+CREATE INDEX IF NOT EXISTS idx_tasks_chat_id ON tasks(chat_id);
+
 -- Full-text search indexes
 CREATE INDEX IF NOT EXISTS idx_messages_content_fts ON messages USING GIN(to_tsvector('english', content));
 CREATE INDEX IF NOT EXISTS idx_chats_title_fts ON chats USING GIN(to_tsvector('english', title));
@@ -837,6 +922,7 @@ GRANT ALL ON TABLE comments TO authenticated;
 GRANT ALL ON TABLE context_files TO authenticated;
 GRANT ALL ON TABLE share_settings TO authenticated;
 GRANT ALL ON TABLE analytics TO authenticated;
+GRANT ALL ON TABLE tasks TO authenticated;
 
 GRANT EXECUTE ON FUNCTION validate_user_permissions TO authenticated;
 GRANT EXECUTE ON FUNCTION promote_user_to_admin TO authenticated;

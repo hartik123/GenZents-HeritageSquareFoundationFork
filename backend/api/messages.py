@@ -4,6 +4,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from typing import List, Optional
 from storage.database import supabase, get_current_user, get_user_supabase_client
 from models.message import MessageCreate, MessageResponse, MessageUpdate
+from models.task import TaskCreate, TaskType
 from models.user import User
 from utils.logger import logger
 import uuid
@@ -98,6 +99,61 @@ async def create_message(
         command_result, remaining_message = command_processor.extract_command_and_message(
             message.content)
 
+        # 4. Check if this is a long-running command that should become a task
+        if command_result and command_processor.is_long_running_command(
+                message.content):
+            # Create a background task instead of processing immediately
+            task_type = _determine_task_type_from_command(message.content)
+
+            task_data = {
+                "id": str(uuid.uuid4()),
+                "user_id": current_user.id,
+                "chat_id": chat_id,
+                "type": task_type.value,
+                "command": message.content,
+                "parameters": {},
+                "status": "pending",
+                "progress": 0,
+                "priority": 5,
+                "max_retries": 3,
+                "retry_count": 0,
+                "created_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.utcnow().isoformat()
+            }
+
+            # Save the task
+            task_response = user_supabase.table(
+                "tasks").insert(task_data).execute()
+            task_id = task_response.data[0]["id"]
+
+            # Create a message indicating task was created
+            task_notification_content = f"🔄 **Long-running task started**\n\nCommand: `{
+                message.content}`\nTask ID: `{task_id}`\n\nThis task is running in the background. You can check its progress in the Tasks page."
+
+            task_message_data = {
+                "id": str(uuid.uuid4()),
+                "chat_id": chat_id,
+                "role": "assistant",
+                "content": task_notification_content,
+                "created_at": datetime.utcnow().isoformat(),
+                "metadata": {
+                    "is_task_notification": True,
+                    "task_id": task_id,
+                    "task_type": task_type.value
+                }
+            }
+            user_supabase.table("messages").insert(task_message_data).execute()
+
+            # Update chat timestamp
+            user_supabase.table("chats").update({
+                "updated_at": datetime.utcnow().isoformat()
+            }).eq("id", chat_id).execute()
+
+            logger.info(
+                f"Created background task {task_id} for command: {
+                    message.content}")
+            return task_message_data
+
         # Save user's message (original content)
         user_message_data = {
             "id": str(uuid.uuid4()),
@@ -111,7 +167,7 @@ async def create_message(
             "messages").insert(user_message_data).execute()
         logger.info(f"User message saved: {user_message_data['id']}")
 
-        # 4. Handle commands if present
+        # 5. Handle regular commands if present (not long-running)
         if command_result and command_result.success:
             # Save command result as assistant message
             command_content = f"**Command Executed:** {command_result.message}"
@@ -422,3 +478,23 @@ async def delete_message(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Helper functions
+
+def _determine_task_type_from_command(command: str) -> TaskType:
+    """Determine task type from command"""
+    command = command.lower()
+
+    if '/organize' in command:
+        return TaskType.ORGANIZE
+    elif '/search' in command:
+        return TaskType.SEARCH
+    elif '/cleanup' in command:
+        return TaskType.CLEANUP
+    elif '/folder' in command:
+        return TaskType.FOLDER_OPERATION
+    elif 'backup' in command:
+        return TaskType.BACKUP
+    else:
+        return TaskType.ANALYSIS

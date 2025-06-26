@@ -26,7 +26,17 @@ import {
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { MessageSquare, Plus, LogOut, MoreHorizontal, User, GitBranch, FolderOpen, Shield } from "lucide-react"
+import {
+  MessageSquare,
+  Plus,
+  LogOut,
+  MoreHorizontal,
+  User,
+  GitBranch,
+  FolderOpen,
+  Shield,
+  Activity,
+} from "lucide-react"
 import { useChatStore } from "@/lib/stores/chat-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
 
@@ -61,6 +71,7 @@ export function AppSidebar() {
   }
 
   const navigationItems = [
+    { title: "Tasks", url: "/tasks", icon: Activity, permission: "ai_chat" },
     { title: "Context", url: "/context", icon: FolderOpen, permission: "context_management" },
     { title: "Version", url: "/version", icon: GitBranch, permission: "version_history" },
   ].filter((item) => hasPermission(item.permission as any))

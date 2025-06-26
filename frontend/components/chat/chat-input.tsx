@@ -40,6 +40,7 @@ import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import { sanitizeInput } from "@/lib/utils/security"
 import { CommandSuggestions } from "./command-suggestions"
+import { chatCommandProcessor } from "@/lib/services/chat-command-processor"
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const ALLOWED_FILE_TYPES = [
@@ -58,6 +59,7 @@ export function ChatInput() {
   const [input, setInput] = React.useState("")
   const [isRecording, setIsRecording] = React.useState(false)
   const [isDragOver, setIsDragOver] = React.useState(false)
+  const [isProcessingCommand, setIsProcessingCommand] = React.useState(false)
   const [uploadProgress, setUploadProgress] = React.useState<Record<string, number>>({})
   const [showCommandSuggestions, setShowCommandSuggestions] = React.useState(false)
   const router = useRouter()
@@ -79,17 +81,22 @@ export function ChatInput() {
   const currentChat = getCurrentChat()
   const { toast } = useToast()
 
-  // Auto-resize textarea
+  // Auto-resize textarea and handle command suggestions
   React.useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto"
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`
     }
+
+    // Show command suggestions when user starts typing a command
+    const trimmedInput = input.trim()
+    const shouldShowSuggestions = trimmedInput.startsWith("/") && trimmedInput.length > 0
+    setShowCommandSuggestions(shouldShowSuggestions)
   }, [input])
 
   const handleSend = React.useCallback(async () => {
     if (!input.trim() && attachments.length === 0) return
-    if (isStreaming) return
+    if (isStreaming || isProcessingCommand) return
 
     // Sanitize input to prevent XSS attacks
     const messageContent = sanitizeInput(input.trim())
@@ -97,6 +104,7 @@ export function ChatInput() {
 
     setInput("")
     setShowCommandSuggestions(false)
+    setIsProcessingCommand(true)
 
     try {
       logger.info("Attempting to send message", {
@@ -105,7 +113,76 @@ export function ChatInput() {
         messageLength: messageContent.length,
       })
 
-      // Use streaming for better user experience - backend will handle commands
+      // Check if this is a command that should be processed as a task
+      const commandResult = await chatCommandProcessor.processCommand(messageContent, currentChat?.id)
+
+      if (commandResult.isTask) {
+        // First send the original command as a user message
+        const userChatId = await sendMessage(messageContent, currentChat?.id)
+
+        // Then send the response message
+        const response = commandResult.response || "Task created successfully. Check the Tasks page for progress."
+        await sendMessage(response, userChatId)
+
+        logger.info("Task created from command", {
+          component: "chat-input",
+          taskId: commandResult.taskId,
+          chatId: userChatId,
+          wasNewChat,
+        })
+
+        // Show success toast
+        toast({
+          title: "Task Created",
+          description: "Your command has been queued as a background task. Monitor progress in the Tasks page.",
+        })
+
+        // If this was a new chat, navigate to it
+        if (wasNewChat && userChatId) {
+          logger.info("Navigating to new chat", { component: "chat-input", chatId: userChatId })
+          selectChat(userChatId)
+          router.push(`/chat/${userChatId}`)
+        }
+
+        return
+      }
+
+      if (commandResult.error) {
+        // First send the original command as a user message
+        const userChatId = await sendMessage(messageContent, currentChat?.id)
+
+        // Then send error as response
+        const errorResponse = `Error processing command: ${commandResult.error}`
+        await sendMessage(errorResponse, userChatId)
+
+        toast({
+          title: "Command Error",
+          description: commandResult.error,
+          variant: "destructive",
+        })
+
+        if (wasNewChat && userChatId) {
+          selectChat(userChatId)
+          router.push(`/chat/${userChatId}`)
+        }
+        return
+      }
+
+      if (commandResult.response) {
+        // First send the original command as a user message
+        const userChatId = await sendMessage(messageContent, currentChat?.id)
+
+        // Then send immediate command response
+        await sendMessage(commandResult.response, userChatId)
+
+        if (wasNewChat && userChatId) {
+          selectChat(userChatId)
+          router.push(`/chat/${userChatId}`)
+        }
+        return
+      }
+
+      // Regular message - use streaming for better user experience
       const chatId = await sendMessageStream(messageContent, currentChat?.id)
 
       logger.info("Message sent successfully", { component: "chat-input", chatId, wasNewChat })
@@ -129,8 +206,21 @@ export function ChatInput() {
 
       // Restore the input on error
       setInput(messageContent)
+    } finally {
+      setIsProcessingCommand(false)
     }
-  }, [input, attachments, isStreaming, sendMessageStream, currentChat, selectChat, router, toast])
+  }, [
+    input,
+    attachments,
+    isStreaming,
+    isProcessingCommand,
+    sendMessage,
+    sendMessageStream,
+    currentChat,
+    selectChat,
+    router,
+    toast,
+  ])
 
   // Handle keyboard shortcuts
   React.useEffect(() => {
@@ -555,8 +645,14 @@ export function ChatInput() {
               onChange={(e) => setInput(e.target.value)}
               onSelect={handleCursorChange}
               onKeyUp={handleCursorChange}
-              placeholder={isStreaming ? "AI is responding..." : "Type your message or use /commands..."}
-              disabled={isStreaming}
+              placeholder={
+                isStreaming
+                  ? "AI is responding..."
+                  : isProcessingCommand
+                    ? "Processing command..."
+                    : "Type your message or use /commands..."
+              }
+              disabled={isStreaming || isProcessingCommand}
               className="min-h-[44px] max-h-[200px] resize-none pr-20"
               onKeyDown={handleKeyDown}
             />
@@ -585,12 +681,13 @@ export function ChatInput() {
           </Button>
 
           {/* Send/Stop Button */}
-          {isStreaming ? (
+          {isStreaming || isProcessingCommand ? (
             <Button
               variant="destructive"
               size="sm"
               onClick={() => sendMessage("", currentChat?.id || "")}
               className="flex-shrink-0"
+              disabled={isProcessingCommand}
             >
               <StopCircle className="h-4 w-4" />
             </Button>
@@ -626,6 +723,14 @@ export function ChatInput() {
           className="hidden"
         />
       </div>
+
+      {/* Command Suggestions */}
+      <CommandSuggestions
+        input={input}
+        onCommandSelect={handleCommandSelect}
+        textareaRef={textareaRef}
+        visible={showCommandSuggestions}
+      />
     </div>
   )
 }
