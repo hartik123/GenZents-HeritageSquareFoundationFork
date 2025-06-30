@@ -29,7 +29,7 @@ def get_authenticated_supabase(
 @router.get("/", response_model=List[ChatResponse])
 async def get_chats(
     current_user: User = Depends(get_current_user),
-    user_supabase=Depends(get_authenticated_supabase),
+    user_supabase = Depends(get_authenticated_supabase),
     archived: Optional[bool] = None,
     bookmarked: Optional[bool] = None,
     limit: Optional[int] = 50
@@ -38,7 +38,7 @@ async def get_chats(
     try:
         # Validate limit parameter
         limit = min(max(1, limit), 100)  # Clamp between 1-100
-
+        
         query = user_supabase.table("chats").select(
             "*").eq("user_id", current_user.id)
 
@@ -50,10 +50,7 @@ async def get_chats(
         response = query.order("updated_at", desc=True).limit(limit).execute()
         return response.data
     except Exception as e:
-        logger.error(
-            f"Error fetching chats for user {
-                current_user.id}: {
-                str(e)}")
+        logger.error(f"Error fetching chats for user {current_user.id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to fetch chats")
 
 
@@ -61,15 +58,12 @@ async def get_chats(
 async def create_chat(
     chat: ChatCreate,
     current_user: User = Depends(get_current_user),
-    user_supabase=Depends(get_authenticated_supabase)
+    user_supabase = Depends(get_authenticated_supabase)
 ):
     """Create a new chat"""
     try:
-        logger.info(
-            f"Creating chat for user {
-                current_user.id} with title '{
-                chat.title}'")
-
+        logger.info(f"Creating chat for user {current_user.id} with title '{chat.title}'")
+        
         chat_data = {
             "id": str(uuid.uuid4()),
             "title": chat.title or "New Chat",
@@ -87,33 +81,31 @@ async def create_chat(
 
         logger.info(f"Inserting chat data: {chat_data}")
         response = user_supabase.table("chats").insert(chat_data).execute()
-
+        
         if not response.data:
             logger.error("No data returned from chat creation")
-            raise HTTPException(
-                status_code=500,
-                detail="Chat creation failed - no data returned")
-
+            raise HTTPException(status_code=500, detail="Chat creation failed - no data returned")
+            
         logger.info(f"Chat created successfully: {response.data[0]['id']}")
         return response.data[0]
-
+        
     except Exception as e:
         error_detail = str(e)
         logger.error(f"Error creating chat: {error_detail}")
-        # Provide more specific error messages
+          # Provide more specific error messages
         if "row-level security policy" in error_detail.lower():
             raise HTTPException(
-                status_code=403,
+                status_code=403, 
                 detail="Permission denied"
             )
         elif "authentication" in error_detail.lower():
             raise HTTPException(
-                status_code=401,
+                status_code=401, 
                 detail="Authentication required"
             )
         elif "duplicate key" in error_detail.lower():
             raise HTTPException(
-                status_code=409,
+                status_code=409, 
                 detail="Conflict occurred"
             )
         else:
@@ -124,7 +116,7 @@ async def create_chat(
 async def get_chat(
     chat_id: str,
     current_user: User = Depends(get_current_user),
-    user_supabase=Depends(get_authenticated_supabase)
+    user_supabase = Depends(get_authenticated_supabase)
 ):
     """Get a specific chat"""
     try:
@@ -146,7 +138,7 @@ async def update_chat(
     chat_id: str,
     chat: ChatUpdate,
     current_user: User = Depends(get_current_user),
-    user_supabase=Depends(get_authenticated_supabase)
+    user_supabase = Depends(get_authenticated_supabase)
 ):
     """Update a chat"""
     try:
@@ -179,13 +171,12 @@ async def update_chat(
 async def delete_chat(
     chat_id: str,
     current_user: User = Depends(get_current_user),
-    user_supabase=Depends(get_authenticated_supabase)
+    user_supabase = Depends(get_authenticated_supabase)
 ):
     """Delete a chat"""
     try:
         # First delete all messages in the chat
-        user_supabase.table("messages").delete().eq(
-            "chat_id", chat_id).execute()
+        user_supabase.table("messages").delete().eq("chat_id", chat_id).execute()
 
         # Then delete the chat
         response = user_supabase.table("chats").delete().eq(
