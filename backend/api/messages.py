@@ -11,7 +11,7 @@ import uuid
 import json
 from datetime import datetime
 from services.generative_ai import generate_text, generate_text_stream
-from services.command_processor import command_processor
+from backend.utils.command_processor import command_processor
 
 router = APIRouter(prefix="/api/messages", tags=["messages"])
 security = HTTPBearer()

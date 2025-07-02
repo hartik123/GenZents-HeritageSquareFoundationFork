@@ -2,40 +2,13 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import {
-  Send,
-  Paperclip,
-  Mic,
-  MicOff,
-  Smile,
-  Bold,
-  Italic,
-  Code,
-  StopCircle,
-  Plus,
-  AtSign,
-  Hash,
-  FileText,
-  Folder,
-  ImageIcon,
-  X,
-  Upload,
-  Sparkles,
-} from "lucide-react"
-
+import { Send, Paperclip, Mic, MicOff, StopCircle, Hash, FileText, Folder, X, Upload, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useChatStore } from "@/lib/stores/chat-store"
 import { logger } from "@/lib/utils/logger"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import { sanitizeInput } from "@/lib/utils/security"
@@ -81,112 +54,87 @@ export function ChatInput() {
   const currentChat = getCurrentChat()
   const { toast } = useToast()
 
-  // Auto-resize textarea and handle command suggestions
+  // Auto-resize textarea
   React.useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto"
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`
     }
-
-    // Show command suggestions when user starts typing a command
-    const trimmedInput = input.trim()
-    const shouldShowSuggestions = trimmedInput.startsWith("/") && trimmedInput.length > 0
-    setShowCommandSuggestions(shouldShowSuggestions)
   }, [input])
 
   const handleSend = React.useCallback(async () => {
     if (!input.trim() && attachments.length === 0) return
     if (isStreaming || isProcessingCommand) return
-
     // Sanitize input to prevent XSS attacks
     const messageContent = sanitizeInput(input.trim())
     const wasNewChat = !currentChat
-
     setInput("")
     setShowCommandSuggestions(false)
     setIsProcessingCommand(true)
-
     try {
       logger.info("Attempting to send message", {
         component: "chat-input",
         hasCurrentChat: !!currentChat,
         messageLength: messageContent.length,
       })
-
       // Check if this is a command that should be processed as a task
       const commandResult = await chatCommandProcessor.processCommand(messageContent, currentChat?.id)
-
       if (commandResult.isTask) {
         // First send the original command as a user message
         const userChatId = await sendMessage(messageContent, currentChat?.id)
-
         // Then send the response message
         const response = commandResult.response || "Task created successfully. Check the Tasks page for progress."
         await sendMessage(response, userChatId)
-
         logger.info("Task created from command", {
           component: "chat-input",
           taskId: commandResult.taskId,
           chatId: userChatId,
           wasNewChat,
         })
-
         // Show success toast
         toast({
           title: "Task Created",
           description: "Your command has been queued as a background task. Monitor progress in the Tasks page.",
         })
-
         // If this was a new chat, navigate to it
         if (wasNewChat && userChatId) {
           logger.info("Navigating to new chat", { component: "chat-input", chatId: userChatId })
           selectChat(userChatId)
           router.push(`/chat/${userChatId}`)
         }
-
         return
       }
-
       if (commandResult.error) {
         // First send the original command as a user message
         const userChatId = await sendMessage(messageContent, currentChat?.id)
-
         // Then send error as response
         const errorResponse = `Error processing command: ${commandResult.error}`
         await sendMessage(errorResponse, userChatId)
-
         toast({
           title: "Command Error",
           description: commandResult.error,
           variant: "destructive",
         })
-
         if (wasNewChat && userChatId) {
           selectChat(userChatId)
           router.push(`/chat/${userChatId}`)
         }
         return
       }
-
       if (commandResult.response) {
         // First send the original command as a user message
         const userChatId = await sendMessage(messageContent, currentChat?.id)
-
         // Then send immediate command response
         await sendMessage(commandResult.response, userChatId)
-
         if (wasNewChat && userChatId) {
           selectChat(userChatId)
           router.push(`/chat/${userChatId}`)
         }
         return
       }
-
       // Regular message - use streaming for better user experience
       const chatId = await sendMessageStream(messageContent, currentChat?.id)
-
       logger.info("Message sent successfully", { component: "chat-input", chatId, wasNewChat })
-
       // If this was a new chat (no currentChat), navigate to the newly created chat
       if (wasNewChat && chatId) {
         logger.info("Navigating to new chat", { component: "chat-input", chatId })
@@ -203,7 +151,6 @@ export function ChatInput() {
         description: error instanceof Error ? error.message : "Failed to send message. Please try again.",
         variant: "destructive",
       })
-
       // Restore the input on error
       setInput(messageContent)
     } finally {
@@ -229,19 +176,16 @@ export function ChatInput() {
         e.preventDefault()
         handleSend()
       }
-
       if (e.key === "Escape" && isStreaming) {
         sendMessage("", currentChat?.id || "")
       }
     }
-
     document.addEventListener("keydown", handleKeyDown)
     return () => document.removeEventListener("keydown", handleKeyDown)
   }, [handleSend, isStreaming, currentChat, sendMessage])
 
   const handleFileSelect = (files: FileList | null) => {
     if (!files) return
-
     Array.from(files).forEach((file) => {
       if (file.size > MAX_FILE_SIZE) {
         toast({
@@ -251,7 +195,6 @@ export function ChatInput() {
         })
         return
       }
-
       if (!ALLOWED_FILE_TYPES.includes(file.type)) {
         toast({
           title: "File type not supported",
@@ -260,7 +203,6 @@ export function ChatInput() {
         })
         return
       }
-
       const attachment: any = {
         id: Math.random().toString(36).substr(2, 9),
         name: file.name,
@@ -268,10 +210,8 @@ export function ChatInput() {
         size: file.size,
         url: URL.createObjectURL(file),
       }
-
       // Simulate upload progress
       setUploadProgress((prev) => ({ ...prev, [attachment.id]: 0 }))
-
       const interval = setInterval(() => {
         setUploadProgress((prev) => {
           const current = prev[attachment.id] || 0
@@ -312,14 +252,11 @@ export function ChatInput() {
 
   const insertText = (before: string, after = "") => {
     if (!textareaRef.current) return
-
     const start = textareaRef.current.selectionStart
     const end = textareaRef.current.selectionEnd
     const selectedText = input.substring(start, end)
     const newText = input.substring(0, start) + before + selectedText + after + input.substring(end)
-
     setInput(newText)
-
     // Set cursor position
     setTimeout(() => {
       if (textareaRef.current) {
@@ -339,20 +276,16 @@ export function ChatInput() {
       })
       return
     }
-
     // Simple prompt enhancement logic
     let enhanced = input.trim()
-
     // Add context request if not present
     if (!enhanced.toLowerCase().includes("please") && !enhanced.toLowerCase().includes("can you")) {
       enhanced = `Please ${enhanced.charAt(0).toLowerCase() + enhanced.slice(1)}`
     }
-
     // Add specificity for short prompts
     if (enhanced.length < 50) {
       enhanced += ". Please provide detailed explanations and examples where helpful."
     }
-
     // Add structure request for longer prompts
     if (
       enhanced.length > 100 &&
@@ -361,14 +294,11 @@ export function ChatInput() {
     ) {
       enhanced += " Please structure your response clearly with headings or bullet points."
     }
-
     // Add role specification if missing
     if (!enhanced.toLowerCase().includes("expert") && !enhanced.toLowerCase().includes("specialist")) {
       enhanced = `As an expert, ${enhanced.charAt(0).toLowerCase() + enhanced.slice(1)}`
     }
-
     setInput(enhanced)
-
     toast({
       title: "Prompt enhanced! ✨",
       description: "Your prompt has been improved for better AI responses.",
@@ -384,23 +314,18 @@ export function ChatInput() {
       })
       return
     }
-
     if (isRecording) {
       setIsRecording(false)
       return
     }
-
     const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
     const recognition = new SpeechRecognition()
-
     recognition.continuous = true
     recognition.interimResults = true
     recognition.lang = "en-US"
-
     recognition.onstart = () => {
       setIsRecording(true)
     }
-
     recognition.onresult = (event: any) => {
       let transcript = ""
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -408,7 +333,6 @@ export function ChatInput() {
       }
       setInput((prev) => prev + transcript)
     }
-
     recognition.onerror = (event: any) => {
       logger.error("Speech recognition error", undefined, { component: "chat-input", error: event.error })
       setIsRecording(false)
@@ -418,11 +342,9 @@ export function ChatInput() {
         variant: "destructive",
       })
     }
-
     recognition.onend = () => {
       setIsRecording(false)
     }
-
     recognition.start()
   }
 
@@ -435,25 +357,23 @@ export function ChatInput() {
       setShowCommandSuggestions(false)
       return
     }
-
     const textarea = textareaRef.current
     const cursorPosition = textarea.selectionStart || 0
     const textBeforeCursor = input.substring(0, cursorPosition)
-    const currentLine = textBeforeCursor.split("\n").pop() || ""
 
-    // Show dropdown when line starts with / and contains only word characters (no spaces)
-    const shouldShow = currentLine.startsWith("/") && /^\/\w*$/.test(currentLine)
+    // Find the last occurrence of / before cursor position
+    const lastSlashIndex = textBeforeCursor.lastIndexOf("/")
 
-    // Temporary debug
-    if (input.includes("/")) {
-      console.log("Debug command detection:", {
-        input,
-        currentLine,
-        startsWithSlash: currentLine.startsWith("/"),
-        regexTest: /^\/\w*$/.test(currentLine),
-        shouldShow,
-      })
+    if (lastSlashIndex === -1) {
+      setShowCommandSuggestions(false)
+      return
     }
+
+    // Get text after the last slash
+    const textAfterSlash = textBeforeCursor.substring(lastSlashIndex + 1)
+
+    // Show dropdown if we have a slash and no spaces after it (valid command pattern)
+    const shouldShow = !textAfterSlash.includes(" ") && !textAfterSlash.includes("\n")
 
     setShowCommandSuggestions(shouldShow)
   }, [input])
@@ -461,13 +381,23 @@ export function ChatInput() {
   // Also check when cursor position changes
   const handleCursorChange = React.useCallback(() => {
     if (!textareaRef.current) return
-
     const textarea = textareaRef.current
     const cursorPosition = textarea.selectionStart || 0
     const textBeforeCursor = input.substring(0, cursorPosition)
-    const currentLine = textBeforeCursor.split("\n").pop() || ""
 
-    const shouldShow = currentLine.startsWith("/") && /^\/\w*$/.test(currentLine)
+    // Find the last occurrence of / before cursor position
+    const lastSlashIndex = textBeforeCursor.lastIndexOf("/")
+
+    if (lastSlashIndex === -1) {
+      setShowCommandSuggestions(false)
+      return
+    }
+
+    // Get text after the last slash
+    const textAfterSlash = textBeforeCursor.substring(lastSlashIndex + 1)
+
+    // Show dropdown if we have a slash and no spaces after it
+    const shouldShow = !textAfterSlash.includes(" ") && !textAfterSlash.includes("\n")
     setShowCommandSuggestions(shouldShow)
   }, [input])
 
@@ -477,33 +407,24 @@ export function ChatInput() {
       setShowCommandSuggestions(false)
       return
     }
-
     if (!textareaRef.current) return
-
     const textarea = textareaRef.current
     const cursorPosition = textarea.selectionStart || 0
     const textBeforeCursor = input.substring(0, cursorPosition)
     const textAfterCursor = input.substring(cursorPosition)
-
-    // Find the line with the command around the cursor
-    const lines = textBeforeCursor.split("\n")
-    const currentLineIndex = lines.length - 1
-    const currentLine = lines[currentLineIndex]
-
-    if (currentLine.startsWith("/")) {
-      // Replace the command part with selected command + space
-      lines[currentLineIndex] = command + " "
-      const newTextBeforeCursor = lines.join("\n")
-      const newInput = newTextBeforeCursor + textAfterCursor
-
+    // Find the last occurrence of / before cursor position
+    const lastSlashIndex = textBeforeCursor.lastIndexOf("/")
+    if (lastSlashIndex !== -1) {
+      // Replace from the slash position to cursor with the selected command
+      const textBeforeSlash = textBeforeCursor.substring(0, lastSlashIndex)
+      const newInput = textBeforeSlash + command + " " + textAfterCursor
       setInput(newInput)
       setShowCommandSuggestions(false)
-
       // Focus textarea and set cursor position after the command
       setTimeout(() => {
         if (textareaRef.current) {
           textareaRef.current.focus()
-          const newPosition = newTextBeforeCursor.length
+          const newPosition = textBeforeSlash.length + command.length + 1
           textareaRef.current.setSelectionRange(newPosition, newPosition)
         }
       }, 0)
@@ -521,7 +442,6 @@ export function ChatInput() {
       // Let all other keys pass through to CommandSuggestions component
       return
     }
-
     // Handle regular Enter for sending message (only when not showing commands)
     if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
       e.preventDefault()
@@ -530,207 +450,174 @@ export function ChatInput() {
   }
 
   return (
-    <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      {/* Command Suggestions Dropdown */}
+    <>
+      {/* Command Suggestions Dropdown - Render outside main container */}
       <CommandSuggestions
         input={input}
         onCommandSelect={handleCommandSelect}
         textareaRef={textareaRef}
         visible={showCommandSuggestions}
       />
-
-      {/* Attachments */}
-      {(attachments.length > 0 || Object.keys(uploadProgress).length > 0) && (
-        <div className="p-4 border-b">
-          <div className="flex flex-wrap gap-2">
-            {attachments.map((attachment) => (
-              <Badge key={attachment.id} variant="secondary" className="flex items-center gap-2">
-                <FileText className="h-3 w-3" />
-                <span className="text-xs">{attachment.name}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                  onClick={() => removeLocalAttachment(attachment.id)}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </Badge>
-            ))}
-
-            {Object.entries(uploadProgress).map(([id, progress]) => (
-              <div key={id} className="flex items-center gap-2 bg-muted px-2 py-1 rounded">
-                <Upload className="h-3 w-3" />
-                <Progress value={progress} className="w-16 h-2" />
-                <span className="text-xs">{progress}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Context Files */}
-      {contextFiles.length > 0 && (
-        <div className="p-4 border-b">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <Hash className="h-4 w-4" />
-            <span>Context Files</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {contextFiles.map((file, index) => (
-              <Badge key={index} variant="outline" className="flex items-center gap-2">
-                <Folder className="h-3 w-3" />
-                <span className="text-xs">{file.path}</span>
-                <Button variant="ghost" size="sm" className="h-4 w-4 p-0" onClick={() => removeContextFile(file.id)}>
-                  <X className="h-3 w-3" />
-                </Button>
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div
-        className={cn("p-4 transition-colors", isDragOver && "bg-primary/5 border-primary")}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <div className="flex items-end gap-2">
-          {/* Attachment Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="flex-shrink-0">
-                <Plus className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-                <Paperclip className="h-4 w-4 mr-2" />
-                Attach File
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <ImageIcon className="h-4 w-4 mr-2" />
-                Upload Image
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <AtSign className="h-4 w-4 mr-2" />
-                Mention Context
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Hash className="h-4 w-4 mr-2" />
-                Add Context File
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Prompt Enhancer Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleEnhancePrompt}
-            disabled={!input.trim()}
-            className="flex-shrink-0"
-            title="Enhance your prompt for better AI responses"
-          >
-            <Sparkles className="h-4 w-4" />
-          </Button>
-
-          {/* Text Input */}
-          <div className="flex-1 relative">
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onSelect={handleCursorChange}
-              onKeyUp={handleCursorChange}
-              placeholder={
-                isStreaming
-                  ? "AI is responding..."
-                  : isProcessingCommand
-                    ? "Processing command..."
-                    : "Type your message or use /commands..."
-              }
-              disabled={isStreaming || isProcessingCommand}
-              className="min-h-[44px] max-h-[200px] resize-none pr-20"
-              onKeyDown={handleKeyDown}
-            />
-
-            {/* Character Count */}
-            {characterCount > maxCharacters * 0.8 && (
-              <div
-                className={cn(
-                  "absolute bottom-2 right-2 text-xs",
-                  characterCount > maxCharacters ? "text-destructive" : "text-muted-foreground"
-                )}
-              >
-                {characterCount}/{maxCharacters}
-              </div>
-            )}
-          </div>
-
-          {/* Voice Input */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleVoiceInput}
-            className={cn("flex-shrink-0", isRecording && "text-red-500 animate-pulse")}
-          >
-            {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-          </Button>
-
-          {/* Send/Stop Button */}
-          {isStreaming || isProcessingCommand ? (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => sendMessage("", currentChat?.id || "")}
-              className="flex-shrink-0"
-              disabled={isProcessingCommand}
-            >
-              <StopCircle className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Button
-              onClick={handleSend}
-              disabled={!input.trim() && attachments.length === 0}
-              size="sm"
-              className="flex-shrink-0"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-
-        {/* Drag and Drop Overlay */}
-        {isDragOver && (
-          <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary rounded-lg flex items-center justify-center">
-            <div className="text-center">
-              <Upload className="h-8 w-8 mx-auto mb-2 text-primary" />
-              <p className="text-sm font-medium">Drop files here to attach</p>
+      <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        {/* Attachments */}
+        {(attachments.length > 0 || Object.keys(uploadProgress).length > 0) && (
+          <div className="p-4 border-b">
+            <div className="flex flex-wrap gap-2">
+              {attachments.map((attachment) => (
+                <Badge key={attachment.id} variant="secondary" className="flex items-center gap-2">
+                  <FileText className="h-3 w-3" />
+                  <span className="text-xs">{attachment.name}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                    onClick={() => removeLocalAttachment(attachment.id)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              ))}
+              {Object.entries(uploadProgress).map(([id, progress]) => (
+                <div key={id} className="flex items-center gap-2 bg-muted px-2 py-1 rounded">
+                  <Upload className="h-3 w-3" />
+                  <Progress value={progress} className="w-16 h-2" />
+                  <span className="text-xs">{progress}%</span>
+                </div>
+              ))}
             </div>
           </div>
         )}
+        {/* Context Files */}
+        {contextFiles.length > 0 && (
+          <div className="p-4 border-b">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+              <Hash className="h-4 w-4" />
+              <span>Context Files</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {contextFiles.map((file, index) => (
+                <Badge key={index} variant="outline" className="flex items-center gap-2">
+                  <Folder className="h-3 w-3" />
+                  <span className="text-xs">{file.path}</span>
+                  <Button variant="ghost" size="sm" className="h-4 w-4 p-0" onClick={() => removeContextFile(file.id)}>
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+        <div
+          className={cn("p-4 transition-colors", isDragOver && "bg-primary/5 border-primary")}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <div className="flex items-end gap-2">
+            {/* File Upload Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-shrink-0"
+              onClick={() => fileInputRef.current?.click()}
+              title="Attach File"
+            >
+              <Paperclip className="h-4 w-4" />
+            </Button>
 
-        {/* Hidden File Input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept={ALLOWED_FILE_TYPES.join(",")}
-          onChange={(e) => handleFileSelect(e.target.files)}
-          className="hidden"
-        />
+            {/* Prompt Enhancer Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleEnhancePrompt}
+              disabled={!input.trim()}
+              className="flex-shrink-0"
+              title="Enhance your prompt for better AI responses"
+            >
+              <Sparkles className="h-4 w-4" />
+            </Button>
+            {/* Text Input */}
+            <div className="flex-1 relative">
+              <Textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onSelect={handleCursorChange}
+                onKeyUp={handleCursorChange}
+                placeholder={
+                  isStreaming
+                    ? "AI is responding..."
+                    : isProcessingCommand
+                      ? "Processing command..."
+                      : "Type your message or use /commands..."
+                }
+                disabled={isStreaming || isProcessingCommand}
+                className="min-h-[44px] max-h-[200px] resize-none pr-20"
+                onKeyDown={handleKeyDown}
+              />
+              {/* Character Count */}
+              {characterCount > maxCharacters * 0.8 && (
+                <div
+                  className={cn(
+                    "absolute bottom-2 right-2 text-xs",
+                    characterCount > maxCharacters ? "text-destructive" : "text-muted-foreground"
+                  )}
+                >
+                  {characterCount}/{maxCharacters}
+                </div>
+              )}
+            </div>
+            {/* Voice Input */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleVoiceInput}
+              className={cn("flex-shrink-0", isRecording && "text-red-500 animate-pulse")}
+            >
+              {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </Button>
+            {/* Send/Stop Button */}
+            {isStreaming || isProcessingCommand ? (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => sendMessage("", currentChat?.id || "")}
+                className="flex-shrink-0"
+                disabled={isProcessingCommand}
+              >
+                <StopCircle className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSend}
+                disabled={!input.trim() && attachments.length === 0}
+                size="sm"
+                className="flex-shrink-0"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          {/* Drag and Drop Overlay */}
+          {isDragOver && (
+            <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary rounded-lg flex items-center justify-center">
+              <div className="text-center">
+                <Upload className="h-8 w-8 mx-auto mb-2 text-primary" />
+                <p className="text-sm font-medium">Drop files here to attach</p>
+              </div>
+            </div>
+          )}
+          {/* Hidden File Input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={ALLOWED_FILE_TYPES.join(",")}
+            onChange={(e) => handleFileSelect(e.target.files)}
+            className="hidden"
+          />
+        </div>
       </div>
-
-      {/* Command Suggestions */}
-      <CommandSuggestions
-        input={input}
-        onCommandSelect={handleCommandSelect}
-        textareaRef={textareaRef}
-        visible={showCommandSuggestions}
-      />
-    </div>
+    </>
   )
 }

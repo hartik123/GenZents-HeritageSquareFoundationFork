@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from storage.database import supabase
 from models.task import TaskStatus, TaskType, TaskResponse, TaskUpdate
-from services.command_processor import command_processor
+from backend.utils.command_processor import command_processor
 from utils.logger import logger
 import json
 

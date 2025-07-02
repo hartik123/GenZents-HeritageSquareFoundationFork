@@ -5,7 +5,7 @@ from storage.database import supabase, get_current_user, get_user_supabase_clien
 from models.task import TaskCreate, TaskResponse, TaskUpdate, TaskListResponse, TaskStopRequest, TaskType
 from models.user import User
 from services.task_processor import task_processor
-from services.command_processor import command_processor
+from backend.utils.command_processor import command_processor
 from utils.logger import logger
 import uuid
 from datetime import datetime
@@ -321,6 +321,7 @@ def _parse_command_for_task(
             parameters["path"] = " ".join(parts[1:])
 
     elif command.startswith('/search'):
+    
         task_type = TaskType.SEARCH
         # Extract search query
         parts = command.split()
