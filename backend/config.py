@@ -25,7 +25,6 @@ class Settings:
     # Google Drive Configuration
     GOOGLE_CREDENTIALS_PATH: str = os.getenv(
         "GOOGLE_CREDENTIALS_PATH", "credentials.json")
-    GOOGLE_TOKEN_PATH: str = os.getenv("GOOGLE_TOKEN_PATH", "token.json")
 
     @classmethod
     def validate(cls, raise_on_missing: bool = True):
@@ -36,7 +35,8 @@ class Settings:
         missing_vars = [var for var in required_vars if not getattr(cls, var)]
 
         if missing_vars:
-            error_msg = f"Missing required environment variables: {', '.join(missing_vars)}"
+            error_msg = f"Missing required environment variables: {
+                ', '.join(missing_vars)}"
             logger.warning(error_msg)
             logger.info(
                 "Please create a .env file with your Supabase credentials:")

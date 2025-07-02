@@ -4,12 +4,14 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from typing import List, Optional
 from storage.database import supabase, get_current_user, get_user_supabase_client
 from models.message import MessageCreate, MessageResponse, MessageUpdate
+from models.task import TaskCreate, TaskType
 from models.user import User
 from utils.logger import logger
 import uuid
 import json
 from datetime import datetime
 from services.generative_ai import generate_text, generate_text_stream
+from backend.utils.command_processor import command_processor
 
 router = APIRouter(prefix="/api/messages", tags=["messages"])
 security = HTTPBearer()
@@ -33,7 +35,7 @@ def get_authenticated_supabase(
 async def get_messages(
     chat_id: str,
     current_user: User = Depends(get_current_user),
-    user_supabase = Depends(get_authenticated_supabase),
+    user_supabase=Depends(get_authenticated_supabase),
     limit: Optional[int] = 50,
     offset: Optional[int] = 0
 ):
@@ -42,7 +44,7 @@ async def get_messages(
         # Validate pagination parameters
         limit = min(max(1, limit), 100)  # Clamp between 1-100
         offset = max(0, offset)  # Ensure non-negative
-        
+
         # First verify user has access to this chat
         chat_response = user_supabase.table("chats").select("id").eq(
             "id", chat_id).eq("user_id", current_user.id).execute()
@@ -66,18 +68,22 @@ async def create_message(
     chat_id: str,
     message: MessageCreate,
     current_user: User = Depends(get_current_user),
-    user_supabase = Depends(get_authenticated_supabase)
+    user_supabase=Depends(get_authenticated_supabase)
 ):
     """Create a new message in a chat and get a response from the AI"""
     try:
-        logger.info(f"Creating message for chat {chat_id} by user {current_user.id}")
-        
+        logger.info(
+            f"Creating message for chat {chat_id} by user {
+                current_user.id}")
+
         # 1. Verify user has access to this chat
         chat_response = user_supabase.table("chats").select("id, system_prompt").eq(
             "id", chat_id).eq("user_id", current_user.id).execute()
 
         if not chat_response.data:
-            logger.warning(f"Chat {chat_id} not found for user {current_user.id}")
+            logger.warning(
+                f"Chat {chat_id} not found for user {
+                    current_user.id}")
             raise HTTPException(status_code=404, detail="Chat not found")
 
         if message.role != 'user':
@@ -88,28 +94,121 @@ async def create_message(
         history_response = user_supabase.table("messages").select(
             "role, content").eq("chat_id", chat_id).order("created_at").execute()
         chat_history = history_response.data
-        
-        # 3. Save user's message
+
+        # 3. Check for commands in the message
+        command_result, remaining_message = command_processor.extract_command_and_message(
+            message.content)
+
+        # 4. Check if this is a long-running command that should become a task
+        if command_result and command_processor.is_long_running_command(
+                message.content):
+            # Create a background task instead of processing immediately
+            task_type = _determine_task_type_from_command(message.content)
+
+            task_data = {
+                "id": str(uuid.uuid4()),
+                "user_id": current_user.id,
+                "chat_id": chat_id,
+                "type": task_type.value,
+                "command": message.content,
+                "parameters": {},
+                "status": "pending",
+                "progress": 0,
+                "priority": 5,
+                "max_retries": 3,
+                "retry_count": 0,
+                "created_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.utcnow().isoformat()
+            }
+
+            # Save the task
+            task_response = user_supabase.table(
+                "tasks").insert(task_data).execute()
+            task_id = task_response.data[0]["id"]
+
+            # Create a message indicating task was created
+            task_notification_content = f"🔄 **Long-running task started**\n\nCommand: `{
+                message.content}`\nTask ID: `{task_id}`\n\nThis task is running in the background. You can check its progress in the Tasks page."
+
+            task_message_data = {
+                "id": str(uuid.uuid4()),
+                "chat_id": chat_id,
+                "role": "assistant",
+                "content": task_notification_content,
+                "created_at": datetime.utcnow().isoformat(),
+                "metadata": {
+                    "is_task_notification": True,
+                    "task_id": task_id,
+                    "task_type": task_type.value
+                }
+            }
+            user_supabase.table("messages").insert(task_message_data).execute()
+
+            # Update chat timestamp
+            user_supabase.table("chats").update({
+                "updated_at": datetime.utcnow().isoformat()
+            }).eq("id", chat_id).execute()
+
+            logger.info(
+                f"Created background task {task_id} for command: {
+                    message.content}")
+            return task_message_data
+
+        # Save user's message (original content)
         user_message_data = {
             "id": str(uuid.uuid4()),
             "chat_id": chat_id,
             "role": "user",
             "content": message.content,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
+            "metadata": {"has_commands": command_result is not None} if command_result else None
         }
-        user_response = user_supabase.table("messages").insert(user_message_data).execute()
+        user_response = user_supabase.table(
+            "messages").insert(user_message_data).execute()
         logger.info(f"User message saved: {user_message_data['id']}")
 
-        # 4. Generate AI response
+        # 5. Handle regular commands if present (not long-running)
+        if command_result and command_result.success:
+            # Save command result as assistant message
+            command_content = f"**Command Executed:** {command_result.message}"
+            if command_result.suggestions:
+                command_content += f"\n\n{
+                    chr(10).join(
+                        f'• {suggestion}' for suggestion in command_result.suggestions)}"
+
+            command_message_data = {
+                "id": str(uuid.uuid4()),
+                "chat_id": chat_id,
+                "role": "assistant",
+                "content": command_content,
+                "created_at": datetime.utcnow().isoformat(),
+                "metadata": {
+                    "is_command_result": True,
+                    "command_data": command_result.data
+                }
+            }
+            user_supabase.table("messages").insert(
+                command_message_data).execute()
+            logger.info(f"Command result saved: {command_message_data['id']}")
+
+            # If no remaining message after commands, return command result
+            if not remaining_message:
+                user_supabase.table("chats").update({
+                    "updated_at": datetime.utcnow().isoformat()
+                }).eq("id", chat_id).execute()
+                return command_message_data
+
+        # 5. Generate AI response for remaining message (if any)
+        message_for_ai = remaining_message if remaining_message else message.content
         system_prompt = chat_response.data[0].get('system_prompt')
 
         ai_response_text = generate_text(
-            prompt=message.content,
+            prompt=message_for_ai,
             history=chat_history,
             system_prompt=system_prompt
         )
 
-        # 5. Save AI's response
+        # 6. Save AI's response
         ai_message_data = {
             "id": str(uuid.uuid4()),
             "chat_id": chat_id,
@@ -117,7 +216,10 @@ async def create_message(
             "content": ai_response_text,
             "created_at": datetime.utcnow().isoformat()
         }
-        response = user_supabase.table("messages").insert(ai_message_data).execute()        # 6. Update chat's updated_at timestamp
+        response = user_supabase.table(
+            "messages").insert(ai_message_data).execute()
+
+        # 7. Update chat's updated_at timestamp
         user_supabase.table("chats").update({
             "updated_at": datetime.utcnow().isoformat()
         }).eq("id", chat_id).execute()
@@ -137,18 +239,22 @@ async def create_message_stream(
     chat_id: str,
     message: MessageCreate,
     current_user: User = Depends(get_current_user),
-    user_supabase = Depends(get_authenticated_supabase)
+    user_supabase=Depends(get_authenticated_supabase)
 ):
     """Create a new message and stream AI response"""
     try:
-        logger.info(f"Creating streaming message for chat {chat_id} by user {current_user.id}")
-        
+        logger.info(
+            f"Creating streaming message for chat {chat_id} by user {
+                current_user.id}")
+
         # Verify user has access to this chat
         chat_response = user_supabase.table("chats").select("id, system_prompt").eq(
             "id", chat_id).eq("user_id", current_user.id).execute()
 
         if not chat_response.data:
-            logger.warning(f"Chat {chat_id} not found for user {current_user.id}")
+            logger.warning(
+                f"Chat {chat_id} not found for user {
+                    current_user.id}")
             raise HTTPException(status_code=404, detail="Chat not found")
 
         if message.role != 'user':
@@ -159,26 +265,67 @@ async def create_message_stream(
         history_response = user_supabase.table("messages").select(
             "role, content").eq("chat_id", chat_id).order("created_at").execute()
         chat_history = history_response.data
-        
-        # Save user's message
+
+        # Check for commands in the message
+        command_result, remaining_message = command_processor.extract_command_and_message(
+            message.content)
+
+        # Save user's message (original content)
         user_message_data = {
             "id": str(uuid.uuid4()),
             "chat_id": chat_id,
             "role": "user",
             "content": message.content,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
+            "metadata": {"has_commands": command_result is not None} if command_result else None
         }
         user_supabase.table("messages").insert(user_message_data).execute()
-        logger.info(f"User message saved for streaming: {user_message_data['id']}")
+        logger.info(
+            f"User message saved for streaming: {
+                user_message_data['id']}")
 
         async def generate_response():
             try:
+                # Handle commands first if present
+                if command_result and command_result.success:
+                    command_content = f"**Command Executed:** {
+                        command_result.message}"
+                    if command_result.suggestions:
+                        command_content += f"\n\n{
+                            chr(10).join(
+                                f'• {suggestion}' for suggestion in command_result.suggestions)}"
+
+                    # Stream command result
+                    yield f"data: {json.dumps({'type': 'command', 'content': command_content})}\n\n"
+
+                    # Save command result
+                    command_message_data = {
+                        "id": str(uuid.uuid4()),
+                        "chat_id": chat_id,
+                        "role": "assistant",
+                        "content": command_content,
+                        "created_at": datetime.utcnow().isoformat(),
+                        "metadata": {
+                            "is_command_result": True,
+                            "command_data": command_result.data
+                        }
+                    }
+                    user_supabase.table("messages").insert(
+                        command_message_data).execute()
+
+                    # If no remaining message, end here
+                    if not remaining_message:
+                        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                        return
+
+                # Generate AI response for remaining message (if any)
+                message_for_ai = remaining_message if remaining_message else message.content
                 system_prompt = chat_response.data[0].get('system_prompt')
 
                 # Stream the AI response
                 full_response = ""
                 async for chunk in generate_text_stream(
-                    prompt=message.content,
+                    prompt=message_for_ai,
                     history=chat_history,
                     system_prompt=system_prompt
                 ):
@@ -203,7 +350,9 @@ async def create_message_stream(
                     "updated_at": datetime.utcnow().isoformat()
                 }).eq("id", chat_id).execute()
 
-                logger.info(f"AI streaming message saved: {ai_message_data['id']}")
+                logger.info(
+                    f"AI streaming message saved: {
+                        ai_message_data['id']}")
                 # Send completion signal with the saved message
                 yield f"data: {json.dumps({'type': 'complete', 'message': ai_response.data[0]})}\n\n"
 
@@ -227,8 +376,11 @@ async def create_message_stream(
         raise
     except Exception as e:
         error_detail = str(e)
-        logger.error(f"Error creating streaming message in chat {chat_id}: {error_detail}")
-        raise HTTPException(status_code=500, detail=f"Streaming message creation failed: {error_detail}")
+        logger.error(
+            f"Error creating streaming message in chat {chat_id}: {error_detail}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Streaming message creation failed: {error_detail}")
 
 
 @router.get("/{message_id}", response_model=MessageResponse)
@@ -326,3 +478,23 @@ async def delete_message(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Helper functions
+
+def _determine_task_type_from_command(command: str) -> TaskType:
+    """Determine task type from command"""
+    command = command.lower()
+
+    if '/organize' in command:
+        return TaskType.ORGANIZE
+    elif '/search' in command:
+        return TaskType.SEARCH
+    elif '/cleanup' in command:
+        return TaskType.CLEANUP
+    elif '/folder' in command:
+        return TaskType.FOLDER_OPERATION
+    elif 'backup' in command:
+        return TaskType.BACKUP
+    else:
+        return TaskType.ANALYSIS

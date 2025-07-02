@@ -3,7 +3,10 @@ from typing import Optional, Dict, Any
 
 
 class MessageCreate(BaseModel):
-    content: str = Field(..., min_length=1, max_length=10000, description="Message content")
+    content: str = Field(...,
+                         min_length=1,
+                         max_length=10000,
+                         description="Message content")
     role: str = Field(default="user", pattern=r"^(user|assistant)$")
     metadata: Optional[Dict[str, Any]] = None
 
@@ -22,7 +25,7 @@ class MessageUpdate(BaseModel):
 
 class MessageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: str
     chat_id: str
     role: str

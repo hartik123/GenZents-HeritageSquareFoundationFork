@@ -40,6 +40,12 @@ interface ExtendedSettings extends Settings {
   googleDriveSyncFrequency: "realtime" | "hourly" | "daily" | "weekly"
   shareUsageWithIntegrations: boolean
   crossPlatformSync: boolean
+
+  // Tools and commands
+  enableCommands: boolean
+  autoCommandSuggestions: boolean
+  showCommandHelp: boolean
+  enabledCommands: string[]
 }
 
 interface SettingsContextProps {
@@ -119,6 +125,12 @@ const defaultSettings: ExtendedSettings = {
   googleDriveSyncFrequency: "daily",
   shareUsageWithIntegrations: false,
   crossPlatformSync: true,
+
+  // Tools and commands
+  enableCommands: true,
+  autoCommandSuggestions: true,
+  showCommandHelp: true,
+  enabledCommands: ["organize", "folder", "search", "cleanup", "help"],
 }
 
 const SettingsContext = createContext<SettingsContextProps>({
@@ -154,7 +166,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       try {
         const storedSettings = await SecureStorage.getItem<ExtendedSettings>("settings")
         if (storedSettings) {
-          setSettings(prev => ({ ...prev, ...storedSettings }))
+          setSettings((prev) => ({ ...prev, ...storedSettings }))
         }
       } catch (error) {
         logger.error("Error loading stored settings", error as Error, { component: "settings-provider" })
@@ -164,9 +176,9 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   }, [])
 
   useEffect(() => {
-    SecureStorage.setItem("settings", settings, { 
+    SecureStorage.setItem("settings", settings, {
       encrypt: false, // Settings don't need encryption but could be enabled for sensitive data
-      expiryHours: 24 * 30 // 30 days
+      expiryHours: 24 * 30, // 30 days
     })
   }, [settings])
 

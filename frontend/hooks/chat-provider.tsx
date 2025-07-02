@@ -296,9 +296,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // Save sessions to localStorage when they change
   useEffect(() => {
     if (state.sessions.length > 0) {
-      SecureStorage.setItem("chat-sessions", state.sessions, { 
-        encrypt: true, 
-        expiryHours: 24 * 7 // 7 days
+      SecureStorage.setItem("chat-sessions", state.sessions, {
+        encrypt: true,
+        expiryHours: 24 * 7, // 7 days
       })
     }
   }, [state.sessions])

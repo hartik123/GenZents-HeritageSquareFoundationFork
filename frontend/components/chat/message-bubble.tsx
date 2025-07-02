@@ -156,10 +156,7 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
           )}
         >
           {!isUser && !isSystem ? (
-            <div 
-              className="prose-chat"
-              dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
-            />
+            <div className="prose-chat" dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }} />
           ) : (
             <div className="whitespace-pre-wrap break-words">{message.content}</div>
           )}

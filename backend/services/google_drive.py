@@ -1,14 +1,12 @@
 import os
 import io
+import json
 from typing import Dict, List, Optional, Any
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google.auth.exceptions import RefreshError
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2 import service_account
 from config import settings
 from utils.logger import logger
 
@@ -20,50 +18,44 @@ class GoogleDriveService:
         'https://www.googleapis.com/auth/drive.metadata'
     ]
 
-    def __init__(self, credentials_path: Optional[str] = None, token_path: Optional[str] = None):
+    def __init__(self, credentials_path: Optional[str] = None):
         self.credentials_path = credentials_path or settings.GOOGLE_CREDENTIALS_PATH
-        self.token_path = token_path or settings.GOOGLE_TOKEN_PATH
         self.service = None
         self._authenticate()
 
     def _authenticate(self) -> None:
-        """Authenticate with Google Drive API"""
-        creds = None
+        """Authenticate with Google Drive API using service account"""
+        if not os.path.exists(self.credentials_path):
+            raise FileNotFoundError(
+                f"Credentials file not found: {self.credentials_path}")
 
-        if os.path.exists(self.token_path):
-            try:
-                creds = Credentials.from_authorized_user_file(
-                    self.token_path, self.SCOPES)
-            except Exception as e:
-                logger.warning(f"Failed to load existing credentials: {e}")
-
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                try:
-                    creds.refresh(Request())
-                    logger.info("Credentials refreshed successfully")
-                except RefreshError as e:
-                    logger.error(f"Failed to refresh credentials: {e}")
-                    creds = None
-
-            if not creds:
-                if not os.path.exists(self.credentials_path):
-                    raise FileNotFoundError(
-                        f"Credentials file not found: {self.credentials_path}")
-
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    self.credentials_path, self.SCOPES
+        try:
+            # Load and validate the service account credentials
+            with open(self.credentials_path, 'r') as f:
+                creds_info = json.load(f)
+            
+            # Verify it's a service account credentials file
+            if creds_info.get('type') != 'service_account':
+                raise ValueError(
+                    f"Invalid credentials type. Expected 'service_account', got '{creds_info.get('type')}'. "
+                    "Please use a service account credentials file for backend applications."
                 )
-                creds = flow.run_local_server(port=0)
+            
+            logger.info("Using service account authentication")
+            credentials = service_account.Credentials.from_service_account_file(
+                self.credentials_path, scopes=self.SCOPES)
+            
+            self.service = build('drive', 'v3', credentials=credentials)
+            logger.info("Google Drive service initialized successfully")
+            
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON in credentials file: {e}")
+        except Exception as e:
+            logger.error(f"Authentication failed: {e}")
+            raise RuntimeError(f"Failed to authenticate with Google Drive API: {e}")
 
-            with open(self.token_path, 'w') as token:
-                token.write(creds.to_json())
-                logger.info("Credentials saved successfully")
-
-        self.service = build('drive', 'v3', credentials=creds)
-        logger.info("Google Drive service initialized")
-
-    def get_file_info(self, file_id: str, fields: Optional[str] = None) -> Dict[str, Any]:
+    def get_file_info(self, file_id: str,
+                      fields: Optional[str] = None) -> Dict[str, Any]:
         """Get detailed information about a file"""
         try:
             default_fields = 'id,name,mimeType,size,createdTime,modifiedTime,parents,webViewLink,webContentLink,owners,permissions'
@@ -101,7 +93,8 @@ class GoogleDriveService:
             logger.error(f"Failed to list files: {e}")
             raise
 
-    def create_folder(self, name: str, parent_id: Optional[str] = None) -> Dict[str, Any]:
+    def create_folder(
+            self, name: str, parent_id: Optional[str] = None) -> Dict[str, Any]:
         """Create a new folder"""
         try:
             folder_metadata = {
@@ -179,7 +172,8 @@ class GoogleDriveService:
             logger.error(f"Failed to delete file {file_id}: {e}")
             return False
 
-    def move_file(self, file_id: str, new_parent_id: str, old_parent_id: Optional[str] = None) -> Dict[str, Any]:
+    def move_file(self, file_id: str, new_parent_id: str,
+                  old_parent_id: Optional[str] = None) -> Dict[str, Any]:
         """Move a file to a different folder"""
         try:
             if not old_parent_id:
@@ -215,7 +209,8 @@ class GoogleDriveService:
             logger.error(f"Failed to rename file {file_id}: {e}")
             raise
 
-    def search_files(self, query: str, max_results: int = 50) -> List[Dict[str, Any]]:
+    def search_files(self, query: str,
+                     max_results: int = 50) -> List[Dict[str, Any]]:
         """Search for files by name or content"""
         try:
             search_query = f"name contains '{query}' or fullText contains '{query}'"
@@ -224,7 +219,8 @@ class GoogleDriveService:
             logger.error(f"Failed to search files with query '{query}': {e}")
             raise
 
-    def get_folder_structure(self, folder_id: Optional[str] = None, max_depth: int = 3) -> Dict[str, Any]:
+    def get_folder_structure(
+            self, folder_id: Optional[str] = None, max_depth: int = 3) -> Dict[str, Any]:
         """Get hierarchical folder structure"""
         try:
             if not folder_id:
@@ -263,7 +259,8 @@ class GoogleDriveService:
             logger.error(f"Failed to get permissions for file {file_id}: {e}")
             raise
 
-    def share_file(self, file_id: str, email: str, role: str = 'reader') -> Dict[str, Any]:
+    def share_file(self, file_id: str, email: str,
+                   role: str = 'reader') -> Dict[str, Any]:
         """Share a file with a user"""
         try:
             permission = {
@@ -284,7 +281,8 @@ class GoogleDriveService:
             logger.error(f"Failed to share file {file_id} with {email}: {e}")
             raise
 
-    def organize_by_type(self, source_folder_id: str) -> Dict[str, List[Dict[str, Any]]]:
+    def organize_by_type(
+            self, source_folder_id: str) -> Dict[str, List[Dict[str, Any]]]:
         """Organize files by type within a folder"""
         try:
             files = self.list_files(source_folder_id)
@@ -386,6 +384,6 @@ class GoogleDriveService:
         return {k: v for k, v in formatted.items() if v is not None}
 
 
-def create_drive_service(credentials_path: Optional[str] = None, token_path: Optional[str] = None) -> GoogleDriveService:
+def create_drive_service(credentials_path: Optional[str] = None) -> GoogleDriveService:
     """Factory function to create a Google Drive service instance"""
-    return GoogleDriveService(credentials_path, token_path)
+    return GoogleDriveService(credentials_path)

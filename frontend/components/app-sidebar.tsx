@@ -26,7 +26,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { MessageSquare, Plus, LogOut, MoreHorizontal, User, Wrench, GitBranch, FolderOpen, Shield } from "lucide-react"
+import { MessageSquare, Plus, LogOut, MoreHorizontal, User, GitBranch, Shield, Activity } from "lucide-react"
 import { useChatStore } from "@/lib/stores/chat-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
 
@@ -56,13 +56,17 @@ export function AppSidebar() {
   }
 
   const handleSignOut = async () => {
-    await signOut()
-    router.push("/auth")
+    try {
+      await signOut()
+      router.push("/auth")
+    } catch (error) {
+      console.error("Sign out failed:", error)
+      router.push("/auth")
+    }
   }
 
   const navigationItems = [
-    { title: "Tools", url: "/tools", icon: Wrench, permission: "tools_access" },
-    { title: "Context", url: "/context", icon: FolderOpen, permission: "context_management" },
+    { title: "Tasks", url: "/tasks", icon: Activity, permission: "ai_chat" },
     { title: "Version", url: "/version", icon: GitBranch, permission: "version_history" },
   ].filter((item) => hasPermission(item.permission as any))
 
@@ -95,11 +99,8 @@ export function AppSidebar() {
             <SidebarMenu>
               {chats.map((chat) => (
                 <SidebarMenuItem key={chat.id}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={currentChatId === chat.id}
-                  >
-                    <a 
+                  <SidebarMenuButton asChild isActive={currentChatId === chat.id}>
+                    <a
                       href={`/chat/${chat.id}`}
                       className="w-full text-left"
                       onClick={(e) => {
@@ -134,7 +135,7 @@ export function AppSidebar() {
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <a 
+                    <a
                       href={item.url}
                       className="w-full text-left"
                       onClick={(e) => {

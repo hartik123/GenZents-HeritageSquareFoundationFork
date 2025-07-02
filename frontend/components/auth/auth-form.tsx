@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,9 +20,15 @@ export function AuthForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
-  const { signIn, resetPassword, loading } = useAuthStore()
+  const { user, signIn, resetPassword, loading, initialized } = useAuthStore()
 
   const redirectTo = searchParams.get("redirect") || "/"
+
+  useEffect(() => {
+    if (initialized && user) {
+      router.push(redirectTo)
+    }
+  }, [initialized, user, router, redirectTo])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import {
   Settings,
   User,
@@ -15,6 +16,7 @@ import {
   LogOut,
   Cloud,
   PersonStanding,
+  Terminal,
 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -28,13 +30,18 @@ import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useSettings } from "@/hooks/settings-provider"
 import { useTheme } from "@/hooks/theme-provider"
+import { useAuthStore } from "@/lib/stores/auth-store"
+import { useToast } from "@/hooks/use-toast"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { logger } from "@/lib/utils/logger"
+import { commandProcessor } from "@/lib/services/command-processor"
+import { DEFAULT_COMMANDS } from "@/lib/types/commands"
 
 const settingsSections = [
   { id: "general", label: "General", icon: Settings },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "chat", label: "Chat", icon: User },
+  { id: "tools", label: "Tools", icon: Terminal },
   { id: "connections", label: "Connections", icon: Link },
   { id: "privacy", label: "Privacy", icon: Shield },
 ]
@@ -43,6 +50,9 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
   const [activeSection, setActiveSection] = useState("general")
   const { settings, updateSetting, resetSettings, exportSettings, importSettings } = useSettings()
   const { theme, setTheme } = useTheme()
+  const { signOutAllDevices } = useAuthStore()
+  const { toast } = useToast()
+  const router = useRouter()
 
   const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -121,15 +131,25 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                       </p>
                       <Button
                         variant="destructive"
-                        onClick={() => {
+                        onClick={async () => {
                           if (
                             confirm(
-                              "Are you sure you want to log out from all devices? You&apos;ll need to sign in again on all your devices."
+                              "Are you sure you want to log out from all devices? You'll need to sign in again on all your devices."
                             )
                           ) {
-                            // Call your logout from all devices function here
-                            logger.info("Logging out from all devices", { component: "settings-dialog" })
-                            // This would typically invalidate all sessions
+                            try {
+                              await signOutAllDevices()
+                              router.push("/auth")
+                            } catch (error) {
+                              logger.error("Failed to log out from all devices", error as Error, {
+                                component: "settings-dialog",
+                              })
+                              toast({
+                                title: "Error",
+                                description: "Failed to log out from all devices. Please try again.",
+                                variant: "destructive",
+                              })
+                            }
                           }
                         }}
                       >
@@ -413,6 +433,89 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                         onCheckedChange={(checked) => updateSetting("showModelInfo", checked)}
                       />
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+
+      case "tools":
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium mb-4">Tools Configuration</h3>
+              <div className="space-y-6">
+                <div>
+                  <h4 className="font-medium mb-4">Command System</h4>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Enable Commands</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Allow using / commands in chat for quick actions
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.enableCommands !== false}
+                        onCheckedChange={(checked) => updateSetting("enableCommands", checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Auto-suggestions</Label>
+                        <p className="text-sm text-muted-foreground">Show command suggestions as you type</p>
+                      </div>
+                      <Switch
+                        checked={settings.autoCommandSuggestions !== false}
+                        onCheckedChange={(checked) => updateSetting("autoCommandSuggestions", checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Show command help</Label>
+                        <p className="text-sm text-muted-foreground">Display help text for commands</p>
+                      </div>
+                      <Switch
+                        checked={settings.showCommandHelp !== false}
+                        onCheckedChange={(checked) => updateSetting("showCommandHelp", checked)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h4 className="font-medium mb-4">Available Commands</h4>
+                  <p className="text-sm text-muted-foreground mb-4">Enable or disable specific commands</p>
+                  <div className="space-y-3">
+                    {DEFAULT_COMMANDS.map((command) => (
+                      <div key={command.name} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <code className="text-sm font-mono bg-muted px-2 py-1 rounded">/{command.name}</code>
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                              {command.category}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{command.description}</p>
+                        </div>
+                        <Switch
+                          checked={settings.enabledCommands?.includes(command.name) !== false}
+                          onCheckedChange={(checked) => {
+                            const current = settings.enabledCommands || DEFAULT_COMMANDS.map((c) => c.name)
+                            const updated = checked
+                              ? [...current.filter((c) => c !== command.name), command.name]
+                              : current.filter((c) => c !== command.name)
+                            updateSetting("enabledCommands", updated)
+                            commandProcessor.updateCommandsConfig(updated)
+                          }}
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

@@ -5,7 +5,7 @@ const store: RateLimitStore = {}
 // Clean up expired entries periodically
 setInterval(() => {
   const now = Date.now()
-  Object.keys(store).forEach(key => {
+  Object.keys(store).forEach((key) => {
     if (store[key] && now > store[key].resetTime) {
       delete store[key]
     }
