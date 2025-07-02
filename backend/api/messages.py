@@ -7,6 +7,7 @@ from models.message import MessageCreate, MessageResponse, MessageUpdate
 from models.task import TaskCreate, TaskType
 from models.user import User
 from utils.logger import logger
+from services.context_manager import get_context_manager
 import uuid
 import json
 from datetime import datetime
@@ -76,9 +77,13 @@ async def create_message(
             f"Creating message for chat {chat_id} by user {
                 current_user.id}")
 
-        # 1. Verify user has access to this chat
-        chat_response = user_supabase.table("chats").select("id, system_prompt").eq(
-            "id", chat_id).eq("user_id", current_user.id).execute()
+        # 1. Initialize context manager
+        context_manager = get_context_manager(user_supabase)
+        
+        # 2. Verify user has access to this chat and get chat details
+        chat_response = user_supabase.table("chats").select(
+            "id, system_prompt, context_summary"
+        ).eq("id", chat_id).eq("user_id", current_user.id).execute()
 
         if not chat_response.data:
             logger.warning(
@@ -86,16 +91,22 @@ async def create_message(
                     current_user.id}")
             raise HTTPException(status_code=404, detail="Chat not found")
 
+        chat_data = chat_response.data[0]
+        base_system_prompt = chat_data.get('system_prompt', '')
+
         if message.role != 'user':
             raise HTTPException(
                 status_code=400, detail="Only user messages can be created through this endpoint.")
 
-        # 2. Get chat history BEFORE adding the new message
-        history_response = user_supabase.table("messages").select(
-            "role, content").eq("chat_id", chat_id).order("created_at").execute()
-        chat_history = history_response.data
+        # 3. Prepare comprehensive LLM context (includes last 5 messages + user preferences)
+        enhanced_system_prompt, message_history, user_preferences = await context_manager.prepare_llm_context(
+            user_id=current_user.id,
+            chat_id=chat_id,
+            user_message=message.content,
+            base_system_prompt=base_system_prompt
+        )
 
-        # 3. Check for commands in the message
+        # 4. Check for commands in the message
         command_result, remaining_message = command_processor.extract_command_and_message(
             message.content)
 
@@ -200,12 +211,21 @@ async def create_message(
 
         # 5. Generate AI response for remaining message (if any)
         message_for_ai = remaining_message if remaining_message else message.content
-        system_prompt = chat_response.data[0].get('system_prompt')
+        
+        # Convert message_history to the format expected by generate_text
+        formatted_history = []
+        for msg in message_history[:-1]:  # Exclude the current message we just added
+            formatted_history.append({
+                "role": msg.get("role"),
+                "content": msg.get("content")
+            })
 
         ai_response_text = generate_text(
             prompt=message_for_ai,
-            history=chat_history,
-            system_prompt=system_prompt
+            history=formatted_history,
+            system_prompt=enhanced_system_prompt,
+            temperature=user_preferences.get('temperature', 0.7),
+            max_tokens=user_preferences.get('max_tokens', 2048)
         )
 
         # 6. Save AI's response
@@ -214,12 +234,29 @@ async def create_message(
             "chat_id": chat_id,
             "role": "assistant",
             "content": ai_response_text,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
+            "metadata": {
+                "model": user_preferences.get('default_model', 'gemini-1.5-flash'),
+                "enhanced_context": True,
+                "context_summary_updated": True
+            }
         }
         response = user_supabase.table(
             "messages").insert(ai_message_data).execute()
 
-        # 7. Update chat's updated_at timestamp
+        # 7. Update context summary with new conversation
+        try:
+            await context_manager.update_context_summary(
+                chat_id=chat_id,
+                recent_messages=message_history[:-1],  # Exclude current user message
+                new_ai_response=ai_response_text,
+                current_summary=chat_data.get('context_summary', '')
+            )
+        except Exception as e:
+            logger.warning(f"Failed to update context summary for chat {chat_id}: {str(e)}")
+            # Don't fail the request if summary update fails
+
+        # 8. Update chat's updated_at timestamp
         user_supabase.table("chats").update({
             "updated_at": datetime.utcnow().isoformat()
         }).eq("id", chat_id).execute()
@@ -247,9 +284,13 @@ async def create_message_stream(
             f"Creating streaming message for chat {chat_id} by user {
                 current_user.id}")
 
-        # Verify user has access to this chat
-        chat_response = user_supabase.table("chats").select("id, system_prompt").eq(
-            "id", chat_id).eq("user_id", current_user.id).execute()
+        # Initialize context manager
+        context_manager = get_context_manager(user_supabase)
+        
+        # Verify user has access to this chat and get chat details
+        chat_response = user_supabase.table("chats").select(
+            "id, system_prompt, context_summary"
+        ).eq("id", chat_id).eq("user_id", current_user.id).execute()
 
         if not chat_response.data:
             logger.warning(
@@ -257,14 +298,20 @@ async def create_message_stream(
                     current_user.id}")
             raise HTTPException(status_code=404, detail="Chat not found")
 
+        chat_data = chat_response.data[0]
+        base_system_prompt = chat_data.get('system_prompt', '')
+
         if message.role != 'user':
             raise HTTPException(
                 status_code=400, detail="Only user messages can be created through this endpoint.")
 
-        # Get chat history
-        history_response = user_supabase.table("messages").select(
-            "role, content").eq("chat_id", chat_id).order("created_at").execute()
-        chat_history = history_response.data
+        # Prepare comprehensive LLM context
+        enhanced_system_prompt, message_history, user_preferences = await context_manager.prepare_llm_context(
+            user_id=current_user.id,
+            chat_id=chat_id,
+            user_message=message.content,
+            base_system_prompt=base_system_prompt
+        )
 
         # Check for commands in the message
         command_result, remaining_message = command_processor.extract_command_and_message(
@@ -320,14 +367,23 @@ async def create_message_stream(
 
                 # Generate AI response for remaining message (if any)
                 message_for_ai = remaining_message if remaining_message else message.content
-                system_prompt = chat_response.data[0].get('system_prompt')
+                
+                # Convert message_history to the format expected by generate_text_stream
+                formatted_history = []
+                for msg in message_history[:-1]:  # Exclude the current message we just added
+                    formatted_history.append({
+                        "role": msg.get("role"),
+                        "content": msg.get("content")
+                    })
 
                 # Stream the AI response
                 full_response = ""
                 async for chunk in generate_text_stream(
                     prompt=message_for_ai,
-                    history=chat_history,
-                    system_prompt=system_prompt
+                    history=formatted_history,
+                    system_prompt=enhanced_system_prompt,
+                    temperature=user_preferences.get('temperature', 0.7),
+                    max_tokens=user_preferences.get('max_tokens', 2048)
                 ):
                     full_response += chunk
 
@@ -340,10 +396,27 @@ async def create_message_stream(
                     "chat_id": chat_id,
                     "role": "assistant",
                     "content": full_response,
-                    "created_at": datetime.utcnow().isoformat()
+                    "created_at": datetime.utcnow().isoformat(),
+                    "metadata": {
+                        "model": user_preferences.get('default_model', 'gemini-1.5-flash'),
+                        "enhanced_context": True,
+                        "context_summary_updated": True
+                    }
                 }
                 ai_response = user_supabase.table("messages").insert(
                     ai_message_data).execute()
+
+                # Update context summary with new conversation
+                try:
+                    await context_manager.update_context_summary(
+                        chat_id=chat_id,
+                        recent_messages=message_history[:-1],  # Exclude current user message
+                        new_ai_response=full_response,
+                        current_summary=chat_data.get('context_summary', '')
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to update context summary for chat {chat_id}: {str(e)}")
+                    # Don't fail the stream if summary update fails
 
                 # Update chat timestamp
                 user_supabase.table("chats").update({

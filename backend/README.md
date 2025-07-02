@@ -120,7 +120,6 @@ The backend uses Supabase with the following main tables:
 - `messages` - Individual messages within chats
 - `usage_logs` - AI API usage tracking
 - `analytics` - User analytics events
-- `ai_models` - Available AI models
 
 ## Security
 - JWT token authentication via Supabase
