@@ -25,7 +25,6 @@ class Settings:
     # Google Drive Configuration
     GOOGLE_CREDENTIALS_PATH: str = os.getenv(
         "GOOGLE_CREDENTIALS_PATH", "credentials.json")
-    GOOGLE_TOKEN_PATH: str = os.getenv("GOOGLE_TOKEN_PATH", "token.json")
 
     @classmethod
     def validate(cls, raise_on_missing: bool = True):

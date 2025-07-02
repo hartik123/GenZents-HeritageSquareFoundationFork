@@ -1,4 +1,4 @@
-from api import chats, messages, tasks
+from api import chats, messages, tasks, drive_agent
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -68,6 +68,7 @@ async def root():
 app.include_router(chats.router)
 app.include_router(messages.router)
 app.include_router(tasks.router)
+app.include_router(drive_agent.router)
 
 # Startup and shutdown events
 
