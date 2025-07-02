@@ -8,7 +8,6 @@ export interface User {
   created_at: string
   updated_at: string
   preferences: UserPreferences
-  subscription: SubscriptionTier
   usage: UsageStats
 }
 
@@ -17,8 +16,16 @@ export interface UserPreferences {
   language: string
   timezone: string
   notifications: NotificationSettings
-  privacy: PrivacySettings
-  accessibility: AccessibilitySettings
+
+  // Chat preferences
+  customInstructions?: string
+  communicationStyle?: "professional" | "casual" | "friendly" | "balanced" | "technical"
+  responseLength?: "concise" | "balanced" | "detailed" | "comprehensive"
+  expertiseLevel?: "beginner" | "intermediate" | "advanced" | "expert"
+  defaultModel?: string
+  temperature?: number
+  maxTokens?: number
+  systemPrompt?: string
 }
 
 export interface NotificationSettings {
@@ -30,42 +37,6 @@ export interface NotificationSettings {
   replies: boolean
 }
 
-export interface PrivacySettings {
-  profileVisibility: "public" | "private" | "friends"
-  dataSharing: boolean
-  analytics: boolean
-  marketing: boolean
-}
-
-export interface AccessibilitySettings {
-  highContrast: boolean
-  reducedMotion: boolean
-  screenReader: boolean
-  fontSize: "small" | "medium" | "large" | "xl"
-  keyboardNavigation: boolean
-}
-
-export interface SubscriptionTier {
-  plan: "free" | "pro" | "enterprise"
-  features: string[]
-  limits: UsageLimits
-  billing: BillingInfo
-}
-
-export interface UsageLimits {
-  messagesPerDay: number
-  tokensPerMonth: number
-  fileUploads: number
-  customModels: number
-}
-
-export interface BillingInfo {
-  amount: number
-  currency: string
-  interval: "monthly" | "yearly"
-  nextBilling: string
-}
-
 export interface UsageStats {
   messagesCount: number
   tokensUsed: number
@@ -75,8 +46,6 @@ export interface UsageStats {
 
 export interface Settings {
   // Theme and appearance
-  fontSize: "small" | "medium" | "large"
-  highContrast: boolean
   layoutDensity: string
 
   // General
@@ -131,16 +100,4 @@ export interface FileItem {
   category?: string
   tags?: string[]
   preview?: string
-}
-
-export interface ScriptConfig {
-  id: string
-  name: string
-  description: string
-  language: "javascript" | "python" | "bash" | "sql"
-  code: string
-  parameters: { name: string; type: string; value: string; description: string }[]
-  tags: string[]
-  lastRun?: Date
-  status?: "idle" | "running" | "completed" | "error"
 }

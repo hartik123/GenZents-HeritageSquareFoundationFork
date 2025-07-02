@@ -221,42 +221,6 @@ export interface Database {
           updated_at?: string
         }
       }
-      ai_models: {
-        Row: {
-          id: string
-          name: string
-          provider: string
-          type: "text" | "image" | "audio" | "video" | "multimodal"
-          capabilities: any
-          pricing: any
-          limits: any
-          status: "active" | "deprecated" | "beta"
-          description: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          name: string
-          provider: string
-          type: "text" | "image" | "audio" | "video" | "multimodal"
-          capabilities?: any
-          pricing?: any
-          limits?: any
-          status?: "active" | "deprecated" | "beta"
-          description?: string | null
-        }
-        Update: {
-          name?: string
-          provider?: string
-          type?: "text" | "image" | "audio" | "video" | "multimodal"
-          capabilities?: any
-          pricing?: any
-          limits?: any
-          status?: "active" | "deprecated" | "beta"
-          description?: string | null
-          updated_at?: string
-        }
-      }
       chats: {
         Row: {
           id: string

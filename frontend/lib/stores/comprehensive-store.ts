@@ -2,20 +2,32 @@ import { create } from "zustand"
 import { persist, subscribeWithSelector } from "zustand/middleware"
 import { supabase } from "@/lib/supabase/client"
 import { logger } from "@/lib/utils/logger"
-import type { Chat, Message, User, Workspace, AIModel, Analytics, Integration } from "@/lib/types"
+import type { Chat, Message, User } from "@/lib/types"
+
+// Simple analytics interface
+interface Analytics {
+  user_id: string
+  event: string
+  properties: Record<string, any>
+  timestamp: string
+  session_id: string
+}
+
+// Simple integration interface
+interface Integration {
+  id: string
+  name: string
+  type: string
+  enabled: boolean
+  user_id: string
+}
 
 interface ComprehensiveState {
   // Core Data
   user: User | null
-  workspaces: Workspace[]
-  currentWorkspace: Workspace | null
   chats: Chat[]
   currentChat: Chat | null
   messages: Message[]
-
-  // AI & Models
-  availableModels: AIModel[]
-  currentModel: AIModel | null
 
   integrations: Integration[]
 
@@ -44,12 +56,6 @@ interface ComprehensiveState {
   // User Management
   updateUser: (updates: Partial<User>) => Promise<void>
   updatePreferences: (preferences: Partial<User["preferences"]>) => Promise<void>
-
-  // Workspace Management
-  createWorkspace: (workspace: Partial<Workspace>) => Promise<string>
-  updateWorkspace: (id: string, updates: Partial<Workspace>) => Promise<void>
-  deleteWorkspace: (id: string) => Promise<void>
-  switchWorkspace: (id: string) => void
 
   // Chat Management
   createChat: (chat: Partial<Chat>) => Promise<string>
@@ -119,8 +125,6 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
       (set, get) => ({
         // Initial State
         user: null,
-        workspaces: [],
-        currentWorkspace: null,
         chats: [],
         currentChat: null,
         messages: [],
@@ -167,16 +171,6 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
               set({ user: userData })
             }
 
-            // Load workspaces
-            const { data: workspaces } = await supabase.from("workspaces").select("*").eq("owner_id", user?.id)
-
-            set({ workspaces: workspaces || [] })
-
-            // Load available models
-            const { data: models } = await supabase.from("ai_models").select("*").eq("status", "active")
-
-            set({ availableModels: models || [] })
-
             set({ loading: { ...get().loading, init: false } })
           } catch (error) {
             logger.error("Initialization error", error as Error, { component: "comprehensive-store" })
@@ -208,57 +202,6 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
           await get().updateUser({ preferences: updatedPreferences })
         },
 
-        // Workspace Management
-        createWorkspace: async (workspace) => {
-          try {
-            const { data, error } = await supabase.from("workspaces").insert(workspace).select().single()
-
-            if (error) throw error
-
-            set({ workspaces: [...get().workspaces, data] })
-            return data.id
-          } catch (error) {
-            logger.error("Create workspace error", error as Error, { component: "comprehensive-store" })
-            throw error
-          }
-        },
-
-        updateWorkspace: async (id, updates) => {
-          try {
-            const { error } = await supabase.from("workspaces").update(updates).eq("id", id)
-
-            if (error) throw error
-
-            set({
-              workspaces: get().workspaces.map((w) => (w.id === id ? { ...w, ...updates } : w)),
-            })
-          } catch (error) {
-            logger.error("Update workspace error", error as Error, { component: "comprehensive-store" })
-          }
-        },
-
-        deleteWorkspace: async (id) => {
-          try {
-            const { error } = await supabase.from("workspaces").delete().eq("id", id)
-
-            if (error) throw error
-
-            set({
-              workspaces: get().workspaces.filter((w) => w.id !== id),
-              currentWorkspace: get().currentWorkspace?.id === id ? null : get().currentWorkspace,
-            })
-          } catch (error) {
-            logger.error("Delete workspace error", error as Error, { component: "comprehensive-store" })
-          }
-        },
-
-        switchWorkspace: (id) => {
-          const workspace = get().workspaces.find((w) => w.id === id)
-          if (workspace) {
-            set({ currentWorkspace: workspace })
-          }
-        },
-
         // Chat Management
         createChat: async (chat) => {
           try {
@@ -267,7 +210,6 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
               .insert({
                 ...chat,
                 user_id: get().user?.id,
-                workspace_id: get().currentWorkspace?.id,
               })
               .select()
               .single()
@@ -510,7 +452,6 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
         // Analytics
         trackEvent: (event, properties = {}) => {
           const user = get().user
-          const workspace = get().currentWorkspace
 
           if (!user?.id) {
             logger.warn("Cannot track event without user ID", { event, component: "comprehensive-store" })
@@ -519,7 +460,6 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
 
           const analyticsData: Analytics = {
             user_id: user.id,
-            workspace_id: workspace?.id,
             event,
             properties,
             timestamp: new Date().toISOString(),
@@ -607,7 +547,6 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
             user: get().user,
             chats: get().chats,
             messages: get().messages,
-            workspaces: get().workspaces,
           }
 
           switch (format) {
@@ -676,7 +615,7 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
             content: `AI response to: ${userMessage}`,
             created_at: new Date().toISOString(),
             metadata: {
-              model: get().currentModel?.id || "gpt-4",
+              model: "gemini-2.0-flash",
               tokens: 150,
               processingTime: 1000,
             },
@@ -693,7 +632,6 @@ export const useComprehensiveStore = create<ComprehensiveState>()(
         name: "comprehensive-store",
         partialize: (state) => ({
           user: state.user,
-          currentWorkspace: state.currentWorkspace,
           theme: state.theme,
           sidebarCollapsed: state.sidebarCollapsed,
         }),

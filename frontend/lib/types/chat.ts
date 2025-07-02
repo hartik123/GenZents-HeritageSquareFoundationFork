@@ -1,3 +1,5 @@
+import type { UserPreferences } from "./user"
+
 export interface Chat {
   id: string
   title: string
@@ -24,6 +26,7 @@ export interface Chat {
   shared?: boolean
   version?: number
   parentVersion?: string
+  context_summary?: string
 }
 
 export interface ChatSettings {
@@ -45,6 +48,9 @@ export interface ChatMetadata {
   lastActivity: string
   language: string
   domain: string
+  contextSummary?: string
+  lastContextUpdate?: string
+  contextVersion?: number
 }
 
 export interface Message {
@@ -81,6 +87,14 @@ export interface MessageMetadata {
   sentiment?: "positive" | "negative" | "neutral"
   topics?: string[]
   entities?: Entity[]
+  // Enhanced metadata for context processing
+  hasCommands?: boolean
+  isCommandResult?: boolean
+  isTaskNotification?: boolean
+  taskId?: string
+  enhancedContext?: boolean
+  contextSummaryUpdated?: boolean
+  commandData?: any
 }
 
 export interface MessageStatus {
@@ -220,6 +234,7 @@ export interface ChatSession {
   bookmarked?: boolean
   model?: string
   systemPrompt?: string
+  contextSummary?: string
 }
 
 export interface ContextFile {
@@ -230,4 +245,20 @@ export interface ContextFile {
   path: string
   content?: string
   added_at: string
+}
+
+// Context management interfaces
+export interface ChatContext {
+  summary: string
+  lastMessages: Message[]
+  userPreferences: UserPreferences
+  lastUpdated: string
+  version: number
+}
+
+export interface EnhancedMessageContext {
+  systemPrompt: string
+  messageHistory: Message[]
+  userPreferences: UserPreferences
+  contextSummary: string
 }

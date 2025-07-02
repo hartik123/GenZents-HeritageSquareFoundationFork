@@ -5,8 +5,6 @@ import { logger } from "@/lib/utils/logger"
 interface SettingsState {
   // Theme and appearance
   theme: "dark" | "light" | "system"
-  fontSize: "small" | "medium" | "large"
-  highContrast: boolean
   layoutDensity: string
 
   // General
@@ -56,8 +54,6 @@ interface SettingsState {
 const defaultSettings = {
   // Theme and appearance
   theme: "system" as const,
-  fontSize: "medium" as const,
-  highContrast: false,
   layoutDensity: "comfortable",
 
   // General

@@ -1,5 +1,4 @@
 import type { Chat, Message } from "./chat"
-import type { AIModel } from "./ai"
 
 // Types for advanced search functionality
 export interface SearchOptions {
@@ -35,14 +34,6 @@ export interface SearchFacets {
   tags: { name: string; count: number }[]
   models: { name: string; count: number }[]
   dateRanges: { range: string; count: number }[]
-}
-
-// Types for AI integration
-export interface AIProvider {
-  name: string
-  apiKey: string
-  baseUrl?: string
-  models: AIModel[]
 }
 
 export interface GenerationOptions {

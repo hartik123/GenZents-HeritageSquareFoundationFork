@@ -48,11 +48,67 @@ const settingsSections = [
 
 export function SettingsDialog({ children }: { children: React.ReactNode }) {
   const [activeSection, setActiveSection] = useState("general")
-  const { settings, updateSetting, resetSettings, exportSettings, importSettings } = useSettings()
+  const [isLoading, setIsLoading] = useState(false)
+  const {
+    settings,
+    updateSetting,
+    updateUserPreferences,
+    syncSettingsWithServer,
+    resetSettings,
+    exportSettings,
+    importSettings,
+  } = useSettings()
   const { theme, setTheme } = useTheme()
   const { signOutAllDevices } = useAuthStore()
   const { toast } = useToast()
   const router = useRouter()
+
+  const handleSyncWithServer = async () => {
+    setIsLoading(true)
+    try {
+      await syncSettingsWithServer()
+      toast({
+        title: "Settings synced",
+        description: "Your settings have been synced with the server successfully.",
+      })
+    } catch (error) {
+      toast({
+        title: "Sync failed",
+        description: "Failed to sync settings with the server. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleUpdatePreferences = async () => {
+    setIsLoading(true)
+    try {
+      await updateUserPreferences({
+        customInstructions: settings.customInstructions,
+        communicationStyle: settings.communicationStyle,
+        responseLength: settings.responseLength,
+        expertiseLevel: settings.expertiseLevel,
+        defaultModel: settings.defaultModel,
+        temperature: settings.temperature,
+        maxTokens: settings.maxTokens,
+        systemPrompt: settings.systemPrompt,
+      })
+      toast({
+        title: "Preferences updated",
+        description: "Your AI preferences have been saved to enhance future conversations.",
+      })
+    } catch (error) {
+      toast({
+        title: "Update failed",
+        description: "Failed to update preferences. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -200,19 +256,6 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                   <ThemeToggle />
                 </div>
                 <div className="space-y-2">
-                  <Label>Font Size</Label>
-                  <Select value={settings.fontSize} onValueChange={(value: any) => updateSetting("fontSize", value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="small">Small</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="large">Large</SelectItem>
-                    </SelectContent>{" "}
-                  </Select>
-                </div>
-                <div className="space-y-2">
                   <Label>Layout Density</Label>
                   <Select
                     value={settings.layoutDensity}
@@ -227,16 +270,6 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                       <SelectItem value="spacious">Spacious</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>High Contrast</Label>
-                    <p className="text-sm text-muted-foreground">Increase contrast for better visibility</p>
-                  </div>
-                  <Switch
-                    checked={settings.highContrast}
-                    onCheckedChange={(checked) => updateSetting("highContrast", checked)}
-                  />
                 </div>
               </div>
             </div>
@@ -392,6 +425,33 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                         <span>Creative</span>
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Server Sync */}
+                <div>
+                  <h4 className="font-medium mb-4">Preferences Management</h4>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Sync your preferences with the server to enhance AI responses with your custom instructions and
+                      style preferences.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button onClick={handleUpdatePreferences} disabled={isLoading} className="flex-1">
+                        <Cloud className="h-4 w-4 mr-2" />
+                        {isLoading ? "Updating..." : "Save Preferences to Server"}
+                      </Button>
+                      <Button variant="outline" onClick={handleSyncWithServer} disabled={isLoading} className="flex-1">
+                        <Download className="h-4 w-4 mr-2" />
+                        {isLoading ? "Syncing..." : "Sync from Server"}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Your preferences are used to provide context-aware responses, maintain conversation history, and
+                      personalize AI interactions.
+                    </p>
                   </div>
                 </div>
 

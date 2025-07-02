@@ -1,4 +1,4 @@
-// Types for accessibility utilities
+// Types for keyboard utilities
 export interface KeyboardShortcutOptions {
   ctrl?: boolean
   alt?: boolean

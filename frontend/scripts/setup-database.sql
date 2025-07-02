@@ -24,20 +24,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   language TEXT DEFAULT 'en',
   timezone TEXT DEFAULT 'UTC',
   
-  -- Subscription information
-  subscription_plan TEXT DEFAULT 'free' CHECK (subscription_plan IN ('free', 'pro', 'enterprise')),
-  subscription_features TEXT[] DEFAULT '{}',
-  billing_amount DECIMAL(10,2) DEFAULT 0,
-  billing_currency TEXT DEFAULT 'USD',
-  billing_interval TEXT CHECK (billing_interval IN ('monthly', 'yearly')),
-  next_billing TIMESTAMPTZ,
-  
-  -- Usage limits
-  messages_per_day INTEGER DEFAULT 50,
-  tokens_per_month INTEGER DEFAULT 100000,
-  file_uploads INTEGER DEFAULT 10,
-  custom_models INTEGER DEFAULT 0,
-  
   -- Usage stats
   messages_count INTEGER DEFAULT 0,
   tokens_used INTEGER DEFAULT 0,
@@ -65,19 +51,6 @@ CREATE TABLE IF NOT EXISTS user_settings (
   sound_notifications BOOLEAN DEFAULT true,
   mention_notifications BOOLEAN DEFAULT true,
   reply_notifications BOOLEAN DEFAULT true,
-  
-  -- Privacy settings
-  profile_visibility TEXT DEFAULT 'private' CHECK (profile_visibility IN ('public', 'private', 'friends')),
-  data_sharing BOOLEAN DEFAULT false,
-  analytics BOOLEAN DEFAULT false,
-  marketing BOOLEAN DEFAULT false,
-  
-  -- Accessibility settings
-  high_contrast BOOLEAN DEFAULT false,
-  reduced_motion BOOLEAN DEFAULT false,
-  screen_reader BOOLEAN DEFAULT false,
-  font_size TEXT DEFAULT 'medium' CHECK (font_size IN ('small', 'medium', 'large', 'xl')),
-  keyboard_navigation BOOLEAN DEFAULT false,
   
   -- App settings
   default_model TEXT DEFAULT 'gpt-4',
@@ -109,26 +82,6 @@ CREATE TABLE IF NOT EXISTS user_settings (
   
   -- Ensure each user has only one settings record
   UNIQUE(user_id)
-);
-
--- =====================================================
--- AI MODELS TABLE
--- =====================================================
-
--- Create AI models table
-CREATE TABLE IF NOT EXISTS ai_models (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name TEXT NOT NULL,
-  provider TEXT NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('text', 'image', 'audio', 'video', 'multimodal')),
-  capabilities JSONB DEFAULT '[]',
-  pricing JSONB DEFAULT '{}',
-  limits JSONB DEFAULT '{}',
-  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'deprecated', 'beta')),
-  description TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(name, provider)
 );
 
 -- =====================================================
@@ -168,6 +121,11 @@ CREATE TABLE IF NOT EXISTS chats (
   last_activity TIMESTAMPTZ DEFAULT NOW(),
   language TEXT DEFAULT 'en',
   domain TEXT DEFAULT 'general',
+  context_summary TEXT DEFAULT '',
+  
+  -- Enhanced context tracking
+  last_context_update TIMESTAMPTZ DEFAULT NOW(),
+  context_version INTEGER DEFAULT 1,
   
   -- Version control
   version INTEGER DEFAULT 1,
@@ -214,6 +172,15 @@ CREATE TABLE IF NOT EXISTS messages (
   language TEXT,
   sentiment TEXT CHECK (sentiment IN ('positive', 'negative', 'neutral')),
   topics TEXT[] DEFAULT '{}',
+  
+  -- Enhanced metadata for context processing
+  has_commands BOOLEAN DEFAULT false,
+  is_command_result BOOLEAN DEFAULT false,
+  is_task_notification BOOLEAN DEFAULT false,
+  task_id UUID REFERENCES tasks(id) ON DELETE SET NULL,
+  enhanced_context BOOLEAN DEFAULT false,
+  context_summary_updated BOOLEAN DEFAULT false,
+  command_data JSONB DEFAULT '{}',
   
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -396,7 +363,6 @@ CREATE TABLE IF NOT EXISTS tasks (
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ai_models ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE attachments ENABLE ROW LEVEL SECURITY;
@@ -464,10 +430,6 @@ CREATE POLICY "Users can update own settings" ON user_settings
 
 CREATE POLICY "Users can insert own settings" ON user_settings
   FOR INSERT WITH CHECK (auth.uid() = user_id);
-
--- AI models policies (read-only for all authenticated users)
-CREATE POLICY "Authenticated users can view AI models" ON ai_models
-  FOR SELECT USING (auth.role() = 'authenticated');
 
 -- Drop existing chat policies to avoid conflicts (in case of re-running script)
 DROP POLICY IF EXISTS "Users can view own chats" ON chats;
@@ -804,10 +766,6 @@ CREATE TRIGGER update_user_settings_updated_at
   BEFORE UPDATE ON user_settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_ai_models_updated_at
-  BEFORE UPDATE ON ai_models
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
 CREATE TRIGGER update_chats_updated_at
   BEFORE UPDATE ON chats
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -914,7 +872,6 @@ ALTER TABLE profiles ADD CONSTRAINT check_permissions
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT ALL ON TABLE profiles TO authenticated;
 GRANT ALL ON TABLE user_settings TO authenticated;
-GRANT ALL ON TABLE ai_models TO authenticated;
 GRANT ALL ON TABLE chats TO authenticated;
 GRANT ALL ON TABLE messages TO authenticated;
 GRANT ALL ON TABLE attachments TO authenticated;
@@ -931,31 +888,44 @@ GRANT EXECUTE ON FUNCTION validate_user_permissions TO authenticated;
 GRANT EXECUTE ON FUNCTION promote_user_to_admin TO authenticated;
 
 -- =====================================================
--- INSERT DEFAULT DATA
--- =====================================================
-
--- Insert default AI models
-INSERT INTO ai_models (name, provider, type, description, capabilities, pricing, limits) VALUES
-('GPT-4', 'openai', 'text', 'Advanced language model with superior reasoning capabilities', 
- '[{"name": "text_generation", "supported": true, "quality": "excellent"}, {"name": "code_generation", "supported": true, "quality": "excellent"}]',
- '{"input_cost": 0.03, "output_cost": 0.06, "currency": "USD", "unit": "1K tokens"}',
- '{"max_tokens": 4096, "max_requests_per_minute": 500, "max_requests_per_day": 10000, "context_window": 8192}'),
-
-('GPT-3.5 Turbo', 'openai', 'text', 'Fast and efficient language model for most tasks',
- '[{"name": "text_generation", "supported": true, "quality": "high"}, {"name": "code_generation", "supported": true, "quality": "high"}]',
- '{"input_cost": 0.0015, "output_cost": 0.002, "currency": "USD", "unit": "1K tokens"}',
- '{"max_tokens": 4096, "max_requests_per_minute": 3500, "max_requests_per_day": 90000, "context_window": 4096}'),
-
-('Claude-3 Opus', 'anthropic', 'text', 'Anthropic''s most powerful model for complex tasks',
- '[{"name": "text_generation", "supported": true, "quality": "excellent"}, {"name": "analysis", "supported": true, "quality": "excellent"}]',
- '{"input_cost": 0.015, "output_cost": 0.075, "currency": "USD", "unit": "1K tokens"}',
- '{"max_tokens": 4096, "max_requests_per_minute": 400, "max_requests_per_day": 8000, "context_window": 200000}')
-
-ON CONFLICT (name, provider) DO NOTHING;
-
--- =====================================================
 -- ADMIN USER PROMOTION
 -- =====================================================
 
 -- Promote admin user if they exist
 -- SELECT promote_user_to_admin('admin@example.com');
+
+-- =====================================================
+-- ENHANCED INDEXES FOR CONTEXT PROCESSING
+-- =====================================================
+
+-- Indexes for enhanced context retrieval performance
+CREATE INDEX IF NOT EXISTS idx_chats_context_summary ON chats(context_summary) WHERE context_summary IS NOT NULL AND context_summary != '';
+CREATE INDEX IF NOT EXISTS idx_chats_last_context_update ON chats(last_context_update);
+CREATE INDEX IF NOT EXISTS idx_chats_context_version ON chats(context_version);
+
+-- Composite index for message context retrieval (chat_id + deleted + created_at DESC for recent messages)
+CREATE INDEX IF NOT EXISTS idx_messages_context_retrieval ON messages(chat_id, deleted, created_at DESC) WHERE deleted = false;
+
+-- Indexes for enhanced metadata
+CREATE INDEX IF NOT EXISTS idx_messages_enhanced_context ON messages(enhanced_context) WHERE enhanced_context = true;
+CREATE INDEX IF NOT EXISTS idx_messages_has_commands ON messages(has_commands) WHERE has_commands = true;
+CREATE INDEX IF NOT EXISTS idx_messages_task_id ON messages(task_id) WHERE task_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_messages_context_summary_updated ON messages(context_summary_updated) WHERE context_summary_updated = true;
+
+-- Indexes for user settings (context preferences)
+CREATE INDEX IF NOT EXISTS idx_user_settings_custom_instructions ON user_settings(custom_instructions) WHERE custom_instructions IS NOT NULL AND custom_instructions != '';
+CREATE INDEX IF NOT EXISTS idx_user_settings_communication_style ON user_settings(communication_style);
+CREATE INDEX IF NOT EXISTS idx_user_settings_updated_at ON user_settings(updated_at);
+
+-- Partial indexes for better performance on commonly filtered data
+CREATE INDEX IF NOT EXISTS idx_messages_recent_by_chat ON messages(chat_id, created_at DESC) 
+  WHERE deleted = false AND created_at > (NOW() - INTERVAL '30 days');
+
+-- Full text search index for message content (for context search)
+CREATE INDEX IF NOT EXISTS idx_messages_content_search ON messages USING gin(to_tsvector('english', content))
+  WHERE deleted = false;
+
+COMMENT ON INDEX idx_chats_context_summary IS 'Index for finding chats with context summaries for enhanced processing';
+COMMENT ON INDEX idx_messages_context_retrieval IS 'Optimized index for retrieving recent messages for context building';
+COMMENT ON INDEX idx_messages_enhanced_context IS 'Index for identifying messages processed with enhanced context';
+COMMENT ON INDEX idx_messages_content_search IS 'Full text search index for semantic context retrieval';

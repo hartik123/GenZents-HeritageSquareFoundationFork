@@ -1,10 +1,13 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
 import { logger } from "@/lib/utils/logger"
 import { SecureStorage } from "@/lib/utils/local-storage"
+import { contextService } from "@/lib/services/context-service"
+import { createClient } from "@/lib/supabase/client"
 import type { Settings } from "@/lib/types/user"
+import type { UserPreferences } from "@/lib/types/user"
 
 // Extend the centralized Settings interface with additional properties specific to this provider
 interface ExtendedSettings extends Settings {
@@ -51,6 +54,8 @@ interface ExtendedSettings extends Settings {
 interface SettingsContextProps {
   settings: ExtendedSettings
   updateSetting: (key: keyof ExtendedSettings, value: any) => void
+  updateUserPreferences: (preferences: Partial<UserPreferences>) => Promise<void>
+  syncSettingsWithServer: () => Promise<void>
   resetSettings: () => void
   exportSettings: () => void
   importSettings: (importedSettings: Partial<ExtendedSettings>) => void
@@ -58,8 +63,6 @@ interface SettingsContextProps {
 
 const defaultSettings: ExtendedSettings = {
   // Theme and appearance
-  fontSize: "medium",
-  highContrast: false,
   layoutDensity: "comfortable",
 
   // General
@@ -136,6 +139,8 @@ const defaultSettings: ExtendedSettings = {
 const SettingsContext = createContext<SettingsContextProps>({
   settings: defaultSettings,
   updateSetting: () => {},
+  updateUserPreferences: async () => {},
+  syncSettingsWithServer: async () => {},
   resetSettings: () => {},
   exportSettings: () => {},
   importSettings: () => {},
@@ -160,20 +165,53 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     return defaultSettings
   })
 
-  // Load settings from secure storage on mount
+  const supabase = createClient()
+
+  /**
+   * Sync settings with server
+   */
+  const syncSettingsWithServer = useCallback(async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        logger.info("User not authenticated, skipping server sync")
+        return
+      }
+
+      // Fetch user preferences from server
+      const serverPreferences = await contextService.getUserPreferences(user.id)
+
+      // Update local settings with server data
+      const settingsUpdate = contextService.preferencesToSettings(serverPreferences)
+      setSettings((prev) => ({ ...prev, ...settingsUpdate }))
+
+      logger.info("Settings synced with server successfully")
+    } catch (error) {
+      logger.error("Error syncing settings with server", error as Error)
+      // Don't throw - just log the error as sync failure shouldn't break the app
+    }
+  }, [supabase])
+
+  // Load settings from secure storage and server on mount
   useEffect(() => {
     const loadSettings = async () => {
       try {
+        // Load from local storage first
         const storedSettings = await SecureStorage.getItem<ExtendedSettings>("settings")
         if (storedSettings) {
           setSettings((prev) => ({ ...prev, ...storedSettings }))
         }
+
+        // Sync with server if user is authenticated
+        await syncSettingsWithServer()
       } catch (error) {
         logger.error("Error loading stored settings", error as Error, { component: "settings-provider" })
       }
     }
     loadSettings()
-  }, [])
+  }, [syncSettingsWithServer])
 
   useEffect(() => {
     SecureStorage.setItem("settings", settings, {
@@ -187,6 +225,32 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       ...prevSettings,
       [key]: value,
     }))
+  }
+
+  /**
+   * Update user preferences on the server for enhanced context processing
+   */
+  const updateUserPreferences = async (preferences: Partial<UserPreferences>) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        logger.warn("User not authenticated, cannot update preferences")
+        return
+      }
+
+      await contextService.updateUserPreferences(user.id, preferences)
+
+      // Update local settings to match
+      const settingsUpdate = contextService.preferencesToSettings(preferences as UserPreferences)
+      setSettings((prev) => ({ ...prev, ...settingsUpdate }))
+
+      logger.info("User preferences updated successfully")
+    } catch (error) {
+      logger.error("Error updating user preferences", error as Error)
+      throw error
+    }
   }
 
   const resetSettings = () => {
@@ -212,7 +276,17 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   }
 
   return (
-    <SettingsContext.Provider value={{ settings, updateSetting, resetSettings, exportSettings, importSettings }}>
+    <SettingsContext.Provider
+      value={{
+        settings,
+        updateSetting,
+        updateUserPreferences,
+        syncSettingsWithServer,
+        resetSettings,
+        exportSettings,
+        importSettings,
+      }}
+    >
       {children}
     </SettingsContext.Provider>
   )
