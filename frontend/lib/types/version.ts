@@ -1,46 +1,28 @@
 export interface Change {
   id: string
+  version_id: string
   type: "added" | "modified" | "deleted"
-  file: string
-  description: string
-  linesAdded: number
-  linesRemoved: number
+  originalPath: string
+  newPath?: string
+  originalValue?: any
+  newValue?: any
+  description?: string
+  command_id?: string
+  user_id?: string
+  timestamp: Date
 }
 
 export interface Version {
   id: string
-  version: string | number
+  version: string
   title: string
   description: string
-  author?: string
-  date: Date
-  branch: string
-  tag?: string
-  changes: Change[]
+  user_id: string
+  timestamp: Date
   status: "current" | "previous" | "archived"
-  // Additional fields from stores
-  chatId?: string
-  created_at?: string
-  created_by?: string
+  created_at: string
   data?: any
-  tags?: string[]
-  parentVersion?: string
-}
-
-export interface VersionDiff {
-  type: "added" | "modified" | "deleted"
-  path: string
-  oldValue?: any
-  newValue?: any
 }
 
 export type ChangeType = Change["type"]
 export type VersionStatus = Version["status"]
-
-export interface VersionHistoryState {
-  versions: Version[]
-  selectedVersion: Version | null
-  compareVersion: Version | null
-  filterBranch: string
-  searchQuery: string
-}

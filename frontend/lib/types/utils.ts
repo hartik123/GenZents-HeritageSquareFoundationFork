@@ -1,11 +1,3 @@
-// Types for keyboard utilities
-export interface KeyboardShortcutOptions {
-  ctrl?: boolean
-  alt?: boolean
-  shift?: boolean
-  meta?: boolean
-}
-
 // Types for rate limiting
 export interface RateLimitOptions {
   windowMs: number
@@ -49,4 +41,54 @@ export interface I18nConfig {
   defaultLanguage: string
   supportedLanguages: string[]
   fallbackLanguage: string
+}
+
+// Types for advanced search functionality
+export interface SearchOptions {
+  query: string
+  filters: {
+    dateRange?: [string, string]
+    users?: string[]
+    keywords?: string[]
+    hasAttachments?: boolean
+  }
+  sortBy?: "relevance" | "date" | "tokens"
+  sortOrder?: "asc" | "desc"
+}
+
+export interface GenerationOptions {
+  temperature?: number
+  maxTokens?: number
+  topP?: number
+  frequencyPenalty?: number
+  presencePenalty?: number
+  systemPrompt?: string
+}
+
+// Settings
+
+export interface Settings {
+  // General
+  language: string
+  showFollowUpSuggestions: boolean
+  chats: any[]
+  // Chat and AI model settings
+  temperature: number
+  systemPrompt: string
+  maxTokens: number
+  customInstructions: string
+  communicationStyle: "professional" | "casual" | "friendly" | "balanced" | "technical"
+  responseLength: "concise" | "balanced" | "detailed" | "comprehensive"
+  // Display preferences
+  showTimestamps: boolean
+  showTokenCount: boolean
+  showAvatars: boolean
+  compactMode: boolean
+  fullScreenMode: boolean
+  // Export settings
+  exportFormat: string
+  includeMetadata: boolean
+  // Security and privacy
+  encryptMessages: boolean
+  retentionDays: number
 }

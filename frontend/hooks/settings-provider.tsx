@@ -31,7 +31,6 @@ interface ExtendedSettings extends Settings {
   invitationMode: string
 
   // Shortcuts and productivity
-  keyboardShortcuts: Record<string, any>
   shortcuts: any[]
   autoSave: boolean
   autoSaveInterval: number
@@ -111,7 +110,6 @@ const defaultSettings: ExtendedSettings = {
   invitationMode: "manual",
 
   // Shortcuts and productivity
-  keyboardShortcuts: {},
   shortcuts: [],
   autoSave: true,
   autoSaveInterval: 30,

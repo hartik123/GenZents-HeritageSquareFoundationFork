@@ -1,5 +1,3 @@
-import type { ShortcutCategory } from "./ui"
-
 export interface User {
   id: string
   email: string
@@ -8,6 +6,10 @@ export interface User {
   created_at: string
   updated_at: string
   preferences: UserPreferences
+  permissions: UserPermission[]
+  status: UserStatus
+  constraints: UserConstraints
+  customCommands?: string[]
   usage: UsageStats
 }
 
@@ -16,13 +18,8 @@ export interface UserPreferences {
   language: string
   timezone: string
   notifications: NotificationSettings
-
-  // Chat preferences
-  customInstructions?: string
   communicationStyle?: "professional" | "casual" | "friendly" | "balanced" | "technical"
   responseLength?: "concise" | "balanced" | "detailed" | "comprehensive"
-  expertiseLevel?: "beginner" | "intermediate" | "advanced" | "expert"
-  defaultModel?: string
   temperature?: number
   maxTokens?: number
   systemPrompt?: string
@@ -33,71 +30,31 @@ export interface NotificationSettings {
   push: boolean
   desktop: boolean
   sound: boolean
-  mentions: boolean
-  replies: boolean
 }
 
 export interface UsageStats {
   messagesCount: number
   tokensUsed: number
-  filesUploaded: number
+  tasksInitiated: number
   lastActive: string
+  totalStorageUsed: number
+  apiCalls: number
 }
 
-export interface Settings {
-  // Theme and appearance
-  layoutDensity: string
+export type UserPermission =
+  | "ai_chat"
+  | "file_organization"
+  | "version_history"
+  | "context_management"
+  | "tools_access"
+  | "admin_access"
 
-  // General
-  language: string
-  showFollowUpSuggestions: boolean
-  chats: any[]
+export type UserStatus = "active" | "paused" | "pending_invitation"
 
-  // Chat and AI model settings
-  defaultModel: string
-  temperature: number
-  systemPrompt: string
+export interface UserConstraints {
+  maxStorage: number
   maxTokens: number
-  customInstructions: string
-  communicationStyle: "professional" | "casual" | "friendly" | "balanced" | "technical"
-  responseLength: "concise" | "balanced" | "detailed" | "comprehensive"
-  expertiseLevel: "beginner" | "intermediate" | "advanced" | "expert"
-
-  // Display preferences
-  showTimestamps: boolean
-  showWordCount: boolean
-  showModelInfo: boolean
-  showTokenCount: boolean
-  showAvatars: boolean
-  compactMode: boolean
-  fullScreenMode: boolean
-
-  // Export settings
-  exportFormat: string
-  includeMetadata: boolean
-  includeSystemMessages: boolean
-
-  // Security and privacy
-  encryptMessages: boolean
-  retentionDays: number
-  allowTelemetry: boolean
-
-  // Shortcuts and productivity
-  keyboardShortcuts: Record<string, string>
-  shortcuts: ShortcutCategory[]
-  autoSave: boolean
-  autoSaveInterval: number
-}
-
-export interface FileItem {
-  id: string
-  name: string
-  type: "file" | "folder"
-  size?: number
-  extension?: string
-  path: string
-  lastModified: Date
-  category?: string
-  tags?: string[]
-  preview?: string
+  maxMessagesPerDay: number
+  maxTasksPerDay: number
+  maxApiCallsPerDay: number
 }

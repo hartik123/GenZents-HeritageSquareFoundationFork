@@ -2,7 +2,6 @@
 export * from "./chat"
 export * from "./commands"
 export * from "./database"
-export * from "./features"
 export * from "./tasks"
 export * from "./ui"
 export * from "./user"
