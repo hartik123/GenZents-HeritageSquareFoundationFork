@@ -4,7 +4,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from typing import List, Optional
 from storage.database import supabase, get_current_user, get_user_supabase_client
 from models.message import MessageCreate, MessageResponse, MessageUpdate
-from models.task import TaskCreate, TaskType
+from models.task import TaskType
 from models.user import User
 from utils.logger import logger
 from services.context_manager import get_context_manager
@@ -79,7 +79,7 @@ async def create_message(
 
         # 1. Initialize context manager
         context_manager = get_context_manager(user_supabase)
-        
+
         # 2. Verify user has access to this chat and get chat details
         chat_response = user_supabase.table("chats").select(
             "id, system_prompt, context_summary"
@@ -98,7 +98,8 @@ async def create_message(
             raise HTTPException(
                 status_code=400, detail="Only user messages can be created through this endpoint.")
 
-        # 3. Prepare comprehensive LLM context (includes last 5 messages + user preferences)
+        # 3. Prepare comprehensive LLM context (includes last 5 messages + user
+        # preferences)
         enhanced_system_prompt, message_history, user_preferences = await context_manager.prepare_llm_context(
             user_id=current_user.id,
             chat_id=chat_id,
@@ -211,10 +212,11 @@ async def create_message(
 
         # 5. Generate AI response for remaining message (if any)
         message_for_ai = remaining_message if remaining_message else message.content
-        
+
         # Convert message_history to the format expected by generate_text
         formatted_history = []
-        for msg in message_history[:-1]:  # Exclude the current message we just added
+        for msg in message_history[:-
+                                   1]:  # Exclude the current message we just added
             formatted_history.append({
                 "role": msg.get("role"),
                 "content": msg.get("content")
@@ -248,12 +250,15 @@ async def create_message(
         try:
             await context_manager.update_context_summary(
                 chat_id=chat_id,
-                recent_messages=message_history[:-1],  # Exclude current user message
+                # Exclude current user message
+                recent_messages=message_history[:-1],
                 new_ai_response=ai_response_text,
                 current_summary=chat_data.get('context_summary', '')
             )
         except Exception as e:
-            logger.warning(f"Failed to update context summary for chat {chat_id}: {str(e)}")
+            logger.warning(
+                f"Failed to update context summary for chat {chat_id}: {
+                    str(e)}")
             # Don't fail the request if summary update fails
 
         # 8. Update chat's updated_at timestamp
@@ -286,7 +291,7 @@ async def create_message_stream(
 
         # Initialize context manager
         context_manager = get_context_manager(user_supabase)
-        
+
         # Verify user has access to this chat and get chat details
         chat_response = user_supabase.table("chats").select(
             "id, system_prompt, context_summary"
@@ -367,10 +372,12 @@ async def create_message_stream(
 
                 # Generate AI response for remaining message (if any)
                 message_for_ai = remaining_message if remaining_message else message.content
-                
-                # Convert message_history to the format expected by generate_text_stream
+
+                # Convert message_history to the format expected by
+                # generate_text_stream
                 formatted_history = []
-                for msg in message_history[:-1]:  # Exclude the current message we just added
+                for msg in message_history[:-
+                                           1]:  # Exclude the current message we just added
                     formatted_history.append({
                         "role": msg.get("role"),
                         "content": msg.get("content")
@@ -410,12 +417,15 @@ async def create_message_stream(
                 try:
                     await context_manager.update_context_summary(
                         chat_id=chat_id,
-                        recent_messages=message_history[:-1],  # Exclude current user message
+                        # Exclude current user message
+                        recent_messages=message_history[:-1],
                         new_ai_response=full_response,
                         current_summary=chat_data.get('context_summary', '')
                     )
                 except Exception as e:
-                    logger.warning(f"Failed to update context summary for chat {chat_id}: {str(e)}")
+                    logger.warning(
+                        f"Failed to update context summary for chat {chat_id}: {
+                            str(e)}")
                     # Don't fail the stream if summary update fails
 
                 # Update chat timestamp

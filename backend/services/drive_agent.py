@@ -1,10 +1,9 @@
-import json
-from typing import Dict, List, Any, Optional, Callable
+from typing import Dict, Any, Optional, Callable
 import google.generativeai as genai
 from google.generativeai.types import FunctionDeclaration, Tool
 
 from config import settings
-from services.google_drive import GoogleDriveService
+from backend.scripts.google_drive import GoogleDriveService
 from utils.logger import logger
 
 
@@ -17,7 +16,7 @@ class GoogleDriveAgent:
         self.model = self._create_model()
         self.chat = None
         self.user_id = user_id or "anonymous"
-        
+
     def _create_model(self) -> genai.GenerativeModel:
         """Create Gemini model with Google Drive function tools"""
         tools = [Tool(function_declarations=[
@@ -32,7 +31,7 @@ class GoogleDriveAgent:
                             "description": "Optional Google Drive folder ID to list files from"
                         },
                         "query": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "Optional search query to filter files"
                         },
                         "max_results": {
@@ -143,28 +142,6 @@ class GoogleDriveAgent:
                 }
             ),
             FunctionDeclaration(
-                name="share_file",
-                description="Share a file with another user",
-                parameters={
-                    "type": "object",
-                    "properties": {
-                        "file_id": {
-                            "type": "string",
-                            "description": "ID of the file to share"
-                        },
-                        "email": {
-                            "type": "string",
-                            "description": "Email address to share with"
-                        },
-                        "role": {
-                            "type": "string",
-                            "description": "Permission role: reader, writer, or commenter (default: reader)"
-                        }
-                    },
-                    "required": ["file_id", "email"]
-                }
-            ),
-            FunctionDeclaration(
                 name="get_storage_info",
                 description="Get Google Drive storage information",
                 parameters={"type": "object", "properties": {}}
@@ -201,14 +178,14 @@ class GoogleDriveAgent:
                 }
             )
         ])]
-        
+
         generation_config = {
             "temperature": 0.3,
             "top_p": 0.8,
             "top_k": 40,
             "max_output_tokens": 2048,
         }
-        
+
         system_instruction = """You are a Google Drive management assistant. You can help users organize, search, and manage their Google Drive files safely.
 
 IMPORTANT SAFETY RULES:
@@ -234,7 +211,7 @@ Be helpful, safe, and provide clear explanations of what you're doing."""
             tools=tools,
             system_instruction=system_instruction
         )
-    
+
     def _get_function_mapping(self) -> Dict[str, Callable]:
         """Map function names to actual drive service methods"""
         return {
@@ -245,73 +222,77 @@ Be helpful, safe, and provide clear explanations of what you're doing."""
             "rename_file": self.drive_service.rename_file,
             "delete_file": self.drive_service.delete_file,
             "search_files": self.drive_service.search_files,
-            "share_file": self.drive_service.share_file,
             "get_storage_info": self.drive_service.get_storage_info,
             "organize_by_type": self.drive_service.organize_by_type,
             "get_folder_structure": self.drive_service.get_folder_structure
         }
-    
+
     def start_chat(self) -> None:
         """Start a new chat session"""
         self.chat = self.model.start_chat()
-        logger.info(f"Started new Google Drive agent chat session for user {self.user_id}")
-    
+        logger.info(
+            f"Started new Google Drive agent chat session for user {
+                self.user_id}")
+
     def process_message(self, message: str) -> str:
         """Process user message and execute any necessary function calls"""
         if not self.chat:
             self.start_chat()
-        
+
         try:
-            logger.info(f"Processing user message for user {self.user_id}: {message}")
+            logger.info(
+                f"Processing user message for user {
+                    self.user_id}: {message}")
             response = self.chat.send_message(message)
-            
+
             # Handle function calls
             if response.candidates[0].content.parts:
                 for part in response.candidates[0].content.parts:
                     if hasattr(part, 'function_call') and part.function_call:
                         function_call = part.function_call
                         result = self._execute_function(function_call)
-                        
+
                         # Send function result back to the model
                         function_response = genai.protos.FunctionResponse(
                             name=function_call.name,
                             response={"result": result}
                         )
                         response = self.chat.send_message(function_response)
-            
+
             return response.text if response.text else "I've completed the requested action."
-            
+
         except Exception as e:
             logger.error(f"Error processing message: {e}")
             return f"I encountered an error: {str(e)}. Please try again or rephrase your request."
-    
+
     def _execute_function(self, function_call) -> Any:
         """Execute a Google Drive function safely"""
         function_name = function_call.name
         function_args = dict(function_call.args) if function_call.args else {}
-        
-        logger.info(f"Executing function: {function_name} with args: {function_args}")
-        
+
+        logger.info(
+            f"Executing function: {function_name} with args: {function_args}")
+
         function_mapping = self._get_function_mapping()
-        
+
         if function_name not in function_mapping:
             error_msg = f"Unknown function: {function_name}"
             logger.error(error_msg)
             return {"error": error_msg}
-        
+
         try:
             # Execute the function
             func = function_mapping[function_name]
             result = func(**function_args)
-            
+
             logger.info(f"Function {function_name} executed successfully")
             return result
-            
+
         except Exception as e:
             error_msg = f"Error executing {function_name}: {str(e)}"
             logger.error(error_msg)
             return {"error": error_msg}
-    
+
     def reset_chat(self) -> None:
         """Reset the chat session"""
         self.chat = None

@@ -1,4 +1,5 @@
-from api import chats, messages, tasks, drive_agent
+# Removed chats - CRUD moved to frontend
+from api import messages, tasks, drive_agent
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -64,11 +65,11 @@ async def root():
     logger.info("Health check endpoint accessed")
     return {"message": "Archyx AI API is running"}
 
-# Include routers
-app.include_router(chats.router)
-app.include_router(messages.router)
-app.include_router(tasks.router)
-app.include_router(drive_agent.router)
+# Include routers - computation-heavy operations only
+# Note: Chat CRUD operations moved to frontend API routes
+app.include_router(messages.router)  # AI processing and streaming
+app.include_router(tasks.router)     # Long-running background tasks
+app.include_router(drive_agent.router)  # File operations
 
 # Startup and shutdown events
 

@@ -1,10 +1,10 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any
-from datetime import datetime
 from enum import Enum
 
 
 class TaskStatus(str, Enum):
+    """Aligned with frontend TaskStatus type"""
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -13,6 +13,7 @@ class TaskStatus(str, Enum):
 
 
 class TaskType(str, Enum):
+    """Task types for computation-heavy operations"""
     ORGANIZE = "organize"
     SEARCH = "search"
     CLEANUP = "cleanup"
@@ -22,6 +23,7 @@ class TaskType(str, Enum):
 
 
 class TaskCreate(BaseModel):
+    """Create task request - computation-heavy operations only"""
     type: TaskType
     command: str = Field(..., min_length=1, max_length=500)
     parameters: Optional[Dict[str, Any]] = Field(default_factory=dict)
@@ -32,6 +34,7 @@ class TaskCreate(BaseModel):
 
 
 class TaskUpdate(BaseModel):
+    """Update task metadata - used by backend during processing"""
     status: Optional[TaskStatus] = None
     progress: Optional[int] = Field(None, ge=0, le=100)
     result: Optional[Dict[str, Any]] = None
@@ -40,13 +43,13 @@ class TaskUpdate(BaseModel):
 
 
 class TaskResponse(BaseModel):
+    """Task response - aligned with frontend Task type"""
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    user_id: str
+    user_id: Optional[str] = None  # Match frontend optional field
     chat_id: Optional[str] = None
-    type: TaskType
-    command: str
+    command_id: str  # Maps to frontend Task.command_id field
     parameters: Dict[str, Any] = Field(default_factory=dict)
     status: TaskStatus
     progress: int = 0
@@ -59,11 +62,19 @@ class TaskResponse(BaseModel):
     estimated_duration: Optional[int] = None
     priority: int = 5
     retry_count: int = 0
-    max_retries: int = 3
     updated_at: str
+
+    @classmethod
+    def from_task_data(cls, task_data: Dict[str, Any]):
+        """Convert backend task data to frontend-compatible format"""
+        # Map 'type' field to 'command_id' for frontend compatibility
+        if 'type' in task_data:
+            task_data['command_id'] = task_data.pop('type')
+        return cls(**task_data)
 
 
 class TaskListResponse(BaseModel):
+    """Paginated task list response"""
     tasks: List[TaskResponse]
     total: int
     page: int
@@ -73,4 +84,5 @@ class TaskListResponse(BaseModel):
 
 
 class TaskStopRequest(BaseModel):
+    """Cancel task request"""
     reason: Optional[str] = "User requested cancellation"

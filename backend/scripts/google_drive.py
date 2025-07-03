@@ -33,26 +33,28 @@ class GoogleDriveService:
             # Load and validate the service account credentials
             with open(self.credentials_path, 'r') as f:
                 creds_info = json.load(f)
-            
+
             # Verify it's a service account credentials file
             if creds_info.get('type') != 'service_account':
                 raise ValueError(
-                    f"Invalid credentials type. Expected 'service_account', got '{creds_info.get('type')}'. "
+                    f"Invalid credentials type. Expected 'service_account', got '{
+                        creds_info.get('type')}'. "
                     "Please use a service account credentials file for backend applications."
                 )
-            
+
             logger.info("Using service account authentication")
             credentials = service_account.Credentials.from_service_account_file(
                 self.credentials_path, scopes=self.SCOPES)
-            
+
             self.service = build('drive', 'v3', credentials=credentials)
             logger.info("Google Drive service initialized successfully")
-            
+
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in credentials file: {e}")
         except Exception as e:
             logger.error(f"Authentication failed: {e}")
-            raise RuntimeError(f"Failed to authenticate with Google Drive API: {e}")
+            raise RuntimeError(
+                f"Failed to authenticate with Google Drive API: {e}")
 
     def get_file_info(self, file_id: str,
                       fields: Optional[str] = None) -> Dict[str, Any]:
@@ -259,28 +261,6 @@ class GoogleDriveService:
             logger.error(f"Failed to get permissions for file {file_id}: {e}")
             raise
 
-    def share_file(self, file_id: str, email: str,
-                   role: str = 'reader') -> Dict[str, Any]:
-        """Share a file with a user"""
-        try:
-            permission = {
-                'type': 'user',
-                'role': role,
-                'emailAddress': email
-            }
-
-            result = self.service.permissions().create(
-                fileId=file_id,
-                body=permission,
-                sendNotificationEmail=True
-            ).execute()
-
-            logger.info(f"Shared file (ID: {file_id}) with {email} as {role}")
-            return result
-        except HttpError as e:
-            logger.error(f"Failed to share file {file_id} with {email}: {e}")
-            raise
-
     def organize_by_type(
             self, source_folder_id: str) -> Dict[str, List[Dict[str, Any]]]:
         """Organize files by type within a folder"""
@@ -384,6 +364,7 @@ class GoogleDriveService:
         return {k: v for k, v in formatted.items() if v is not None}
 
 
-def create_drive_service(credentials_path: Optional[str] = None) -> GoogleDriveService:
+def create_drive_service(
+        credentials_path: Optional[str] = None) -> GoogleDriveService:
     """Factory function to create a Google Drive service instance"""
     return GoogleDriveService(credentials_path)

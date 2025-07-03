@@ -75,7 +75,7 @@ async def create_task(
             )
 
         logger.info(f"Task created successfully: {response.data[0]['id']}")
-        return response.data[0]
+        return TaskResponse.from_task_data(response.data[0])
 
     except Exception as e:
         error_detail = str(e)
@@ -129,7 +129,10 @@ async def get_tasks(
             tasks = []
             total = 0
         else:
-            tasks = response.data
+            # Transform tasks using TaskResponse.from_task_data for frontend
+            # compatibility
+            tasks = [TaskResponse.from_task_data(
+                task) for task in response.data]
             total = response.count if response.count is not None else len(
                 tasks)
 
@@ -161,7 +164,7 @@ async def get_task(
         if not response.data:
             raise HTTPException(status_code=404, detail="Task not found")
 
-        return response.data[0]
+        return TaskResponse.from_task_data(response.data[0])
 
     except HTTPException:
         raise
@@ -211,7 +214,7 @@ async def update_task(
                 status_code=500,
                 detail="Failed to update task")
 
-        return response.data[0]
+        return TaskResponse.from_task_data(response.data[0])
 
     except HTTPException:
         raise
@@ -321,7 +324,7 @@ def _parse_command_for_task(
             parameters["path"] = " ".join(parts[1:])
 
     elif command.startswith('/search'):
-    
+
         task_type = TaskType.SEARCH
         # Extract search query
         parts = command.split()

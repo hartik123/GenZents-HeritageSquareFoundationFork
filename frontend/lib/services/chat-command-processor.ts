@@ -84,10 +84,9 @@ export class ChatCommandProcessor {
         return "Status: Not authenticated"
       }
 
-      // Get task statistics
-      const response = await fetch(`${this.apiBase}/api/tasks/`, {
+      // Get task statistics using frontend API route for monitoring
+      const response = await fetch(`/api/tasks`, {
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
         },
       })

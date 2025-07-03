@@ -3,7 +3,11 @@ from typing import Optional
 
 
 class User(BaseModel):
-    """Simple user model to avoid Supabase import issues"""
+    """
+    Minimal user model for backend authentication
+    Full user data with preferences, permissions, etc. is managed in frontend types
+    This model only contains fields needed for backend API authentication and processing
+    """
     model_config = ConfigDict(from_attributes=True)
 
     id: str
