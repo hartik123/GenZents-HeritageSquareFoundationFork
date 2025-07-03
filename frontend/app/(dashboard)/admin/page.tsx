@@ -2,7 +2,7 @@
 
 import { AuthGuard } from "@/components/auth/auth-guard"
 import { AdminUserManagement } from "@/components/admin/user-management"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { Shield, Users, Settings, Activity } from "lucide-react"
 

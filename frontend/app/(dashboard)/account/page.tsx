@@ -1,9 +1,7 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
-// import { Metadata } from "next"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,18 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useToast } from "@/hooks/use-toast"
-
-// export const metadata: Metadata = {
-//   title: "Account",
-//   description: "Manage your account settings and profile information.",
-//   keywords: ["account", "settings", "profile"],
-//   openGraph: {
-//     title: "Account",
-//     description: "Manage your account settings and profile information.",
-//     url: "/account",
-//     type: "website",
-//   },
-// }
 
 export default function AccountPage() {
   const { user, updateProfile } = useAuthStore()

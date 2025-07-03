@@ -4,6 +4,7 @@ import type React from "react"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { useStoreProvider } from "@/hooks/store-provider"
 import { Loader2 } from "lucide-react"
 import type { UserPermission } from "@/lib/types/user"
 
@@ -23,16 +24,11 @@ export function AuthGuard({
   fallback,
 }: AuthGuardProps): React.ReactElement | null {
   const router = useRouter()
-  const { user, profile, loading, initialized, initialize, isAdmin, hasPermission } = useAuthStore()
+  const { user, profile, loading, initialized, isAdmin, hasPermission } = useAuthStore()
+  const storeProvider = useStoreProvider()
 
   useEffect(() => {
-    if (!initialized) {
-      initialize()
-    }
-  }, [initialized, initialize])
-
-  useEffect(() => {
-    if (!initialized || loading) return
+    if (!initialized || loading || !storeProvider.isInitialized) return
 
     if (requireAuth && !user) {
       router.push("/auth")
@@ -57,6 +53,7 @@ export function AuthGuard({
     profile,
     initialized,
     loading,
+    storeProvider.isInitialized,
     requireAuth,
     requireAdmin,
     requiredPermissions,
@@ -65,10 +62,21 @@ export function AuthGuard({
     hasPermission,
   ])
 
-  if (!initialized || loading) {
+  if (!initialized || loading || storeProvider.isInitializing || !storeProvider.isInitialized) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span>Loading...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (storeProvider.error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-red-500">Store initialization failed: {storeProvider.error}</div>
       </div>
     )
   }

@@ -21,7 +21,7 @@ class ContextManager:
         """Retrieve user preferences and custom instructions from the database."""
         try:
             # Get user settings
-            settings_response = self.user_supabase.table("user_settings").select(
+            settings_response = self.user_supabase.table("profiles").select(
                 "custom_instructions, communication_style, response_length, expertise_level, "
                 "default_model, temperature, max_tokens, system_prompt"
             ).eq("user_id", user_id).execute()
