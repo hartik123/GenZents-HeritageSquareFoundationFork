@@ -32,25 +32,14 @@ export function ChatInput() {
   const [input, setInput] = React.useState("")
   const [isRecording, setIsRecording] = React.useState(false)
   const [isDragOver, setIsDragOver] = React.useState(false)
-  const [isProcessingCommand, setIsProcessingCommand] = React.useState(false)
   const [uploadProgress, setUploadProgress] = React.useState<Record<string, number>>({})
   const [showCommandSuggestions, setShowCommandSuggestions] = React.useState(false)
   const router = useRouter()
 
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
-  const {
-    sendMessage,
-    sendMessageStream,
-    isStreaming,
-    getCurrentChat,
-    attachments,
-    contextFiles,
-    addAttachment,
-    removeAttachment,
-    removeContextFile,
-    selectChat,
-  } = useChatStore()
+  const { sendMessage, isStreaming, getCurrentChat, attachments, addAttachment, removeAttachment, selectChat } =
+    useChatStore()
   const currentChat = getCurrentChat()
   const { toast } = useToast()
 
@@ -64,78 +53,26 @@ export function ChatInput() {
 
   const handleSend = React.useCallback(async () => {
     if (!input.trim() && attachments.length === 0) return
-    if (isStreaming || isProcessingCommand) return
-    // Sanitize input to prevent XSS attacks
+    if (isStreaming) return
+
     const messageContent = sanitizeInput(input.trim())
     const wasNewChat = !currentChat
+
     setInput("")
     setShowCommandSuggestions(false)
-    setIsProcessingCommand(true)
+
     try {
       logger.info("Attempting to send message", {
         component: "chat-input",
         hasCurrentChat: !!currentChat,
         messageLength: messageContent.length,
       })
-      // Check if this is a command that should be processed as a task
-      const commandResult = await chatCommandProcessor.processCommand(messageContent, currentChat?.id)
-      if (commandResult.isTask) {
-        // First send the original command as a user message
-        const userChatId = await sendMessage(messageContent, currentChat?.id)
-        // Then send the response message
-        const response = commandResult.response || "Task created successfully. Check the Tasks page for progress."
-        await sendMessage(response, userChatId)
-        logger.info("Task created from command", {
-          component: "chat-input",
-          taskId: commandResult.taskId,
-          chatId: userChatId,
-          wasNewChat,
-        })
-        // Show success toast
-        toast({
-          title: "Task Created",
-          description: "Your command has been queued as a background task. Monitor progress in the Tasks page.",
-        })
-        // If this was a new chat, navigate to it
-        if (wasNewChat && userChatId) {
-          logger.info("Navigating to new chat", { component: "chat-input", chatId: userChatId })
-          selectChat(userChatId)
-          router.push(`/chat/${userChatId}`)
-        }
-        return
-      }
-      if (commandResult.error) {
-        // First send the original command as a user message
-        const userChatId = await sendMessage(messageContent, currentChat?.id)
-        // Then send error as response
-        const errorResponse = `Error processing command: ${commandResult.error}`
-        await sendMessage(errorResponse, userChatId)
-        toast({
-          title: "Command Error",
-          description: commandResult.error,
-          variant: "destructive",
-        })
-        if (wasNewChat && userChatId) {
-          selectChat(userChatId)
-          router.push(`/chat/${userChatId}`)
-        }
-        return
-      }
-      if (commandResult.response) {
-        // First send the original command as a user message
-        const userChatId = await sendMessage(messageContent, currentChat?.id)
-        // Then send immediate command response
-        await sendMessage(commandResult.response, userChatId)
-        if (wasNewChat && userChatId) {
-          selectChat(userChatId)
-          router.push(`/chat/${userChatId}`)
-        }
-        return
-      }
-      // Regular message - use streaming for better user experience
-      const chatId = await sendMessageStream(messageContent, currentChat?.id)
+
+      const chatId = await sendMessage(messageContent, currentChat?.id)
+
       logger.info("Message sent successfully", { component: "chat-input", chatId, wasNewChat })
-      // If this was a new chat (no currentChat), navigate to the newly created chat
+
+      // If this was a new chat, navigate to the newly created chat
       if (wasNewChat && chatId) {
         logger.info("Navigating to new chat", { component: "chat-input", chatId })
         selectChat(chatId)
@@ -153,21 +90,8 @@ export function ChatInput() {
       })
       // Restore the input on error
       setInput(messageContent)
-    } finally {
-      setIsProcessingCommand(false)
     }
-  }, [
-    input,
-    attachments,
-    isStreaming,
-    isProcessingCommand,
-    sendMessage,
-    sendMessageStream,
-    currentChat,
-    selectChat,
-    router,
-    toast,
-  ])
+  }, [input, attachments, isStreaming, sendMessage, currentChat, selectChat, router, toast])
 
   // Handle keyboard shortcuts
   React.useEffect(() => {
@@ -487,26 +411,6 @@ export function ChatInput() {
             </div>
           </div>
         )}
-        {/* Context Files */}
-        {contextFiles.length > 0 && (
-          <div className="p-4 border-b">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-              <Hash className="h-4 w-4" />
-              <span>Context Files</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {contextFiles.map((file, index) => (
-                <Badge key={index} variant="outline" className="flex items-center gap-2">
-                  <Folder className="h-3 w-3" />
-                  <span className="text-xs">{file.path}</span>
-                  <Button variant="ghost" size="sm" className="h-4 w-4 p-0" onClick={() => removeContextFile(file.id)}>
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
         <div
           className={cn("p-4 transition-colors", isDragOver && "bg-primary/5 border-primary")}
           onDragOver={handleDragOver}
@@ -544,14 +448,8 @@ export function ChatInput() {
                 onChange={(e) => setInput(e.target.value)}
                 onSelect={handleCursorChange}
                 onKeyUp={handleCursorChange}
-                placeholder={
-                  isStreaming
-                    ? "AI is responding..."
-                    : isProcessingCommand
-                      ? "Processing command..."
-                      : "Type your message or use /commands..."
-                }
-                disabled={isStreaming || isProcessingCommand}
+                placeholder={isStreaming ? "AI is responding..." : "Type your message or use /commands..."}
+                disabled={isStreaming}
                 className="min-h-[44px] max-h-[200px] resize-none pr-20"
                 onKeyDown={handleKeyDown}
               />
@@ -577,13 +475,12 @@ export function ChatInput() {
               {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </Button>
             {/* Send/Stop Button */}
-            {isStreaming || isProcessingCommand ? (
+            {isStreaming ? (
               <Button
                 variant="destructive"
                 size="sm"
                 onClick={() => sendMessage("", currentChat?.id || "")}
                 className="flex-shrink-0"
-                disabled={isProcessingCommand}
               >
                 <StopCircle className="h-4 w-4" />
               </Button>

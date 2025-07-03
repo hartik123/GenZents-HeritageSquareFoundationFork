@@ -2,59 +2,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-
-// Available commands from our chat command processor
-const AVAILABLE_COMMANDS = [
-  {
-    command: "/organize",
-    description: "Organize files in a directory",
-    example: "/organize Downloads",
-    category: "file-management",
-    isLongRunning: true,
-  },
-  {
-    command: "/search",
-    description: "Search for files and content",
-    example: "/search 'important document'",
-    category: "search",
-    isLongRunning: true,
-  },
-  {
-    command: "/cleanup",
-    description: "Clean up temporary files and duplicates",
-    example: "/cleanup",
-    category: "file-management",
-    isLongRunning: true,
-  },
-  {
-    command: "/backup",
-    description: "Create a backup of your files",
-    example: "/backup",
-    category: "file-management",
-    isLongRunning: true,
-  },
-  {
-    command: "/folder:name create",
-    description: "Create a new organized folder",
-    example: "/folder:Documents create",
-    category: "file-management",
-    isLongRunning: true,
-  },
-  {
-    command: "/help",
-    description: "Show available commands",
-    example: "/help",
-    category: "system",
-    isLongRunning: false,
-  },
-  {
-    command: "/status",
-    description: "Show system status",
-    example: "/status",
-    category: "system",
-    isLongRunning: false,
-  },
-]
+import { DEFAULT_COMMANDS } from "@/lib/types"
 
 interface CommandSuggestionsProps {
   input: string
@@ -71,7 +19,7 @@ export function CommandSuggestions({
   textareaRef,
   visible,
 }: CommandSuggestionsProps) {
-  const [suggestions, setSuggestions] = React.useState<typeof AVAILABLE_COMMANDS>([])
+  const [suggestions, setSuggestions] = React.useState<typeof DEFAULT_COMMANDS>([])
   const [selectedIndex, setSelectedIndex] = React.useState(0)
   const [position, setPosition] = React.useState({ top: 0, left: 0 })
   const dropdownRef = React.useRef<HTMLDivElement>(null)
@@ -81,8 +29,8 @@ export function CommandSuggestions({
     const query = input.toLowerCase().trim()
     if (!query.startsWith("/")) return []
     const searchTerm = query.substring(1)
-    if (!searchTerm) return AVAILABLE_COMMANDS
-    return AVAILABLE_COMMANDS.filter((cmd) => cmd.command.toLowerCase().includes(searchTerm))
+    if (!searchTerm) return DEFAULT_COMMANDS
+    return DEFAULT_COMMANDS.filter((cmd) => cmd.instruction.toLowerCase().includes(searchTerm))
   }
 
   // Update suggestions based on input
@@ -160,7 +108,7 @@ export function CommandSuggestions({
           e.stopPropagation()
           if (suggestions[selectedIndex]) {
             const selectedCommand = suggestions[selectedIndex]
-            onCommandSelect(selectedCommand.command)
+            onCommandSelect(selectedCommand.instruction)
           }
           return
         case "Escape":
@@ -197,7 +145,7 @@ export function CommandSuggestions({
             <button
               key={index}
               onClick={() => {
-                onCommandSelect(suggestion.command)
+                onCommandSelect(suggestion.instruction)
               }}
               className={cn(
                 "flex items-center gap-3 w-full text-left p-2 rounded text-sm transition-colors",
@@ -206,7 +154,7 @@ export function CommandSuggestions({
               onMouseEnter={() => setSelectedIndex(index)}
             >
               <div className="flex-1 min-w-0">
-                <div className="font-medium">{suggestion.command}</div>
+                <div className="font-medium">{suggestion.instruction}</div>
                 <div
                   className={cn(
                     "text-xs truncate",
@@ -221,7 +169,7 @@ export function CommandSuggestions({
                     isSelected ? "text-primary-foreground/60" : "text-muted-foreground/60"
                   )}
                 >
-                  {suggestion.example}
+                  {suggestion.description}
                 </div>
               </div>
             </button>

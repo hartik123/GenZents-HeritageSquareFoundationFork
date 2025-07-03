@@ -30,10 +30,16 @@ import { MessageSquare, Plus, LogOut, MoreHorizontal, User, GitBranch, Shield, A
 import { useChatStore } from "@/lib/stores/chat-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
 
+const NAVIGATION_ITEMS = [
+  { title: "Tasks", url: "/tasks", icon: Activity, permission: "ai_chat" },
+  { title: "Version", url: "/version", icon: GitBranch, permission: "version_history" },
+] as const
+
 export function AppSidebar() {
   const router = useRouter()
   const { chats, createChat, selectChat, deleteChat, loadChats, currentChatId } = useChatStore()
   const { user, profile, signOut, isAdmin, hasPermission } = useAuthStore()
+
   useEffect(() => {
     loadChats()
   }, [loadChats])
@@ -58,17 +64,14 @@ export function AppSidebar() {
   const handleSignOut = async () => {
     try {
       await signOut()
-      router.push("/auth")
     } catch (error) {
       console.error("Sign out failed:", error)
+    } finally {
       router.push("/auth")
     }
   }
 
-  const navigationItems = [
-    { title: "Tasks", url: "/tasks", icon: Activity, permission: "ai_chat" },
-    { title: "Version", url: "/version", icon: GitBranch, permission: "version_history" },
-  ].filter((item) => hasPermission(item.permission as any))
+  const navigationItems = NAVIGATION_ITEMS.filter((item) => hasPermission(item.permission as any))
 
   return (
     <Sidebar>

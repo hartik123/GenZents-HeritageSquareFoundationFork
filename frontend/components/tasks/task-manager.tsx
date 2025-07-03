@@ -12,25 +12,22 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Activity, Clock, CheckCircle, XCircle, AlertCircle, MoreHorizontal, Square, Trash2, Eye } from "lucide-react"
 import { useTaskStore } from "@/lib/stores/task-store"
-import type { Task, TaskStatus, TaskType, TaskManagerProps } from "@/lib/types/tasks"
+import type { Task } from "@/lib/types/tasks"
 import { formatDistanceToNow } from "date-fns"
 
 export function TaskManager() {
-  const { tasks, loading, error, cancelTask, deleteTask, subscribeToTasks } = useTaskStore()
-
+  const { tasks, loading, error, cancelTask, deleteTask, subscribeToTasks, fetchTasks } = useTaskStore()
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [typeFilter, setTypeFilter] = useState<string>("all")
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
-  // Subscribe to real-time updates
   useEffect(() => {
+    fetchTasks()
     const unsubscribe = subscribeToTasks()
     return unsubscribe
-  }, [subscribeToTasks])
+  }, [subscribeToTasks, fetchTasks])
 
   const filteredTasks = tasks.filter((task) => {
     if (statusFilter !== "all" && task.status !== statusFilter) return false
-    if (typeFilter !== "all" && task.type !== typeFilter) return false
     return true
   })
 
@@ -82,7 +79,7 @@ export function TaskManager() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {getStatusIcon(task.status)}
-            <CardTitle className="text-lg">{task.command}</CardTitle>
+            <CardTitle className="text-lg">{task.command_id}</CardTitle>
           </div>
           <div className="flex items-center gap-2">
             <Badge className={getStatusColor(task.status)}>{task.status}</Badge>
@@ -114,9 +111,6 @@ export function TaskManager() {
           </div>
         </div>
         <CardDescription className="flex items-center gap-4 text-sm">
-          <span className="flex items-center gap-1">
-            Type: <Badge variant="outline">{task.type}</Badge>
-          </span>
           <span>Priority: {task.priority}</span>
           <span>Created {formatDistanceToNow(new Date(task.created_at))} ago</span>
         </CardDescription>
@@ -170,20 +164,6 @@ export function TaskManager() {
               <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
-
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="organize">Organize</SelectItem>
-              <SelectItem value="search">Search</SelectItem>
-              <SelectItem value="cleanup">Cleanup</SelectItem>
-              <SelectItem value="backup">Backup</SelectItem>
-              <SelectItem value="analysis">Analysis</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       </div>
 
@@ -229,11 +209,7 @@ export function TaskManager() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium">Command</Label>
-                  <p className="text-sm">{selectedTask.command}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Type</Label>
-                  <Badge variant="outline">{selectedTask.type}</Badge>
+                  <p className="text-sm">{selectedTask.command_id}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Status</Label>
@@ -242,6 +218,10 @@ export function TaskManager() {
                 <div>
                   <Label className="text-sm font-medium">Progress</Label>
                   <p className="text-sm">{selectedTask.progress}%</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Priority</Label>
+                  <p className="text-sm">{selectedTask.priority}</p>
                 </div>
               </div>
 
