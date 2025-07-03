@@ -5,9 +5,8 @@ import { createContext, useContext, useReducer, useCallback, useEffect } from "r
 import { nanoid } from "nanoid"
 import { logger } from "@/lib/utils/logger"
 import { SecureStorage } from "@/lib/utils/local-storage"
-import type { Message, Attachment, ChatSession } from "@/lib/types/chat"
+import type { Message, Attachment, ChatSession } from "@/lib/types"
 
-// Helper function to create a proper message
 const createMessage = (
   content: string,
   role: "user" | "assistant" | "system" | "function",
@@ -16,28 +15,22 @@ const createMessage = (
 ): Message => ({
   id: nanoid(),
   chat_id: chatId,
+  user_id: "current-user", // TODO: Get from auth context
   role,
   content,
-  created_at: new Date().toISOString(),
-  timestamp: new Date(),
-  edited: false,
+  created_at: new Date(),
+  updated_at: new Date(),
   deleted: false,
   metadata: {
-    model: metadata?.model,
     tokens: metadata?.tokens,
     cost: metadata?.cost,
     processingTime: metadata?.processingTime,
     confidence: undefined,
-    sources: [],
     citations: [],
     language: undefined,
     sentiment: undefined,
-    topics: [],
-    entities: [],
   },
-  attachments: metadata?.attachments || [],
   reactions: [],
-  mentions: [],
   status: {
     sent: role === "user",
     delivered: role !== "user",
@@ -45,12 +38,7 @@ const createMessage = (
     retries: 0,
     status: role === "user" ? "sending" : "delivered",
   },
-  encryption: {
-    encrypted: false,
-  },
 })
-
-// Remove duplicate interfaces as they now come from centralized types
 
 interface ChatState {
   sessions: ChatSession[]
@@ -60,8 +48,6 @@ interface ChatState {
   searchQuery: string
   selectedMessages: string[]
   attachments: Attachment[]
-  contextFiles: string[]
-  promptHistory: string[]
 }
 
 type ChatAction =
@@ -88,9 +74,6 @@ type ChatAction =
   | { type: "ADD_ATTACHMENT"; payload: Attachment }
   | { type: "REMOVE_ATTACHMENT"; payload: string }
   | { type: "CLEAR_ATTACHMENTS" }
-  | { type: "ADD_CONTEXT_FILE"; payload: string }
-  | { type: "REMOVE_CONTEXT_FILE"; payload: string }
-  | { type: "ADD_TO_PROMPT_HISTORY"; payload: string }
   | { type: "LOAD_SESSIONS"; payload: ChatSession[] }
 
 const initialState: ChatState = {
@@ -101,8 +84,6 @@ const initialState: ChatState = {
   searchQuery: "",
   selectedMessages: [],
   attachments: [],
-  contextFiles: [],
-  promptHistory: [],
 }
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
@@ -227,24 +208,6 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
     case "CLEAR_ATTACHMENTS":
       return { ...state, attachments: [] }
 
-    case "ADD_CONTEXT_FILE":
-      return {
-        ...state,
-        contextFiles: [...state.contextFiles, action.payload],
-      }
-
-    case "REMOVE_CONTEXT_FILE":
-      return {
-        ...state,
-        contextFiles: state.contextFiles.filter((f) => f !== action.payload),
-      }
-
-    case "ADD_TO_PROMPT_HISTORY":
-      return {
-        ...state,
-        promptHistory: [action.payload, ...state.promptHistory.filter((p) => p !== action.payload)].slice(0, 50),
-      }
-
     case "LOAD_SESSIONS":
       return { ...state, sessions: action.payload }
 
@@ -261,7 +224,6 @@ const ChatContext = createContext<{
   regenerateMessage: (messageId: string) => Promise<void>
   stopGeneration: () => void
   exportChat: (sessionId: string, format: "json" | "markdown" | "txt") => void
-  importChat: (data: any) => void
 } | null>(null)
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
@@ -320,9 +282,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           metadata: { attachments },
         },
       })
-
-      // Add to prompt history
-      dispatch({ type: "ADD_TO_PROMPT_HISTORY", payload: content })
 
       // Simulate AI response
       dispatch({ type: "SET_STREAMING", payload: true })
@@ -437,20 +396,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     [state.sessions]
   )
 
-  const importChat = useCallback((data: any) => {
-    try {
-      if (Array.isArray(data)) {
-        data.forEach((session) => {
-          dispatch({ type: "CREATE_SESSION", payload: { title: session.title } })
-        })
-      } else if (data.messages) {
-        dispatch({ type: "CREATE_SESSION", payload: { title: data.title } })
-      }
-    } catch (error) {
-      logger.error("Failed to import chat", error as Error, { component: "chat-provider" })
-    }
-  }, [])
-
   return (
     <ChatContext.Provider
       value={{
@@ -461,7 +406,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         regenerateMessage,
         stopGeneration,
         exportChat,
-        importChat,
       }}
     >
       {children}

@@ -1,5 +1,4 @@
-import { Command, CommandArgs, CommandResult, DEFAULT_COMMANDS } from "@/lib/types/commands"
-import { logger } from "@/lib/utils/logger"
+import { Command, DEFAULT_COMMANDS } from "@/lib/types/commands"
 
 export class CommandProcessor {
   private commands: Map<string, Command> = new Map()

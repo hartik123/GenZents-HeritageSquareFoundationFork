@@ -1,4 +1,4 @@
-import type { TaskCommandResult, TaskType, CreateTaskRequest, Task } from "@/lib/types/tasks"
+import type { Task } from "@/lib/types/tasks"
 
 export class ChatCommandProcessor {
   private static instance: ChatCommandProcessor
@@ -13,26 +13,6 @@ export class ChatCommandProcessor {
       ChatCommandProcessor.instance = new ChatCommandProcessor()
     }
     return ChatCommandProcessor.instance
-  }
-
-  async processCommand(command: string, chatId?: string): Promise<TaskCommandResult> {
-    try {
-      // Check if this should be a long-running task
-      if (this.isLongRunningCommand(command)) {
-        return await this.createTask(command, chatId)
-      }
-
-      // For non-task commands, return immediate response
-      return {
-        isTask: false,
-        response: await this.processImmediateCommand(command),
-      }
-    } catch (error) {
-      return {
-        isTask: false,
-        error: (error as Error).message,
-      }
-    }
   }
 
   private isLongRunningCommand(command: string): boolean {
@@ -52,47 +32,6 @@ export class ChatCommandProcessor {
 
     const commandLower = command.toLowerCase()
     return longRunningKeywords.some((keyword) => commandLower.includes(keyword))
-  }
-
-  private async createTask(command: string, chatId?: string): Promise<TaskCommandResult> {
-    try {
-      const { createClient } = await import("@/lib/supabase/client")
-      const supabase = createClient()
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (!session) {
-        throw new Error("No authentication session")
-      }
-
-      const response = await fetch(`${this.apiBase}/api/tasks/process-command`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          command,
-          chat_id: chatId,
-          priority: 5,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to create task: ${response.statusText}`)
-      }
-
-      const task = await response.json()
-
-      return {
-        isTask: true,
-        taskId: task.id,
-        response: `Task created: ${command}. You can monitor its progress in the Tasks page.`,
-      }
-    } catch (error) {
-      throw error
-    }
   }
 
   private async processImmediateCommand(command: string): Promise<string> {

@@ -2,7 +2,8 @@ import { create } from "zustand"
 import { supabase } from "@/lib/supabase/client"
 import { logger } from "@/lib/utils/logger"
 import type { User, Session } from "@supabase/supabase-js"
-import type { Database, UserPermission, UserStatus } from "@/lib/types/database"
+import type { Database } from "@/lib/types/database"
+import type { UserPermission } from "@/lib/types/user"
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"]
 

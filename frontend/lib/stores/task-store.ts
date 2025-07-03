@@ -1,15 +1,9 @@
 import { create } from "zustand"
 import { createClient } from "@/lib/supabase/client"
 import { logger } from "@/lib/utils/logger"
-import type { Task, TaskStats, TaskFilterOptions, TaskStore as TaskStoreInterface } from "@/lib/types/tasks"
+import type { TaskStore } from "@/lib/types"
 
-const supabase = createClient()
-
-interface InternalTaskStore extends TaskStoreInterface {
-  subscriptionCleanup?: () => void
-}
-
-export const useTaskStore = create<InternalTaskStore>((set, get) => ({
+export const useTaskStore = create<TaskStore>((set, get) => ({
   tasks: [],
   taskStats: {
     pending: 0,
@@ -22,18 +16,16 @@ export const useTaskStore = create<InternalTaskStore>((set, get) => ({
   loading: false,
   error: null,
 
-  fetchTasks: async (filters?: TaskFilterOptions) => {
+  fetchTasks: async (filters) => {
     try {
       set({ loading: true, error: null })
+      const supabase = createClient()
 
       const {
         data: { session },
       } = await supabase.auth.getSession()
-      if (!session) {
-        throw new Error("No authentication session")
-      }
+      if (!session) throw new Error("No authentication session")
 
-      // Build query based on filters
       let query = supabase
         .from("tasks")
         .select("*")
@@ -58,13 +50,9 @@ export const useTaskStore = create<InternalTaskStore>((set, get) => ({
 
       const { data: tasks, error } = await query
 
-      if (error) {
-        throw error
-      }
+      if (error) throw error
 
       set({ tasks: tasks || [], loading: false })
-
-      // Update stats
       await get().fetchTaskStats()
     } catch (error) {
       logger.error("Error fetching tasks", error as Error, { component: "task-store" })
@@ -75,7 +63,7 @@ export const useTaskStore = create<InternalTaskStore>((set, get) => ({
   fetchTaskStats: async () => {
     try {
       const tasks = get().tasks
-      const stats: TaskStats = tasks.reduce(
+      const stats = tasks.reduce(
         (acc, task) => {
           acc[task.status]++
           acc.total++
@@ -99,12 +87,11 @@ export const useTaskStore = create<InternalTaskStore>((set, get) => ({
 
   cancelTask: async (taskId: string) => {
     try {
+      const supabase = createClient()
       const {
         data: { session },
       } = await supabase.auth.getSession()
-      if (!session) {
-        throw new Error("No authentication session")
-      }
+      if (!session) throw new Error("No authentication session")
 
       const { error } = await supabase
         .from("tasks")
@@ -115,13 +102,9 @@ export const useTaskStore = create<InternalTaskStore>((set, get) => ({
         .eq("id", taskId)
         .eq("user_id", session.user.id)
 
-      if (error) {
-        throw error
-      }
+      if (error) throw error
 
-      // Refresh tasks list
       await get().fetchTasks()
-
       return true
     } catch (error) {
       logger.error("Error cancelling task", error as Error, { component: "task-store" })
@@ -132,20 +115,16 @@ export const useTaskStore = create<InternalTaskStore>((set, get) => ({
 
   deleteTask: async (taskId: string) => {
     try {
+      const supabase = createClient()
       const {
         data: { session },
       } = await supabase.auth.getSession()
-      if (!session) {
-        throw new Error("No authentication session")
-      }
+      if (!session) throw new Error("No authentication session")
 
       const { error } = await supabase.from("tasks").delete().eq("id", taskId).eq("user_id", session.user.id)
 
-      if (error) {
-        throw error
-      }
+      if (error) throw error
 
-      // Remove from local state
       set((state) => ({
         tasks: state.tasks.filter((task) => task.id !== taskId),
       }))
@@ -160,12 +139,11 @@ export const useTaskStore = create<InternalTaskStore>((set, get) => ({
 
   getTask: async (taskId: string) => {
     try {
+      const supabase = createClient()
       const {
         data: { session },
       } = await supabase.auth.getSession()
-      if (!session) {
-        throw new Error("No authentication session")
-      }
+      if (!session) throw new Error("No authentication session")
 
       const { data: task, error } = await supabase
         .from("tasks")
@@ -174,10 +152,7 @@ export const useTaskStore = create<InternalTaskStore>((set, get) => ({
         .eq("user_id", session.user.id)
         .single()
 
-      if (error) {
-        throw error
-      }
-
+      if (error) throw error
       return task
     } catch (error) {
       logger.error("Error fetching task", error as Error, { component: "task-store" })
@@ -186,15 +161,8 @@ export const useTaskStore = create<InternalTaskStore>((set, get) => ({
   },
 
   subscribeToTasks: () => {
-    // Get current user session for filtering
-    const getUserSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      return session
-    }
+    const supabase = createClient()
 
-    // Subscribe to real-time updates from Supabase
     const subscription = supabase
       .channel("tasks")
       .on(
@@ -205,43 +173,35 @@ export const useTaskStore = create<InternalTaskStore>((set, get) => ({
           table: "tasks",
         },
         async (payload) => {
-          const session = await getUserSession()
+          const {
+            data: { session },
+          } = await supabase.auth.getSession()
           if (!session) return
 
-          // Only process changes for the current user's tasks
           const newRecord = payload.new as any
           const oldRecord = payload.old as any
 
           if (payload.eventType === "INSERT" && newRecord?.user_id === session.user.id) {
-            // Add new task to local state
             set((state) => ({
               tasks: [newRecord, ...state.tasks],
             }))
           } else if (payload.eventType === "UPDATE" && newRecord?.user_id === session.user.id) {
-            // Update existing task
             set((state) => ({
               tasks: state.tasks.map((task) => (task.id === newRecord.id ? newRecord : task)),
             }))
           } else if (payload.eventType === "DELETE" && oldRecord?.user_id === session.user.id) {
-            // Remove deleted task
             set((state) => ({
               tasks: state.tasks.filter((task) => task.id !== oldRecord.id),
             }))
           }
 
-          // Recalculate stats after any change
           get().fetchTaskStats()
         }
       )
       .subscribe()
 
-    // Store cleanup function
     set({ subscriptionCleanup: () => subscription.unsubscribe() })
-
-    // Return unsubscribe function
-    return () => {
-      subscription.unsubscribe()
-    }
+    return () => subscription.unsubscribe()
   },
 
   refreshTask: async (taskId: string) => {

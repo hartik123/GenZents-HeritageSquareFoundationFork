@@ -4,47 +4,38 @@ import { createClient } from "@/lib/supabase/client"
 import { nanoid } from "nanoid"
 import { AIService } from "@/lib/services/ai-service"
 import { logger } from "@/lib/utils/logger"
-import type { Chat, Message, Attachment, ContextFile } from "@/lib/types/chat"
+import type { Chat, Message, Attachment, Reaction } from "@/lib/types"
 
-// Helper function to generate chat title from message content
 const generateChatTitle = (content: string): string => {
-  // Remove any leading/trailing whitespace and normalize line breaks
   let cleaned = content.trim().replace(/\s+/g, " ")
-
-  // Remove basic markdown formatting
   cleaned = cleaned
-    .replace(/\*\*(.*?)\*\*/g, "$1") // Bold
-    .replace(/\*(.*?)\*/g, "$1") // Italic
-    .replace(/`(.*?)`/g, "$1") // Inline code
-    .replace(/#{1,6}\s/g, "") // Headers
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/`(.*?)`/g, "$1")
+    .replace(/#{1,6}\s/g, "")
 
-  // Split into words and take first 4-6 words
   const words = cleaned.split(/\s+/).filter((word) => word.length > 0)
   const titleWords = words.slice(0, Math.min(6, words.length))
-
-  // Join words and limit to 50 characters
   let title = titleWords.join(" ")
+
   if (title.length > 50) {
     title = title.substring(0, 47) + "..."
   }
 
-  // Ensure we have a fallback title
   return title || "New Chat"
 }
 
-// Remove duplicate interfaces as they now come from centralized types
-
 interface ChatState {
   chats: Chat[]
+  messages: Message[]
   currentChatId: string | null
   loading: boolean
   isStreaming: boolean
   searchQuery: string
-  contextFiles: ContextFile[]
   attachments: Attachment[]
 
-  // Actions
   loadChats: () => Promise<void>
+  loadMessages: (chatId: string) => Promise<void>
   createChat: (title?: string, template?: Partial<Chat>) => Promise<string>
   selectChat: (chatId: string) => void
   clearCurrentChat: () => void
@@ -53,46 +44,35 @@ interface ChatState {
   duplicateChat: (chatId: string) => Promise<string>
   archiveChat: (chatId: string) => Promise<void>
 
-  // Messages
-  sendMessage: (content: string, chatId?: string, parentId?: string) => Promise<string>
-  sendMessageStream: (content: string, chatId?: string) => Promise<string>
+  sendMessage: (content: string, chatId?: string) => Promise<string>
   editMessage: (messageId: string, content: string) => Promise<void>
   deleteMessage: (messageId: string) => Promise<void>
-  reactToMessage: (messageId: string, reaction: "thumbs_up" | "thumbs_down") => Promise<void>
-  regenerateMessage: (messageId: string) => Promise<void>
+  reactToMessage: (messageId: string, reaction: "liked" | "disliked" | "flagged") => Promise<void>
 
-  // Search
   searchMessages: (query: string) => Promise<Message[]>
   setSearchQuery: (query: string) => void
 
-  // Context
-  addContextFile: (file: ContextFile) => void
-  removeContextFile: (fileId: string) => void
-  clearContext: () => void
-
-  // Attachments
   addAttachment: (attachment: Attachment) => void
   removeAttachment: (attachmentId: string) => void
   clearAttachments: () => void
 
-  // Export/Import
   exportChat: (chatId: string, format: "json" | "markdown" | "txt") => Promise<string>
   importChat: (data: string, format: "json") => Promise<void>
 
-  // Getters
   getCurrentChat: () => Chat | null
-  getFilteredChats: (filter: "all" | "bookmarked" | "archived" | "shared") => Chat[]
+  getCurrentMessages: () => Message[]
+  getFilteredChats: (filter: "all" | "bookmarked" | "archived") => Chat[]
 }
 
 export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => ({
       chats: [],
+      messages: [],
       currentChatId: null,
       loading: false,
       isStreaming: false,
       searchQuery: "",
-      contextFiles: [],
       attachments: [],
 
       loadChats: async () => {
@@ -102,61 +82,66 @@ export const useChatStore = create<ChatState>()(
 
           const { data: chats, error } = await supabase
             .from("chats")
-            .select(
-              `
-              *,
-              messages (*)
-            `
-            )
-            .order("updated_at", { ascending: false })
+            .select("*")
+            .order("created_at", { ascending: false })
 
           if (error) throw error
 
-          set({
-            chats:
-              chats?.map((chat) => ({
-                ...chat,
-                messages: chat.messages || [],
-              })) || [],
-            loading: false,
-          })
+          set({ chats: chats || [], loading: false })
         } catch (error) {
           logger.error("Error loading chats", error as Error, { component: "chat-store" })
           set({ loading: false })
         }
       },
 
-      createChat: async (title = "New Chat", template = {}) => {
+      loadMessages: async (chatId: string) => {
         try {
           const supabase = createClient()
 
-          // Create chat using AIService which handles backend API call
-          const chatId = await AIService.createChat(title, template.system_prompt)
+          const { data: messages, error } = await supabase
+            .from("messages")
+            .select("*")
+            .eq("chat_id", chatId)
+            .order("created_at", { ascending: true })
 
-          const newChat: Partial<Chat> = {
-            id: chatId,
+          if (error) throw error
+
+          set({ messages: messages || [] })
+        } catch (error) {
+          logger.error("Error loading messages", error as Error, { component: "chat-store" })
+        }
+      },
+
+      createChat: async (title = "New Chat", template: Partial<Chat> = {}) => {
+        try {
+          const supabase = createClient()
+          const user = await supabase.auth.getUser()
+
+          const chat: Chat = {
+            id: nanoid(),
             title,
-            user_id: (await supabase.auth.getUser()).data.user?.id!,
-            bookmarked: false,
-            archived: false,
-            shared: false,
-            version: 1,
+            user_id: user.data.user?.id!,
+            created_at: new Date(),
+            status: "active",
+            metadata: {
+              totalMessages: 0,
+              totalTokens: 0,
+              averageResponseTime: 0,
+              lastActivity: new Date().toISOString(),
+            },
+            context_summary: "",
             ...template,
           }
 
-          const chat: Chat = {
-            ...(newChat as Chat),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            messages: [],
-          }
+          const { error } = await supabase.from("chats").insert(chat)
+          if (error) throw error
 
           set((state) => ({
             chats: [chat, ...state.chats],
-            currentChatId: chatId,
+            currentChatId: chat.id,
           }))
 
-          return chatId
+          return chat.id
         } catch (error) {
           logger.error("Error creating chat", error as Error, { component: "chat-store" })
           throw error
@@ -165,26 +150,24 @@ export const useChatStore = create<ChatState>()(
 
       selectChat: (chatId: string) => {
         set({ currentChatId: chatId })
+        get().loadMessages(chatId)
       },
 
       clearCurrentChat: () => {
-        set({ currentChatId: null })
+        set({ currentChatId: null, messages: [] })
       },
 
       deleteChat: async (chatId: string) => {
         try {
           const supabase = createClient()
-
-          // Delete messages first
           await supabase.from("messages").delete().eq("chat_id", chatId)
-
-          // Delete chat
           const { error } = await supabase.from("chats").delete().eq("id", chatId)
           if (error) throw error
 
           set((state) => ({
             chats: state.chats.filter((chat) => chat.id !== chatId),
             currentChatId: state.currentChatId === chatId ? null : state.currentChatId,
+            messages: state.currentChatId === chatId ? [] : state.messages,
           }))
         } catch (error) {
           logger.error("Error deleting chat", error as Error, { component: "chat-store", chatId })
@@ -195,11 +178,7 @@ export const useChatStore = create<ChatState>()(
       updateChat: async (chatId: string, updates: Partial<Chat>) => {
         try {
           const supabase = createClient()
-
-          const { error } = await supabase
-            .from("chats")
-            .update({ ...updates, updated_at: new Date().toISOString() })
-            .eq("id", chatId)
+          const { error } = await supabase.from("chats").update(updates).eq("id", chatId)
 
           if (error) throw error
 
@@ -217,21 +196,17 @@ export const useChatStore = create<ChatState>()(
           const chat = get().chats.find((c) => c.id === chatId)
           if (!chat) throw new Error("Chat not found")
 
-          const newChatId = await get().createChat(`${chat.title} (Copy)`, {
-            model: chat.model,
-            system_prompt: chat.system_prompt,
-            tags: chat.tags,
-          })
+          const newChatId = await get().createChat(`${chat.title} (Copy)`)
 
-          // Copy messages
           const supabase = createClient()
-          const messagesToCopy = chat.messages.map((msg) => ({
-            ...msg,
-            id: nanoid(),
-            chat_id: newChatId,
-          }))
+          const { data: messages } = await supabase.from("messages").select("*").eq("chat_id", chatId)
 
-          if (messagesToCopy.length > 0) {
+          if (messages && messages.length > 0) {
+            const messagesToCopy = messages.map((msg) => ({
+              ...msg,
+              id: nanoid(),
+              chat_id: newChatId,
+            }))
             await supabase.from("messages").insert(messagesToCopy)
           }
 
@@ -243,218 +218,28 @@ export const useChatStore = create<ChatState>()(
       },
 
       archiveChat: async (chatId: string) => {
-        await get().updateChat(chatId, { archived: true })
+        await get().updateChat(chatId, { status: "archived" })
       },
 
-      sendMessage: async (content: string, chatId?: string, parentId?: string) => {
+      sendMessage: async (content: string, chatId?: string) => {
         try {
           let targetChatId = chatId || get().currentChatId
 
           if (!targetChatId) {
-            targetChatId = await get().createChat()
+            targetChatId = await get().createChat(generateChatTitle(content))
           }
 
           set({ isStreaming: true })
 
-          // Create user message for local state
           const userMessage: Message = {
             id: nanoid(),
             chat_id: targetChatId,
             role: "user",
             content,
-            created_at: new Date().toISOString(),
-            edited: false,
+            created_at: new Date(),
+            updated_at: new Date(),
             deleted: false,
-            metadata: {
-              model: undefined,
-              tokens: undefined,
-              cost: undefined,
-              processingTime: undefined,
-              confidence: undefined,
-              sources: [],
-              citations: [],
-              language: undefined,
-              sentiment: undefined,
-              topics: [],
-              entities: [],
-            },
-            attachments: get().attachments,
-            reactions: [],
-            mentions: [],
-            parentId,
-            status: {
-              sent: false,
-              delivered: false,
-              read: false,
-              retries: 0,
-              status: "sending",
-            },
-            encryption: {
-              encrypted: false,
-            },
-          }
-
-          // Update local state with user message
-          set((state) => ({
-            chats: state.chats.map((chat) =>
-              chat.id === targetChatId
-                ? {
-                    ...chat,
-                    messages: [
-                      ...chat.messages,
-                      {
-                        ...userMessage,
-                        status: {
-                          ...userMessage.status,
-                          sent: true,
-                          status: "sent",
-                        },
-                      },
-                    ],
-                  }
-                : chat
-            ),
-            attachments: [],
-          }))
-
-          // Check if this is the first message in the chat and update title
-          const currentState = get()
-          const targetChat = currentState.chats.find((chat) => chat.id === targetChatId)
-          if (targetChat && targetChat.messages.length === 1 && targetChat.title === "New Chat") {
-            const newTitle = generateChatTitle(content)
-            logger.info("Updating chat title based on first message", {
-              component: "chat-store",
-              chatId: targetChatId,
-              newTitle,
-            })
-
-            // Update title in local state
-            set((state) => ({
-              chats: state.chats.map((chat) => (chat.id === targetChatId ? { ...chat, title: newTitle } : chat)),
-            }))
-
-            // Update title in database (fire and forget)
-            get()
-              .updateChat(targetChatId, { title: newTitle })
-              .catch((error) =>
-                logger.error("Failed to update chat title in database", error, {
-                  component: "chat-store",
-                  chatId: targetChatId,
-                })
-              )
-          }
-
-          // Send message to backend using AIService
-          const aiMessage = await AIService.sendMessage(targetChatId, content)
-
-          // Add AI response to local state
-          set((state) => ({
-            chats: state.chats.map((chat) =>
-              chat.id === targetChatId
-                ? {
-                    ...chat,
-                    messages: [
-                      ...chat.messages,
-                      {
-                        id: aiMessage.id,
-                        chat_id: targetChatId,
-                        role: "assistant",
-                        content: aiMessage.content,
-                        created_at: aiMessage.created_at,
-                        edited: false,
-                        deleted: false,
-                        metadata: {
-                          model: "gemini-1.5-flash",
-                          tokens: undefined,
-                          cost: undefined,
-                          processingTime: undefined,
-                          confidence: undefined,
-                          sources: [],
-                          citations: [],
-                          language: undefined,
-                          sentiment: undefined,
-                          topics: [],
-                          entities: [],
-                        },
-                        attachments: [],
-                        reactions: [],
-                        mentions: [],
-                        status: {
-                          sent: true,
-                          delivered: true,
-                          read: false,
-                          retries: 0,
-                          status: "sent",
-                        },
-                        encryption: {
-                          encrypted: false,
-                        },
-                      },
-                    ],
-                  }
-                : chat
-            ),
-            isStreaming: false,
-          }))
-
-          return targetChatId
-        } catch (error) {
-          logger.error("Error sending message", error as Error, { component: "chat-store", chatId })
-          set({ isStreaming: false })
-          throw error
-        }
-      },
-
-      sendMessageStream: async (content: string, chatId?: string) => {
-        try {
-          let targetChatId = chatId || get().currentChatId
-
-          if (!targetChatId) {
-            logger.info("Creating new chat for message stream", { component: "chat-store" })
-            targetChatId = await get().createChat()
-
-            // Wait a moment for the chat to be fully created
-            await new Promise((resolve) => setTimeout(resolve, 100))
-          }
-
-          // Validate that we have a proper chat ID
-          if (!targetChatId) {
-            throw new Error("Failed to create or get chat ID")
-          }
-
-          logger.info("Starting message stream", {
-            component: "chat-store",
-            chatId: targetChatId,
-            content: content.substring(0, 50) + "...",
-          })
-
-          set({ isStreaming: true })
-
-          // Create user message for local state
-          const userMessage: Message = {
-            id: nanoid(),
-            chat_id: targetChatId,
-            role: "user",
-            content,
-            created_at: new Date().toISOString(),
-            edited: false,
-            deleted: false,
-            metadata: {
-              model: undefined,
-              tokens: undefined,
-              cost: undefined,
-              processingTime: undefined,
-              confidence: undefined,
-              sources: [],
-              citations: [],
-              language: undefined,
-              sentiment: undefined,
-              topics: [],
-              entities: [],
-            },
-            attachments: get().attachments,
-            reactions: [],
-            mentions: [],
+            metadata: {},
             status: {
               sent: true,
               delivered: true,
@@ -462,288 +247,44 @@ export const useChatStore = create<ChatState>()(
               retries: 0,
               status: "sent",
             },
-            encryption: {
-              encrypted: false,
-            },
           }
 
-          // Add user message to local state
+          const supabase = createClient()
+          await supabase.from("messages").insert(userMessage)
+
           set((state) => ({
-            chats: state.chats.map((chat) =>
-              chat.id === targetChatId
-                ? {
-                    ...chat,
-                    messages: [...chat.messages, userMessage],
-                  }
-                : chat
-            ),
+            messages: [...state.messages, userMessage],
             attachments: [],
           }))
 
-          // Check if this is the first message in the chat and update title
-          const currentState = get()
-          const targetChat = currentState.chats.find((chat) => chat.id === targetChatId)
-          if (targetChat && targetChat.messages.length === 1 && targetChat.title === "New Chat") {
-            const newTitle = generateChatTitle(content)
-            logger.info("Updating chat title based on first message", {
-              component: "chat-store",
-              chatId: targetChatId,
-              newTitle,
-            })
+          const aiMessage = await AIService.sendMessage(targetChatId, content)
 
-            // Update title in local state
-            set((state) => ({
-              chats: state.chats.map((chat) => (chat.id === targetChatId ? { ...chat, title: newTitle } : chat)),
-            }))
-
-            // Update title in database (fire and forget)
-            get()
-              .updateChat(targetChatId, { title: newTitle })
-              .catch((error) =>
-                logger.error("Failed to update chat title in database", error, {
-                  component: "chat-store",
-                  chatId: targetChatId,
-                })
-              )
-          }
-
-          // Create streaming AI message placeholder
-          const aiMessageId = nanoid()
-          const aiMessage: Message = {
-            id: aiMessageId,
+          const assistantMessage: Message = {
+            id: aiMessage.id,
             chat_id: targetChatId,
             role: "assistant",
-            content: "",
-            created_at: new Date().toISOString(),
-            edited: false,
+            content: aiMessage.content,
+            created_at: new Date(aiMessage.created_at),
+            updated_at: new Date(),
             deleted: false,
-            metadata: {
-              model: "gemini-1.5-flash",
-              tokens: undefined,
-              cost: undefined,
-              processingTime: undefined,
-              confidence: undefined,
-              sources: [],
-              citations: [],
-              language: undefined,
-              sentiment: undefined,
-              topics: [],
-              entities: [],
-            },
-            attachments: [],
-            reactions: [],
-            mentions: [],
+            metadata: {},
             status: {
-              sent: false,
-              delivered: false,
+              sent: true,
+              delivered: true,
               read: false,
               retries: 0,
-              status: "sending",
-            },
-            encryption: {
-              encrypted: false,
+              status: "sent",
             },
           }
 
-          // Add AI message placeholder
           set((state) => ({
-            chats: state.chats.map((chat) =>
-              chat.id === targetChatId
-                ? {
-                    ...chat,
-                    messages: [...chat.messages, aiMessage],
-                  }
-                : chat
-            ),
+            messages: [...state.messages, assistantMessage],
+            isStreaming: false,
           }))
-
-          // Start streaming response
-          try {
-            logger.info("Calling AIService.sendMessageStream", { component: "chat-store", chatId: targetChatId })
-            const stream = await AIService.sendMessageStream(targetChatId, content)
-            logger.info("Got stream response, starting to parse", { component: "chat-store", chatId: targetChatId })
-
-            for await (const response of AIService.parseStreamingResponse(stream)) {
-              logger.debug("Received streaming response", { component: "chat-store", responseType: response.type })
-
-              if (response.type === "command" && response.content) {
-                // Handle command response - add as a separate message
-                const commandMessage: Message = {
-                  id: nanoid(),
-                  chat_id: targetChatId,
-                  role: "assistant",
-                  content: response.content,
-                  created_at: new Date().toISOString(),
-                  edited: false,
-                  deleted: false,
-                  status: {
-                    sent: true,
-                    delivered: true,
-                    read: false,
-                    retries: 0,
-                    status: "sent",
-                  },
-                  metadata: {
-                    model: "command-processor",
-                    processingTime: 0,
-                    tokens: 0,
-                  },
-                  attachments: [],
-                  reactions: [],
-                  mentions: [],
-                  encryption: { encrypted: false },
-                }
-
-                set((state) => ({
-                  chats: state.chats.map((chat) =>
-                    chat.id === targetChatId
-                      ? {
-                          ...chat,
-                          messages: [...chat.messages, commandMessage],
-                        }
-                      : chat
-                  ),
-                }))
-              } else if (response.type === "chunk" && response.content) {
-                // Update the AI message content with streaming chunks
-                set((state) => ({
-                  chats: state.chats.map((chat) =>
-                    chat.id === targetChatId
-                      ? {
-                          ...chat,
-                          messages: chat.messages.map((msg) =>
-                            msg.id === aiMessageId
-                              ? {
-                                  ...msg,
-                                  content: msg.content + response.content,
-                                }
-                              : msg
-                          ),
-                        }
-                      : chat
-                  ),
-                }))
-              } else if (response.type === "complete" && response.message) {
-                logger.info("Streaming complete", { component: "chat-store", messageId: response.message.id })
-                // Update with final message data from server
-                set((state) => ({
-                  chats: state.chats.map((chat) =>
-                    chat.id === targetChatId
-                      ? {
-                          ...chat,
-                          messages: chat.messages.map((msg) =>
-                            msg.id === aiMessageId
-                              ? {
-                                  ...msg,
-                                  id: response.message.id,
-                                  content: response.message.content,
-                                  created_at: response.message.created_at,
-                                  status: {
-                                    ...msg.status,
-                                    sent: true,
-                                    delivered: true,
-                                    status: "sent",
-                                  },
-                                }
-                              : msg
-                          ),
-                        }
-                      : chat
-                  ),
-                  isStreaming: false,
-                }))
-                break
-              } else if (response.type === "error") {
-                logger.error("Streaming error received", undefined, { component: "chat-store", error: response.error })
-                throw new Error(response.error || "Failed to generate response")
-              }
-            }
-          } catch (streamError) {
-            logger.warn("Streaming failed, falling back to regular message", { component: "chat-store", streamError })
-
-            // Remove the placeholder AI message
-            set((state) => ({
-              chats: state.chats.map((chat) =>
-                chat.id === targetChatId
-                  ? {
-                      ...chat,
-                      messages: chat.messages.filter((msg) => msg.id !== aiMessageId),
-                    }
-                  : chat
-              ),
-            }))
-
-            // Fall back to regular message sending
-            try {
-              logger.info("Attempting fallback to regular message sending", {
-                component: "chat-store",
-                chatId: targetChatId,
-              })
-              const aiMessage = await AIService.sendMessage(targetChatId, content)
-              logger.info("Fallback message sent successfully", { component: "chat-store", messageId: aiMessage.id })
-
-              // Add the regular AI response
-              set((state) => ({
-                chats: state.chats.map((chat) =>
-                  chat.id === targetChatId
-                    ? {
-                        ...chat,
-                        messages: [
-                          ...chat.messages,
-                          {
-                            id: aiMessage.id,
-                            chat_id: targetChatId,
-                            role: "assistant",
-                            content: aiMessage.content,
-                            created_at: aiMessage.created_at,
-                            edited: false,
-                            deleted: false,
-                            metadata: {
-                              model: "gemini-1.5-flash",
-                              tokens: undefined,
-                              cost: undefined,
-                              processingTime: undefined,
-                              confidence: undefined,
-                              sources: [],
-                              citations: [],
-                              language: undefined,
-                              sentiment: undefined,
-                              topics: [],
-                              entities: [],
-                            },
-                            attachments: [],
-                            reactions: [],
-                            mentions: [],
-                            status: {
-                              sent: true,
-                              delivered: true,
-                              read: false,
-                              retries: 0,
-                              status: "sent",
-                            },
-                            encryption: {
-                              encrypted: false,
-                            },
-                          },
-                        ],
-                      }
-                    : chat
-                ),
-                isStreaming: false,
-              }))
-            } catch (fallbackError) {
-              logger.error("Both streaming and regular message failed", fallbackError as Error, {
-                component: "chat-store",
-                chatId: targetChatId,
-              })
-              set({ isStreaming: false })
-              throw fallbackError
-            }
-          }
 
           return targetChatId
         } catch (error) {
-          logger.error("Error sending streaming message", error as Error, { component: "chat-store", chatId })
+          logger.error("Error sending message", error as Error, { component: "chat-store" })
           set({ isStreaming: false })
           throw error
         }
@@ -752,25 +293,17 @@ export const useChatStore = create<ChatState>()(
       editMessage: async (messageId: string, content: string) => {
         try {
           const supabase = createClient()
-
           const { error } = await supabase
             .from("messages")
-            .update({
-              content,
-              updated_at: new Date().toISOString(),
-              metadata: { edited: true },
-            })
+            .update({ content, updated_at: new Date() })
             .eq("id", messageId)
 
           if (error) throw error
 
           set((state) => ({
-            chats: state.chats.map((chat) => ({
-              ...chat,
-              messages: chat.messages.map((msg) =>
-                msg.id === messageId ? { ...msg, content, edited: true, updated_at: new Date().toISOString() } : msg
-              ),
-            })),
+            messages: state.messages.map((msg) =>
+              msg.id === messageId ? { ...msg, content, updated_at: new Date() } : msg
+            ),
           }))
         } catch (error) {
           logger.error("Error editing message", error as Error, { component: "chat-store", messageId })
@@ -781,15 +314,12 @@ export const useChatStore = create<ChatState>()(
       deleteMessage: async (messageId: string) => {
         try {
           const supabase = createClient()
+          const { error } = await supabase.from("messages").update({ deleted: true }).eq("id", messageId)
 
-          const { error } = await supabase.from("messages").delete().eq("id", messageId)
           if (error) throw error
 
           set((state) => ({
-            chats: state.chats.map((chat) => ({
-              ...chat,
-              messages: chat.messages.filter((msg) => msg.id !== messageId),
-            })),
+            messages: state.messages.map((msg) => (msg.id === messageId ? { ...msg, deleted: true } : msg)),
           }))
         } catch (error) {
           logger.error("Error deleting message", error as Error, { component: "chat-store", messageId })
@@ -797,70 +327,41 @@ export const useChatStore = create<ChatState>()(
         }
       },
 
-      reactToMessage: async (messageId: string, reaction: "thumbs_up" | "thumbs_down") => {
+      reactToMessage: async (messageId: string, reaction: "liked" | "disliked" | "flagged") => {
         try {
           const supabase = createClient()
-          const userId = (await supabase.auth.getUser()).data.user?.id
+          const user = await supabase.auth.getUser()
+          const userId = user.data.user?.id
 
           if (!userId) throw new Error("User not authenticated")
 
           set((state) => ({
-            chats: state.chats.map((chat) => ({
-              ...chat,
-              messages: chat.messages.map((msg) => {
-                if (msg.id === messageId) {
-                  const reactions = msg.reactions || []
-                  const existingReaction = reactions.find((r) => r.user_id === userId)
+            messages: state.messages.map((msg) => {
+              if (msg.id === messageId) {
+                const existingReactions = msg.reactions || []
+                const userReactionIndex = existingReactions.findIndex((r) => r.user_id === userId)
 
-                  if (existingReaction) {
-                    return {
-                      ...msg,
-                      reactions: reactions.filter((r) => r.user_id !== userId),
-                    }
-                  } else {
-                    return {
-                      ...msg,
-                      reactions: [
-                        ...reactions,
-                        {
-                          id: nanoid(),
-                          user_id: userId,
-                          type: reaction,
-                          emoji: reaction === "thumbs_up" ? "👍" : "👎",
-                          created_at: new Date().toISOString(),
-                        },
-                      ],
-                    }
-                  }
+                let newReactions: Reaction[]
+                if (userReactionIndex >= 0) {
+                  newReactions = existingReactions.filter((r) => r.user_id !== userId)
+                } else {
+                  newReactions = [
+                    ...existingReactions,
+                    {
+                      user_id: userId,
+                      type: reaction,
+                      created_at: new Date().toISOString(),
+                    },
+                  ]
                 }
-                return msg
-              }),
-            })),
+
+                return { ...msg, reactions: newReactions }
+              }
+              return msg
+            }),
           }))
         } catch (error) {
-          logger.error("Error reacting to message", error as Error, { component: "chat-store", messageId, reaction })
-          throw error
-        }
-      },
-
-      regenerateMessage: async (messageId: string) => {
-        try {
-          const chat = get().getCurrentChat()
-          if (!chat) return
-
-          const messageIndex = chat.messages.findIndex((m) => m.id === messageId)
-          if (messageIndex === -1) return
-
-          const previousMessage = chat.messages[messageIndex - 1]
-          if (!previousMessage || previousMessage.role !== "user") return
-
-          // Delete the current AI message
-          await get().deleteMessage(messageId)
-
-          // Regenerate response
-          await get().sendMessage(previousMessage.content, chat.id)
-        } catch (error) {
-          logger.error("Error regenerating message", error as Error, { component: "chat-store", messageId })
+          logger.error("Error reacting to message", error as Error, { component: "chat-store", messageId })
           throw error
         }
       },
@@ -868,17 +369,12 @@ export const useChatStore = create<ChatState>()(
       searchMessages: async (query: string) => {
         try {
           const supabase = createClient()
-
-          const { data: messages, error } = await supabase
-            .from("messages")
-            .select("*")
-            .textSearch("content", query)
-            .limit(50)
+          const { data: messages, error } = await supabase.from("messages").select("*").textSearch("content", query)
 
           if (error) throw error
           return messages || []
         } catch (error) {
-          logger.error("Error searching messages", error as Error, { component: "chat-store", query })
+          logger.error("Error searching messages", error as Error, { component: "chat-store" })
           return []
         }
       },
@@ -887,32 +383,12 @@ export const useChatStore = create<ChatState>()(
         set({ searchQuery: query })
       },
 
-      addContextFile: (file: ContextFile) => {
-        set((state) => ({
-          contextFiles: [...state.contextFiles, file],
-        }))
-      },
-
-      removeContextFile: (fileId: string) => {
-        set((state) => ({
-          contextFiles: state.contextFiles.filter((f) => f.id !== fileId),
-        }))
-      },
-
-      clearContext: () => {
-        set({ contextFiles: [] })
-      },
-
       addAttachment: (attachment: Attachment) => {
-        set((state) => ({
-          attachments: [...state.attachments, attachment],
-        }))
+        set((state) => ({ attachments: [...state.attachments, attachment] }))
       },
 
       removeAttachment: (attachmentId: string) => {
-        set((state) => ({
-          attachments: state.attachments.filter((a) => a.id !== attachmentId),
-        }))
+        set((state) => ({ attachments: state.attachments.filter((a) => a.id !== attachmentId) }))
       },
 
       clearAttachments: () => {
@@ -924,62 +400,54 @@ export const useChatStore = create<ChatState>()(
           const chat = get().chats.find((c) => c.id === chatId)
           if (!chat) throw new Error("Chat not found")
 
+          const supabase = createClient()
+          const { data: messages } = await supabase
+            .from("messages")
+            .select("*")
+            .eq("chat_id", chatId)
+            .order("created_at", { ascending: true })
+
           switch (format) {
             case "json":
-              return JSON.stringify(chat, null, 2)
-
+              return JSON.stringify({ chat, messages }, null, 2)
             case "markdown":
               let markdown = `# ${chat.title}\n\n`
-              markdown += `Created: ${new Date(chat.created_at).toLocaleString()}\n\n`
-
-              chat.messages.forEach((msg) => {
-                markdown += `## ${msg.role === "user" ? "User" : "Assistant"}\n\n`
-                markdown += `${msg.content}\n\n`
-                if (msg.created_at) {
-                  markdown += `*${new Date(msg.created_at).toLocaleString()}*\n\n`
-                }
+              messages?.forEach((msg) => {
+                markdown += `**${msg.role}**: ${msg.content}\n\n`
               })
-
               return markdown
-
             case "txt":
-              let text = `${chat.title}\n${"=".repeat(chat.title.length)}\n\n`
-
-              chat.messages.forEach((msg) => {
-                text += `[${msg.role.toUpperCase()}]: ${msg.content}\n\n`
+              let text = `${chat.title}\n\n`
+              messages?.forEach((msg) => {
+                text += `${msg.role}: ${msg.content}\n\n`
               })
-
               return text
-
             default:
               throw new Error("Unsupported format")
           }
         } catch (error) {
-          logger.error("Error exporting chat", error as Error, { component: "chat-store", chatId })
+          logger.error("Error exporting chat", error as Error, { component: "chat-store", chatId, format })
           throw error
         }
       },
 
       importChat: async (data: string, format: "json") => {
         try {
-          if (format === "json") {
-            const chatData = JSON.parse(data)
-            const newChatId = await get().createChat(chatData.title, {
-              model: chatData.model,
-              system_prompt: chatData.system_prompt,
-              tags: chatData.tags,
-            })
+          if (format !== "json") throw new Error("Only JSON format is supported")
 
-            if (chatData.messages && chatData.messages.length > 0) {
-              const supabase = createClient()
-              const messagesToImport = chatData.messages.map((msg: Message) => ({
-                ...msg,
-                id: nanoid(),
-                chat_id: newChatId,
-              }))
+          const { chat, messages } = JSON.parse(data)
+          const newChatId = await get().createChat(chat.title)
 
-              await supabase.from("messages").insert(messagesToImport)
-            }
+          if (messages && messages.length > 0) {
+            const supabase = createClient()
+            const messagesToImport = messages.map((msg: any) => ({
+              ...msg,
+              id: nanoid(),
+              chat_id: newChatId,
+            }))
+
+            await supabase.from("messages").insert(messagesToImport)
+            await get().loadChats()
           }
         } catch (error) {
           logger.error("Error importing chat", error as Error, { component: "chat-store" })
@@ -992,18 +460,20 @@ export const useChatStore = create<ChatState>()(
         return chats.find((chat) => chat.id === currentChatId) || null
       },
 
-      getFilteredChats: (filter: "all" | "bookmarked" | "archived" | "shared") => {
+      getCurrentMessages: () => {
+        return get().messages.filter((msg) => !msg.deleted)
+      },
+
+      getFilteredChats: (filter: "all" | "bookmarked" | "archived") => {
         const { chats } = get()
 
         switch (filter) {
           case "bookmarked":
             return chats.filter((chat) => chat.bookmarked)
           case "archived":
-            return chats.filter((chat) => chat.archived)
-          case "shared":
-            return chats.filter((chat) => chat.shared)
+            return chats.filter((chat) => chat.status === "archived")
           default:
-            return chats.filter((chat) => !chat.archived)
+            return chats.filter((chat) => chat.status === "active")
         }
       },
     }),
@@ -1011,7 +481,6 @@ export const useChatStore = create<ChatState>()(
       name: "chat-storage",
       partialize: (state) => ({
         currentChatId: state.currentChatId,
-        contextFiles: state.contextFiles,
       }),
     }
   )

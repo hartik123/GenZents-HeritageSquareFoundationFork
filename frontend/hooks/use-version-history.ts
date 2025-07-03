@@ -2,7 +2,7 @@ import { useState, useMemo } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { Version } from "../lib/types/version"
 import { sampleVersions } from "../components/version/constants"
-import { filterVersions, getBranches } from "@/lib/utils/version"
+import { filterVersions } from "@/lib/utils/version"
 
 export const useVersionHistory = () => {
   const { toast } = useToast()
@@ -11,8 +11,6 @@ export const useVersionHistory = () => {
   const [compareVersion, setCompareVersion] = useState<Version | null>(null)
   const [filterBranch, setFilterBranch] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
-
-  const branches = useMemo(() => getBranches(versions), [versions])
 
   const filteredVersions = useMemo(() => {
     return filterVersions(versions, searchQuery, filterBranch)
@@ -55,7 +53,6 @@ export const useVersionHistory = () => {
     compareVersion,
     filterBranch,
     searchQuery,
-    branches,
     filteredVersions,
     setSelectedVersion,
     setCompareVersion,

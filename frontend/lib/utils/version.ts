@@ -28,18 +28,12 @@ export const getStatusColor = (status: VersionStatus) => {
 
 export const filterVersions = (versions: Version[], searchQuery: string, filterBranch: string) => {
   return versions.filter((version) => {
-    const matchesBranch = filterBranch === "all" || version.branch === filterBranch
     const matchesSearch =
       version.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       version.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      version.author.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesBranch && matchesSearch
+      version.user_id.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesSearch
   })
-}
-
-export const getBranches = (versions: Version[]) => {
-  const branchSet = new Set(versions.map((v) => v.branch))
-  return Array.from(branchSet)
 }
 
 export const exportVersion = (version: Version) => {
@@ -47,8 +41,12 @@ export const exportVersion = (version: Version) => {
     version: version.version,
     title: version.title,
     description: version.description,
-    changes: version.changes,
-    date: version.date.toISOString(),
+    user_id: version.user_id,
+    timestamp: version.timestamp,
+    status: version.status,
+    changes: version.data?.changes || [],
+    created_at: version.created_at,
+    data: version.data || {},
   }
 
   const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" })

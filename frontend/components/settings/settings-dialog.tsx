@@ -34,7 +34,7 @@ import { useAuthStore } from "@/lib/stores/auth-store"
 import { useToast } from "@/hooks/use-toast"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { logger } from "@/lib/utils/logger"
-import { commandProcessor } from "@/lib/services/command-processor"
+import { commandProcessor } from "@/lib/utils/command-processor"
 import { DEFAULT_COMMANDS } from "@/lib/types/commands"
 
 const settingsSections = [

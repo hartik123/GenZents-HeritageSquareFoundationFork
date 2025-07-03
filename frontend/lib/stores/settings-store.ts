@@ -1,42 +1,14 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { logger } from "@/lib/utils/logger"
+import type { UserPreferences } from "@/lib/types"
 
-interface SettingsState {
-  // Theme and appearance
-  theme: "dark" | "light" | "system"
-  layoutDensity: string
-
-  // General
-  language: string
-  showFollowUpSuggestions: boolean
+interface SettingsState extends UserPreferences {
   chats: any[]
-
-  // Chat and AI model settings
-  defaultModel: string
-  temperature: number
-  systemPrompt: string
-  maxTokens: number
-  customInstructions: string
-  communicationStyle: "professional" | "casual" | "friendly" | "balanced" | "technical"
-  responseLength: "concise" | "balanced" | "detailed" | "comprehensive"
-  expertiseLevel: "beginner" | "intermediate" | "advanced" | "expert"
-
-  // Display preferences
-  showTimestamps: boolean
-  showWordCount: boolean
-  showModelInfo: boolean
-  showAvatars: boolean
-
-  // Privacy and data
-  saveHistory: boolean
-  shareAnalytics: boolean
   apiKeys: {
     openai?: string
     anthropic?: string
   }
-
-  // Connections and integrations
   googleDriveConnected: boolean
   googleDriveEmail: string
   googleDriveAutoSync: boolean
@@ -44,49 +16,33 @@ interface SettingsState {
   shareUsageWithIntegrations: boolean
   crossPlatformSync: boolean
 
-  // Actions
   updateSetting: <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => void
   resetSettings: () => void
   exportSettings: () => string
   importSettings: (settings: string) => void
 }
 
-const defaultSettings = {
-  // Theme and appearance
-  theme: "system" as const,
-  layoutDensity: "comfortable",
-
-  // General
+const defaultSettings: Omit<SettingsState, "updateSetting" | "resetSettings" | "exportSettings" | "importSettings"> = {
+  theme: "system",
   language: "en",
-  showFollowUpSuggestions: true,
-  chats: [],
-
-  // Chat and AI model settings
-  defaultModel: "gpt-4",
+  timezone: "UTC",
+  notifications: {
+    email: false,
+    push: false,
+    desktop: false,
+    sound: false,
+  },
+  communicationStyle: "balanced",
+  responseLength: "balanced",
   temperature: 0.7,
-  systemPrompt: "",
   maxTokens: 2048,
-  customInstructions: "",
-  communicationStyle: "balanced" as const,
-  responseLength: "balanced" as const,
-  expertiseLevel: "intermediate" as const,
-
-  // Display preferences
-  showTimestamps: false,
-  showWordCount: false,
-  showModelInfo: false,
-  showAvatars: true,
-
-  // Privacy and data
-  saveHistory: true,
-  shareAnalytics: false,
+  systemPrompt: "",
+  chats: [],
   apiKeys: {},
-
-  // Connections and integrations
   googleDriveConnected: false,
   googleDriveEmail: "",
   googleDriveAutoSync: false,
-  googleDriveSyncFrequency: "daily" as const,
+  googleDriveSyncFrequency: "daily",
   shareUsageWithIntegrations: false,
   crossPlatformSync: true,
 }

@@ -28,3 +28,26 @@ export interface TaskStats {
   cancelled: number
   total: number
 }
+
+export interface TaskFilterOptions {
+  status?: TaskStatus[]
+  type?: string[]
+  chat_id?: string
+  limit?: number
+  offset?: number
+}
+
+export interface TaskStore {
+  tasks: Task[]
+  taskStats: TaskStats
+  loading: boolean
+  error: string | null
+  fetchTasks: (filters?: TaskFilterOptions) => Promise<void>
+  fetchTaskStats: () => Promise<void>
+  cancelTask: (taskId: string) => Promise<boolean>
+  deleteTask: (taskId: string) => Promise<boolean>
+  getTask: (taskId: string) => Promise<Task | null>
+  subscribeToTasks: () => () => void
+  refreshTask: (taskId: string) => Promise<void>
+  subscriptionCleanup?: () => void
+}

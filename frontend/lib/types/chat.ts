@@ -1,5 +1,3 @@
-import type { UserPreferences } from "./user"
-
 export interface Chat {
   id: string
   title: string
@@ -86,4 +84,13 @@ export interface VirusScanResult {
   clean: boolean
   threats?: string[]
   scanned_at: string
+}
+
+export interface ChatSession {
+  id: string
+  title: string
+  messages: Message[]
+  createdAt: Date
+  updatedAt: Date
+  systemPrompt?: string
 }
