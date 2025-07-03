@@ -49,9 +49,11 @@ CREATE TABLE IF NOT EXISTS chats (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  metadata JSONB DEFAULT '{"totalMessages": 0, "totalTokens": 0, "averageResponseTime": 0, "lastActivity": ""}',
+  context_summary TEXT DEFAULT '',
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'archived', 'deleted')),
   bookmarked BOOLEAN DEFAULT false,
-  context_summary TEXT DEFAULT ''
+  shared_users TEXT[] DEFAULT '{}'
 );
 
 -- =====================================================
@@ -66,6 +68,7 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   deleted BOOLEAN DEFAULT false,
+  metadata JSONB DEFAULT '{}',
   
   -- Status tracking
   sent BOOLEAN DEFAULT false,
@@ -75,7 +78,7 @@ CREATE TABLE IF NOT EXISTS messages (
   retries INTEGER DEFAULT 0,
   status TEXT DEFAULT 'sending' CHECK (status IN ('sending', 'sent', 'delivered', 'read', 'error')),
   
-  -- AI metadata
+  -- AI metadata (individual columns for easier querying)
   tokens INTEGER,
   cost DECIMAL(10,6),
   processing_time INTEGER,

@@ -82,7 +82,7 @@ async def create_message(
 
         # 2. Verify user has access to this chat and get chat details
         chat_response = user_supabase.table("chats").select(
-            "id, system_prompt, context_summary"
+            "id, context_summary"
         ).eq("id", chat_id).eq("user_id", current_user.id).execute()
 
         if not chat_response.data:
@@ -92,7 +92,6 @@ async def create_message(
             raise HTTPException(status_code=404, detail="Chat not found")
 
         chat_data = chat_response.data[0]
-        base_system_prompt = chat_data.get('system_prompt', '')
 
         if message.role != 'user':
             raise HTTPException(
@@ -103,8 +102,7 @@ async def create_message(
         enhanced_system_prompt, message_history, user_preferences = await context_manager.prepare_llm_context(
             user_id=current_user.id,
             chat_id=chat_id,
-            user_message=message.content,
-            base_system_prompt=base_system_prompt
+            user_message=message.content
         )
 
         # 4. Check for commands in the message
@@ -225,9 +223,7 @@ async def create_message(
         ai_response_text = generate_text(
             prompt=message_for_ai,
             history=formatted_history,
-            system_prompt=enhanced_system_prompt,
-            temperature=user_preferences.get('temperature', 0.7),
-            max_tokens=user_preferences.get('max_tokens', 2048)
+            system_prompt=enhanced_system_prompt
         )
 
         # 6. Save AI's response
@@ -294,7 +290,7 @@ async def create_message_stream(
 
         # Verify user has access to this chat and get chat details
         chat_response = user_supabase.table("chats").select(
-            "id, system_prompt, context_summary"
+            "id, context_summary"
         ).eq("id", chat_id).eq("user_id", current_user.id).execute()
 
         if not chat_response.data:
@@ -304,7 +300,6 @@ async def create_message_stream(
             raise HTTPException(status_code=404, detail="Chat not found")
 
         chat_data = chat_response.data[0]
-        base_system_prompt = chat_data.get('system_prompt', '')
 
         if message.role != 'user':
             raise HTTPException(
@@ -314,8 +309,7 @@ async def create_message_stream(
         enhanced_system_prompt, message_history, user_preferences = await context_manager.prepare_llm_context(
             user_id=current_user.id,
             chat_id=chat_id,
-            user_message=message.content,
-            base_system_prompt=base_system_prompt
+            user_message=message.content
         )
 
         # Check for commands in the message
@@ -388,9 +382,7 @@ async def create_message_stream(
                 async for chunk in generate_text_stream(
                     prompt=message_for_ai,
                     history=formatted_history,
-                    system_prompt=enhanced_system_prompt,
-                    temperature=user_preferences.get('temperature', 0.7),
-                    max_tokens=user_preferences.get('max_tokens', 2048)
+                    system_prompt=enhanced_system_prompt
                 ):
                     full_response += chunk
 

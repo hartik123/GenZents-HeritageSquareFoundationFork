@@ -49,7 +49,6 @@ export async function PUT(request: NextRequest, { params }: { params: { chatId: 
     if (body.archived !== undefined) updateData.archived = body.archived
     if (body.bookmarked !== undefined) updateData.bookmarked = body.bookmarked
     if (body.model !== undefined) updateData.model = body.model
-    if (body.system_prompt !== undefined) updateData.system_prompt = body.system_prompt
     if (body.tags !== undefined) updateData.tags = body.tags
 
     updateData.updated_at = new Date().toISOString()

@@ -25,7 +25,7 @@ export class APIClient {
     return response.json()
   }
 
-  static async createChat(data: { title: string; model?: string; system_prompt?: string; tags?: string[] }) {
+  static async createChat(data: { title: string; model?: string; tags?: string[] }) {
     const response = await fetch("/api/chats", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -166,9 +166,17 @@ export class APIClient {
 
   // AI Processing
   static async sendMessage(chatId: string, message: string) {
+    const token = await this.getAuthToken()
+    if (!token) {
+      throw new Error("User not authenticated")
+    }
+
     const response = await fetch("/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ chatId, message }),
     })
     if (!response.ok) {

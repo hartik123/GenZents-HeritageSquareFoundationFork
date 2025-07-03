@@ -1,9 +1,9 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { createClient } from "@/lib/supabase/client"
-import { nanoid } from "nanoid"
 import { AIService } from "@/lib/services/ai-service"
 import { logger } from "@/lib/utils/logger"
+import { dbChatToChat, chatToDbChat, dbMessageToMessage, messageToDbMessage } from "@/lib/types/converters"
 import type { Chat, Message, Attachment, Reaction } from "@/lib/types"
 
 const generateChatTitle = (content: string): string => {
@@ -117,12 +117,10 @@ export const useChatStore = create<ChatState>()(
           const supabase = createClient()
           const user = await supabase.auth.getUser()
 
-          const chat: Chat = {
-            id: nanoid(),
+          const chatData = {
             title,
             user_id: user.data.user?.id!,
-            created_at: new Date(),
-            status: "active",
+            status: "active" as const,
             metadata: {
               totalMessages: 0,
               totalTokens: 0,
@@ -130,11 +128,25 @@ export const useChatStore = create<ChatState>()(
               lastActivity: new Date().toISOString(),
             },
             context_summary: "",
+            bookmarked: false,
+            shared_users: [],
             ...template,
           }
 
-          const { error } = await supabase.from("chats").insert(chat)
+          const { data, error } = await supabase.from("chats").insert(chatData).select().single()
           if (error) throw error
+
+          const chat: Chat = {
+            id: data.id,
+            title: data.title,
+            created_at: new Date(data.created_at),
+            user_id: data.user_id,
+            metadata: data.metadata,
+            context_summary: data.context_summary,
+            status: data.status,
+            bookmarked: data.bookmarked,
+            shared_users: data.shared_users,
+          }
 
           set((state) => ({
             chats: [chat, ...state.chats],
@@ -203,9 +215,18 @@ export const useChatStore = create<ChatState>()(
 
           if (messages && messages.length > 0) {
             const messagesToCopy = messages.map((msg) => ({
-              ...msg,
-              id: nanoid(),
               chat_id: newChatId,
+              user_id: msg.user_id,
+              role: msg.role,
+              content: msg.content,
+              deleted: msg.deleted,
+              metadata: msg.metadata,
+              sent: msg.sent,
+              delivered: msg.delivered,
+              read: msg.read,
+              error_message: msg.error_message,
+              retries: msg.retries,
+              status: msg.status,
             }))
             await supabase.from("messages").insert(messagesToCopy)
           }
@@ -231,26 +252,47 @@ export const useChatStore = create<ChatState>()(
 
           set({ isStreaming: true })
 
-          const userMessage: Message = {
-            id: nanoid(),
+          const userMessageData = {
             chat_id: targetChatId,
-            role: "user",
+            role: "user" as const,
             content,
-            created_at: new Date(),
-            updated_at: new Date(),
             deleted: false,
             metadata: {},
-            status: {
-              sent: true,
-              delivered: true,
-              read: false,
-              retries: 0,
-              status: "sent",
-            },
+            sent: true,
+            delivered: true,
+            read: false,
+            retries: 0,
+            status: "sent" as const,
           }
 
           const supabase = createClient()
-          await supabase.from("messages").insert(userMessage)
+          const { data: insertedMessage, error: messageError } = await supabase
+            .from("messages")
+            .insert(userMessageData)
+            .select()
+            .single()
+
+          if (messageError) throw messageError
+
+          const userMessage: Message = {
+            id: insertedMessage.id,
+            chat_id: insertedMessage.chat_id,
+            user_id: insertedMessage.user_id,
+            role: insertedMessage.role,
+            content: insertedMessage.content,
+            created_at: new Date(insertedMessage.created_at),
+            updated_at: new Date(insertedMessage.updated_at),
+            deleted: insertedMessage.deleted,
+            metadata: insertedMessage.metadata,
+            status: {
+              sent: insertedMessage.sent,
+              delivered: insertedMessage.delivered,
+              read: insertedMessage.read,
+              error: insertedMessage.error_message || undefined,
+              retries: insertedMessage.retries,
+              status: insertedMessage.status,
+            },
+          }
 
           set((state) => ({
             messages: [...state.messages, userMessage],
@@ -441,9 +483,18 @@ export const useChatStore = create<ChatState>()(
           if (messages && messages.length > 0) {
             const supabase = createClient()
             const messagesToImport = messages.map((msg: any) => ({
-              ...msg,
-              id: nanoid(),
               chat_id: newChatId,
+              user_id: msg.user_id,
+              role: msg.role,
+              content: msg.content,
+              deleted: msg.deleted,
+              metadata: msg.metadata,
+              sent: msg.sent,
+              delivered: msg.delivered,
+              read: msg.read,
+              error_message: msg.error_message,
+              retries: msg.retries,
+              status: msg.status,
             }))
 
             await supabase.from("messages").insert(messagesToImport)

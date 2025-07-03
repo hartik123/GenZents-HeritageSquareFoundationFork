@@ -20,26 +20,39 @@ class ContextManager:
     async def get_user_preferences(self, user_id: str) -> Dict[str, Any]:
         """Retrieve user preferences and custom instructions from the database."""
         try:
-            # Get user settings
+            # Get user settings from existing profile columns
             settings_response = self.user_supabase.table("profiles").select(
-                "custom_instructions, communication_style, response_length, expertise_level, "
-                "default_model, temperature, max_tokens, system_prompt"
-            ).eq("user_id", user_id).execute()
+                "theme, language, timezone"
+            ).eq("id", user_id).execute()
 
             if not settings_response.data:
                 # Return default preferences if not found
                 return {
-                    "custom_instructions": "",
+                    "theme": "system",
+                    "language": "en",
+                    "timezone": "UTC",
                     "communication_style": "balanced",
                     "response_length": "balanced",
                     "expertise_level": "intermediate",
-                    "default_model": "gpt-4",
+                    "default_model": "gemini-1.5-flash",
                     "temperature": 0.7,
-                    "max_tokens": 2048,
-                    "system_prompt": ""
+                    "max_tokens": 2048
                 }
 
-            preferences = settings_response.data[0]
+            profile = settings_response.data[0]
+
+            # Build preferences from available profile data and defaults
+            preferences = {
+                "theme": profile.get("theme", "system"),
+                "language": profile.get("language", "en"),
+                "timezone": profile.get("timezone", "UTC"),
+                "communication_style": "balanced",
+                "response_length": "balanced",
+                "expertise_level": "intermediate",
+                "default_model": "gemini-1.5-flash",
+                "temperature": 0.7,
+                "max_tokens": 2048
+            }
             logger.info(f"Retrieved user preferences for user {user_id}")
             return preferences
 
@@ -49,14 +62,15 @@ class ContextManager:
                     str(e)}")
             # Return default preferences on error
             return {
-                "custom_instructions": "",
+                "theme": "system",
+                "language": "en",
+                "timezone": "UTC",
                 "communication_style": "balanced",
                 "response_length": "balanced",
                 "expertise_level": "intermediate",
-                "default_model": "gpt-4",
+                "default_model": "gemini-1.5-flash",
                 "temperature": 0.7,
-                "max_tokens": 2048,
-                "system_prompt": ""
+                "max_tokens": 2048
             }
 
     async def get_recent_messages(
@@ -108,8 +122,7 @@ class ContextManager:
     async def generate_enhanced_system_prompt(
         self,
         user_id: str,
-        chat_id: str,
-        base_system_prompt: str = ""
+        chat_id: str
     ) -> str:
         """Generate an enhanced system prompt including user preferences and context."""
         try:
@@ -122,20 +135,13 @@ class ContextManager:
             # Build enhanced system prompt
             enhanced_prompt_parts = []
 
-            # Start with base system prompt if provided
-            if base_system_prompt:
-                enhanced_prompt_parts.append(base_system_prompt)
+            # Add default system prompt
+            enhanced_prompt_parts.append("You are a helpful AI assistant.")
 
             # Add user communication style preferences
             style_instructions = self._get_style_instructions(preferences)
             if style_instructions:
                 enhanced_prompt_parts.append(style_instructions)
-
-            # Add custom instructions if provided
-            if preferences.get("custom_instructions"):
-                enhanced_prompt_parts.append(
-                    f"User's custom instructions: {
-                        preferences['custom_instructions']}")
 
             # Add context summary if available
             if context_summary:
@@ -149,7 +155,7 @@ class ContextManager:
 
         except Exception as e:
             logger.error(f"Error generating enhanced system prompt: {str(e)}")
-            return base_system_prompt or "You are a helpful AI assistant."
+            return "You are a helpful AI assistant."
 
     def _get_style_instructions(self, preferences: Dict[str, Any]) -> str:
         """Generate style instructions based on user preferences."""
@@ -286,8 +292,7 @@ Please create a concise summary (2-3 sentences) of this conversation, focusing o
         self,
         user_id: str,
         chat_id: str,
-        user_message: str,
-        base_system_prompt: str = ""
+        user_message: str
     ) -> Tuple[str, List[Dict[str, Any]], Dict[str, Any]]:
         """
         Prepare comprehensive context for LLM including:
@@ -302,7 +307,7 @@ Please create a concise summary (2-3 sentences) of this conversation, focusing o
             preferences = await self.get_user_preferences(user_id)
             recent_messages = await self.get_recent_messages(chat_id, limit=5)
             enhanced_prompt = await self.generate_enhanced_system_prompt(
-                user_id, chat_id, base_system_prompt
+                user_id, chat_id
             )
 
             # Add the current user message to history
@@ -322,7 +327,7 @@ Please create a concise summary (2-3 sentences) of this conversation, focusing o
             logger.error(f"Error preparing LLM context: {str(e)}")
             # Return minimal context on error
             return (
-                base_system_prompt or "You are a helpful AI assistant.",
+                "You are a helpful AI assistant.",
                 [{"role": "user", "content": user_message}],
                 {}
             )

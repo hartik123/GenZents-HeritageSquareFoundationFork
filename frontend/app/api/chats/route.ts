@@ -57,13 +57,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, model, system_prompt, tags } = body
+    const { title, model, tags } = body
 
     const chatData = {
       title: title || "New Chat",
       user_id: user.id,
       model: model || "gemini-1.5-flash",
-      system_prompt,
       tags: tags || [],
       bookmarked: false,
       archived: false,

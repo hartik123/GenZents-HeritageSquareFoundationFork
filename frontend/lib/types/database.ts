@@ -80,24 +80,47 @@ export interface Database {
           id: string
           title: string
           created_at: string
+          updated_at: string
           user_id: string
+          metadata: {
+            totalMessages: number
+            totalTokens: number
+            averageResponseTime: number
+            lastActivity: string
+          }
+          context_summary: string
           status: "active" | "archived" | "deleted"
           bookmarked: boolean
-          context_summary: string
+          shared_users: string[]
         }
         Insert: {
           title?: string
           user_id: string
+          metadata?: {
+            totalMessages?: number
+            totalTokens?: number
+            averageResponseTime?: number
+            lastActivity?: string
+          }
+          context_summary?: string
           status?: "active" | "archived" | "deleted"
           bookmarked?: boolean
-          context_summary?: string
+          shared_users?: string[]
         }
         Update: {
           title?: string
           user_id?: string
+          metadata?: {
+            totalMessages?: number
+            totalTokens?: number
+            averageResponseTime?: number
+            lastActivity?: string
+          }
+          context_summary?: string
           status?: "active" | "archived" | "deleted"
           bookmarked?: boolean
-          context_summary?: string
+          shared_users?: string[]
+          updated_at?: string
         }
       }
       messages: {
@@ -110,6 +133,24 @@ export interface Database {
           created_at: string
           updated_at: string
           deleted: boolean
+          metadata: {
+            tokens?: number
+            cost?: number
+            processingTime?: number
+            confidence?: number
+            citations?: Array<{
+              text: string
+              source: string
+              type: "url" | "document" | "knowledge_base"
+              page?: number
+              line?: number
+            }>
+            language?: string
+            sentiment?: "positive" | "negative" | "neutral"
+            isTaskNotification?: boolean
+            taskId?: string
+            commandData?: any
+          }
           sent: boolean
           delivered: boolean
           read: boolean
@@ -129,6 +170,24 @@ export interface Database {
           role: "user" | "assistant" | "system" | "function"
           content: string
           deleted?: boolean
+          metadata?: {
+            tokens?: number
+            cost?: number
+            processingTime?: number
+            confidence?: number
+            citations?: Array<{
+              text: string
+              source: string
+              type: "url" | "document" | "knowledge_base"
+              page?: number
+              line?: number
+            }>
+            language?: string
+            sentiment?: "positive" | "negative" | "neutral"
+            isTaskNotification?: boolean
+            taskId?: string
+            commandData?: any
+          }
           sent?: boolean
           delivered?: boolean
           read?: boolean
@@ -148,6 +207,24 @@ export interface Database {
           role?: "user" | "assistant" | "system" | "function"
           content?: string
           deleted?: boolean
+          metadata?: {
+            tokens?: number
+            cost?: number
+            processingTime?: number
+            confidence?: number
+            citations?: Array<{
+              text: string
+              source: string
+              type: "url" | "document" | "knowledge_base"
+              page?: number
+              line?: number
+            }>
+            language?: string
+            sentiment?: "positive" | "negative" | "neutral"
+            isTaskNotification?: boolean
+            taskId?: string
+            commandData?: any
+          }
           sent?: boolean
           delivered?: boolean
           read?: boolean

@@ -30,11 +30,10 @@ export class AIService {
     return APIClient.sendMessage(chatId, content)
   }
 
-  static async createChat(title: string = "New Chat", systemPrompt?: string): Promise<string> {
+  static async createChat(title: string = "New Chat"): Promise<string> {
     // Use APIClient for simple chat creation (Direct Supabase)
     const chat = await APIClient.createChat({
       title,
-      system_prompt: systemPrompt,
     })
     return chat.id
   }
