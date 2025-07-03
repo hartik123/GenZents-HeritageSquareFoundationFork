@@ -3,7 +3,7 @@ import google.generativeai as genai
 from google.generativeai.types import FunctionDeclaration, Tool
 
 from config import settings
-from backend.scripts.google_drive import GoogleDriveService
+from scripts.google_drive import GoogleDriveService
 from utils.logger import logger
 
 

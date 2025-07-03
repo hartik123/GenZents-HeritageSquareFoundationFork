@@ -1,5 +1,4 @@
-# Removed chats - CRUD moved to frontend
-from api import messages, tasks, drive_agent
+from api import messages, tasks
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -69,7 +68,7 @@ async def root():
 # Note: Chat CRUD operations moved to frontend API routes
 app.include_router(messages.router)  # AI processing and streaming
 app.include_router(tasks.router)     # Long-running background tasks
-app.include_router(drive_agent.router)  # File operations
+# Note: Drive operations available via services but no HTTP endpoints yet
 
 # Startup and shutdown events
 

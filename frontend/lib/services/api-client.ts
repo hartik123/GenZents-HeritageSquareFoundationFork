@@ -65,7 +65,7 @@ export class APIClient {
     if (params?.limit) searchParams.set("limit", String(params.limit))
     if (params?.offset) searchParams.set("offset", String(params.offset))
 
-    const response = await fetch(`/api/messages/${chatId}?${searchParams}`)
+    const response = await fetch(`/api/chats/${chatId}/messages?${searchParams}`)
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.error || "Failed to fetch messages")
