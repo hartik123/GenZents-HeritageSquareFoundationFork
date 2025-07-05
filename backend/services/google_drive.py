@@ -1,6 +1,10 @@
 import os
 import io
 from typing import Dict, List, Optional, Any
+import mimetypes
+import fitz  # PyMuPDF
+from docx import Document
+from googleapiclient.http import MediaIoBaseDownload
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -11,6 +15,7 @@ from google.auth.exceptions import RefreshError
 from google_auth_oauthlib.flow import InstalledAppFlow
 from config import settings
 from utils.logger import logger
+import uuid
 
 
 class GoogleDriveService:
@@ -26,6 +31,27 @@ class GoogleDriveService:
         self.token_path = token_path or settings.GOOGLE_TOKEN_PATH
         self.service = None
         self._authenticate()
+    
+    def subscribe_changes(self, webhook_url: str):
+        try:
+            start_page_token = self.service.changes().getStartPageToken().execute()
+            saved_token = start_page_token.get('startPageToken')
+            body = {
+                'id': str(uuid.uuid4()),
+                'type':'web_hook',
+                'address': webhook_url
+            }
+            response = self.service.changes().watch(body = body, pageToken=saved_token).execute()
+            return {
+                'channel_id':response['id'],
+                'resource_id': response['resourceId'],
+                'start_page_token' :saved_token
+            }
+        except HttpError as e:
+            logger.error(f"Failed to subscribe to changes: {e.content}")
+            raise
+            
+        
 
     def _authenticate(self) -> None:
         """Authenticate with Google Drive API"""
@@ -151,6 +177,43 @@ class GoogleDriveService:
         except HttpError as e:
             logger.error(f"Failed to upload file {filename}: {e}")
             raise
+
+
+    def extract_file_content(self, file):
+        file_id = file["id"]
+        name = file["name"]
+        mime_type = file["mimeType"]
+
+        # extract Google files
+        if mime_type == "application/vnd.google-apps.document":
+            return self.service.files().export(fileId=file_id, mimeType="text/plain").execute().decode()
+        
+        elif mime_type == "application/vnd.google-apps.spreadsheet":
+            return self.service.files().export(fileId=file_id, mimeType="text/csv").execute().decode()
+        
+        elif mime_type == "application/vnd.google-apps.presentation":
+            return self.service.files().export(fileId=file_id, mimeType="text/plain").execute().decode()
+
+        # extract non-Google files
+        # download files using Google API MediaIoBaseDownload
+        content = self.download_file(file_id=file_id)
+
+        # parse pdf using PyMUPDF
+        if mime_type == "application/pdf":
+            doc = fitz.open(stream=content, filetype="pdf")
+            return "\n".join([page.get_text() for page in doc])
+
+        # parse .docx w python-docx
+        elif name.endswith(".docx"):
+            document = Document(io.BytesIO(content))
+            return "\n".join([p.text for p in document.paragraphs])
+
+        # parse .txt w built-in python read
+        elif name.endswith(".txt"):
+            return content.decode("utf-8")
+
+        else:
+            return f"[Unsupported file type: {mime_type}]"
 
     def download_file(self, file_id: str) -> bytes:
         """Download file content"""

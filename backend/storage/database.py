@@ -23,8 +23,18 @@ else:
 
 security = HTTPBearer()
 
-# Function to get authenticated supabase client for user requests
+# create schemas:
+create_table_sql = """
+CREATE TABLE IF NOT EXISTS drive_folders (
+    id SERIAL PRIMARY KEY,
+    folder_path TEXT UNIQUE NOT NULL,
+    content TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+"""
 
+# Function to get authenticated supabase client for user requests
 
 def get_user_supabase_client(token: str) -> Client:
     """Create a Supabase client with user authentication token for RLS"""

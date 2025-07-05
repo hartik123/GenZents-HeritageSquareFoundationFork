@@ -1,10 +1,13 @@
 from api import chats, messages
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import uvicorn
+from backend.scripts.drive_changes import google_changes_handler
+from backend.services.google_drive import GoogleDriveService, create_drive_service
 from config import settings
 from utils.logger import logger
+
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -61,6 +64,26 @@ async def options_handler(full_path: str):
 async def root():
     logger.info("Health check endpoint accessed")
     return {"message": "Archyx AI API is running"}
+
+# Listen to changes from Google Drive 
+@app.post("/change_webhook")
+async def receive_changes_from_drive(
+    request: Request,
+    x_goog_channel_id:str=Header(None),
+    x_goog_resource_id: str = Header(None),
+    x_goog_resource_state: str = Header(None),
+    drive_service : GoogleDriveService = Depends(create_drive_service)
+):
+    try:
+        if x_goog_resource_id=="sync":
+            return {"status": "success", "message":"Webhook set up successfully"}
+        if x_goog_resource_state =="update":
+            result = await google_changes_handler(drive_service)
+            return result
+    except Exception as e:
+        logger.error(f"Webhook error: {e}")
+        return {"status":"error", "message": str(e)}
+
 
 # Include routers
 app.include_router(chats.router)
