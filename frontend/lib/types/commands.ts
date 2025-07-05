@@ -1,69 +1,63 @@
 export interface Command {
+  id: string
   name: string
   description: string
   pattern: RegExp
-  category: CommandCategory
+  instruction: string
   enabled: boolean
+  user_id?: string
+  type: "system" | "admin" | "user"
 }
 
-export type CommandCategory = "file" | "organize" | "search" | "ai" | "system"
-
-export interface CommandArgs {
-  input: string
-  args: string[]
-  rawCommand: string
-  context?: any
-}
-
-export interface CommandResult {
-  success: boolean
-  message: string
-  data?: any
-  suggestions?: string[]
-}
-
-export interface ToolsConfig {
+export interface CommandConfig {
   enabledCommands: string[]
-  customCommands: Command[]
   commandPrefix: string
-  autoSuggestions: boolean
-  showCommandHelp: boolean
 }
 
 export const DEFAULT_COMMANDS: Command[] = [
   {
+    id: "1",
     name: "organize",
     description: "Organize files and folders in the current directory",
     pattern: /^\/organize(?:\s+(.+))?$/,
-    category: "organize",
+    instruction: "organize",
     enabled: true,
+    type: "system",
   },
   {
+    id: "2",
     name: "folder",
     description: "Create or navigate to a specific folder",
     pattern: /^\/folder:(\S+)(?:\s+(.+))?$/,
-    category: "file",
+    instruction: "folder",
     enabled: true,
+    type: "system",
   },
   {
+    id: "3",
     name: "search",
     description: "Search for files, folders, or content",
     pattern: /^\/search(?:\s+(.+))?$/,
-    category: "search",
+    instruction: "search",
     enabled: true,
+    type: "system",
   },
   {
+    id: "4",
     name: "cleanup",
     description: "Clean up temporary files and optimize storage",
     pattern: /^\/cleanup$/,
-    category: "system",
+    instruction: "cleanup",
     enabled: true,
+    type: "system",
   },
   {
+    id: "5",
     name: "help",
     description: "Show available commands",
     pattern: /^\/help$/,
-    category: "system",
+    instruction: "help",
     enabled: true,
+    type: "system",
   },
 ]

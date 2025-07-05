@@ -1,5 +1,3 @@
-import type { ShortcutCategory } from "./ui"
-
 export interface User {
   id: string
   email: string
@@ -8,7 +6,10 @@ export interface User {
   created_at: string
   updated_at: string
   preferences: UserPreferences
-  subscription: SubscriptionTier
+  permissions: UserPermission[]
+  status: UserStatus
+  constraints: UserConstraints
+  customCommands?: string[]
   usage: UsageStats
 }
 
@@ -17,8 +18,11 @@ export interface UserPreferences {
   language: string
   timezone: string
   notifications: NotificationSettings
-  privacy: PrivacySettings
-  accessibility: AccessibilitySettings
+  communicationStyle?: "professional" | "casual" | "friendly" | "balanced" | "technical"
+  responseLength?: "concise" | "balanced" | "detailed" | "comprehensive"
+  temperature?: number
+  maxTokens?: number
+  systemPrompt?: string
 }
 
 export interface NotificationSettings {
@@ -26,121 +30,31 @@ export interface NotificationSettings {
   push: boolean
   desktop: boolean
   sound: boolean
-  mentions: boolean
-  replies: boolean
-}
-
-export interface PrivacySettings {
-  profileVisibility: "public" | "private" | "friends"
-  dataSharing: boolean
-  analytics: boolean
-  marketing: boolean
-}
-
-export interface AccessibilitySettings {
-  highContrast: boolean
-  reducedMotion: boolean
-  screenReader: boolean
-  fontSize: "small" | "medium" | "large" | "xl"
-  keyboardNavigation: boolean
-}
-
-export interface SubscriptionTier {
-  plan: "free" | "pro" | "enterprise"
-  features: string[]
-  limits: UsageLimits
-  billing: BillingInfo
-}
-
-export interface UsageLimits {
-  messagesPerDay: number
-  tokensPerMonth: number
-  fileUploads: number
-  customModels: number
-}
-
-export interface BillingInfo {
-  amount: number
-  currency: string
-  interval: "monthly" | "yearly"
-  nextBilling: string
 }
 
 export interface UsageStats {
   messagesCount: number
   tokensUsed: number
-  filesUploaded: number
+  tasksInitiated: number
   lastActive: string
+  totalStorageUsed: number
+  apiCalls: number
 }
 
-export interface Settings {
-  // Theme and appearance
-  fontSize: "small" | "medium" | "large"
-  highContrast: boolean
-  layoutDensity: string
+export type UserPermission =
+  | "ai_chat"
+  | "file_organization"
+  | "version_history"
+  | "context_management"
+  | "tools_access"
+  | "admin_access"
 
-  // General
-  language: string
-  showFollowUpSuggestions: boolean
-  chats: any[]
+export type UserStatus = "active" | "paused" | "pending_invitation"
 
-  // Chat and AI model settings
-  defaultModel: string
-  temperature: number
-  systemPrompt: string
+export interface UserConstraints {
+  maxStorage: number
   maxTokens: number
-  customInstructions: string
-  communicationStyle: "professional" | "casual" | "friendly" | "balanced" | "technical"
-  responseLength: "concise" | "balanced" | "detailed" | "comprehensive"
-  expertiseLevel: "beginner" | "intermediate" | "advanced" | "expert"
-
-  // Display preferences
-  showTimestamps: boolean
-  showWordCount: boolean
-  showModelInfo: boolean
-  showTokenCount: boolean
-  showAvatars: boolean
-  compactMode: boolean
-  fullScreenMode: boolean
-
-  // Export settings
-  exportFormat: string
-  includeMetadata: boolean
-  includeSystemMessages: boolean
-
-  // Security and privacy
-  encryptMessages: boolean
-  retentionDays: number
-  allowTelemetry: boolean
-
-  // Shortcuts and productivity
-  keyboardShortcuts: Record<string, string>
-  shortcuts: ShortcutCategory[]
-  autoSave: boolean
-  autoSaveInterval: number
-}
-
-export interface FileItem {
-  id: string
-  name: string
-  type: "file" | "folder"
-  size?: number
-  extension?: string
-  path: string
-  lastModified: Date
-  category?: string
-  tags?: string[]
-  preview?: string
-}
-
-export interface ScriptConfig {
-  id: string
-  name: string
-  description: string
-  language: "javascript" | "python" | "bash" | "sql"
-  code: string
-  parameters: { name: string; type: string; value: string; description: string }[]
-  tags: string[]
-  lastRun?: Date
-  status?: "idle" | "running" | "completed" | "error"
+  maxMessagesPerDay: number
+  maxTasksPerDay: number
+  maxApiCallsPerDay: number
 }

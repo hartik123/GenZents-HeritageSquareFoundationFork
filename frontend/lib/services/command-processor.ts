@@ -1,92 +1,119 @@
-import { Command, CommandArgs, CommandResult, DEFAULT_COMMANDS } from "@/lib/types/commands"
-import { logger } from "@/lib/utils/logger"
+import type { Task } from "@/lib/types/tasks"
 
-export class CommandProcessor {
-  private commands: Map<string, Command> = new Map()
-  private enabledCommands: Set<string> = new Set()
+export class ChatCommandProcessor {
+  private static instance: ChatCommandProcessor
+  private apiBase: string
 
-  constructor() {
-    this.initializeCommands()
+  private constructor() {
+    this.apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
   }
 
-  private initializeCommands() {
-    DEFAULT_COMMANDS.forEach((command) => {
-      this.commands.set(command.name, command)
-      if (command.enabled) {
-        this.enabledCommands.add(command.name)
-      }
-    })
+  static getInstance(): ChatCommandProcessor {
+    if (!ChatCommandProcessor.instance) {
+      ChatCommandProcessor.instance = new ChatCommandProcessor()
+    }
+    return ChatCommandProcessor.instance
   }
 
-  isCommand(input: string): boolean {
-    return input.trim().startsWith("/")
+  private isLongRunningCommand(command: string): boolean {
+    const longRunningKeywords = [
+      "/organize",
+      "/search",
+      "/cleanup",
+      "/backup",
+      "analyze",
+      "scan",
+      "index",
+      "process large",
+      "batch",
+      "bulk",
+      "mass operation",
+    ]
+
+    const commandLower = command.toLowerCase()
+    return longRunningKeywords.some((keyword) => commandLower.includes(keyword))
   }
 
-  // Frontend command processor now only handles suggestions and validation
-  // Actual command execution is done by the backend
-  getSuggestions(input: string): string[] {
-    if (!input.startsWith("/")) return []
+  private async processImmediateCommand(command: string): Promise<string> {
+    // Handle immediate commands that don't require background processing
+    const commandLower = command.toLowerCase()
 
-    const partial = input.toLowerCase()
-    const suggestions: string[] = []
-
-    for (const command of this.commands.values()) {
-      if (!this.enabledCommands.has(command.name)) continue
-
-      const commandName = `/${command.name}`
-      if (commandName.startsWith(partial)) {
-        suggestions.push(`${commandName} - ${command.description}`)
-      }
+    if (commandLower.startsWith("/help")) {
+      return this.getHelpText()
     }
 
-    return suggestions
-  }
-
-  getAvailableCommands(): Command[] {
-    return Array.from(this.commands.values()).filter((cmd) => this.enabledCommands.has(cmd.name))
-  }
-
-  enableCommand(commandName: string): void {
-    if (this.commands.has(commandName)) {
-      this.enabledCommands.add(commandName)
+    if (commandLower.startsWith("/status")) {
+      return await this.getSystemStatus()
     }
+
+    // Default response for unrecognized commands
+    return `Command "${command}" is not recognized. Type /help for available commands.`
   }
 
-  disableCommand(commandName: string): void {
-    this.enabledCommands.delete(commandName)
+  private getHelpText(): string {
+    return `
+**Available Commands:**
+
+**Long-running Tasks:**
+- \`/organize [path]\` - Organize files in the specified directory
+- \`/search [query]\` - Search for files and content
+- \`/cleanup\` - Clean up temporary files and duplicates
+- \`/backup\` - Create a backup of your files
+- \`/folder:name create\` - Create a new organized folder
+
+**Immediate Commands:**
+- \`/help\` - Show this help message
+- \`/status\` - Show current system status
+
+**Examples:**
+- \`/organize Downloads\` - Organize files in Downloads folder
+- \`/search "important document"\` - Search for documents containing "important document"
+- \`/cleanup\` - Start cleanup process
+    `.trim()
   }
 
-  updateCommandsConfig(enabledCommands: string[]): void {
-    this.enabledCommands.clear()
-    enabledCommands.forEach((name) => {
-      if (this.commands.has(name)) {
-        this.enabledCommands.add(name)
+  private async getSystemStatus(): Promise<string> {
+    try {
+      const { createClient } = await import("@/lib/supabase/client")
+      const supabase = createClient()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session) {
+        return "Status: Not authenticated"
       }
-    })
-  }
 
-  // Validate command syntax without executing
-  validateCommand(input: string): { valid: boolean; message?: string } {
-    const trimmedInput = input.trim()
+      // Get task statistics using frontend API route for monitoring
+      const response = await fetch(`/api/tasks`, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
 
-    if (!this.isCommand(trimmedInput)) {
-      return { valid: false, message: "Not a valid command" }
-    }
+      if (response.ok) {
+        const data = await response.json()
+        const tasks = data.tasks || []
 
-    for (const [name, command] of this.commands) {
-      if (!this.enabledCommands.has(name)) continue
+        const stats = tasks.reduce((acc: any, task: Task) => {
+          acc[task.status] = (acc[task.status] || 0) + 1
+          return acc
+        }, {})
 
-      const match = trimmedInput.match(command.pattern)
-      if (match) {
-        return { valid: true }
+        return `
+**System Status:**
+- Active Tasks: ${stats.running || 0}
+- Pending Tasks: ${stats.pending || 0}
+- Completed Today: ${stats.completed || 0}
+- Connection: ✅ Connected
+        `.trim()
       }
-    }
 
-    return {
-      valid: false,
-      message: `Unknown command: ${trimmedInput.split(" ")[0]}. Type /help for available commands.`,
+      return "Status: ✅ Connected (Task data unavailable)"
+    } catch (error) {
+      return `Status: ❌ Error - ${(error as Error).message}`
     }
   }
 }
 
-export const commandProcessor = new CommandProcessor()
+export const chatCommandProcessor = ChatCommandProcessor.getInstance()

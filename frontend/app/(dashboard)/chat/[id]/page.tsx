@@ -2,21 +2,8 @@
 
 import { useEffect } from "react"
 import { useParams } from "next/navigation"
-// import { Metadata } from "next"
 import { useChatStore } from "@/lib/stores/chat-store"
 import { ChatInterface } from "@/components/chat/chat-interface"
-
-// export const metadata: Metadata = {
-//   title: "Chat",
-//   description: "Your AI assistant for Google Drive",
-//   keywords: ["chat", "AI"],
-//   openGraph: {
-//     title: "Chat",
-//     description: "Your AI assistant for Google Drive",
-//     url: "/chat",
-//     type: "website",
-//   },
-// }
 
 export default function ChatPage() {
   const params = useParams()

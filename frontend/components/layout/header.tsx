@@ -14,13 +14,11 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
-import { useChat } from "@/hooks/chat-provider"
 import { SettingsDialog } from "@/components/settings/settings-dialog"
 import { usePathname } from "next/navigation"
 import { useChatStore } from "@/lib/stores/chat-store"
 
 export function Header() {
-  const { currentSession } = useChat()
   const pathname = usePathname()
   const { getCurrentChat } = useChatStore()
 
@@ -58,11 +56,11 @@ export function Header() {
           <BreadcrumbItem className="hidden md:block">
             <BreadcrumbLink href="/">{getPageTitle()}</BreadcrumbLink>
           </BreadcrumbItem>
-          {currentSession && pathname.startsWith("/chat/") && (
+          {pathname.startsWith("/chat/") && getCurrentChat() && (
             <>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage className="max-w-[200px] truncate">{currentSession.title}</BreadcrumbPage>
+                <BreadcrumbPage className="max-w-[200px] truncate">{getCurrentChat()?.title}</BreadcrumbPage>
               </BreadcrumbItem>
             </>
           )}

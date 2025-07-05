@@ -1,14 +1,3 @@
-export type UserPermission =
-  | "ai_chat"
-  | "file_organization"
-  | "version_history"
-  | "context_management"
-  | "tools_access"
-  | "admin_access"
-
-export type UserStatus = "active" | "paused" | "pending_invitation"
-
-// Database types that match the Supabase schema
 export interface Database {
   public: {
     Tables: {
@@ -24,24 +13,18 @@ export interface Database {
           language: string
           timezone: string
           is_admin: boolean
-          status: UserStatus
-          permissions: UserPermission[]
-          last_sign_in: string | null
+          status: "active" | "paused" | "pending_invitation"
+          permissions: string[]
           invitation_token: string | null
           invitation_expires_at: string | null
-          subscription_plan: "free" | "pro" | "enterprise"
-          subscription_features: string[]
-          billing_amount: number
-          billing_currency: string
-          billing_interval: "monthly" | "yearly" | null
-          next_billing: string | null
-          messages_per_day: number
-          tokens_per_month: number
-          file_uploads: number
-          custom_models: number
           messages_count: number
           tokens_used: number
           files_uploaded: number
+          max_storage: number
+          max_tokens: number
+          max_messages_per_day: number
+          max_tasks_per_day: number
+          max_api_calls_per_day: number
           last_active: string
         }
         Insert: {
@@ -53,24 +36,18 @@ export interface Database {
           language?: string
           timezone?: string
           is_admin?: boolean
-          status?: UserStatus
-          permissions?: UserPermission[]
-          last_sign_in?: string | null
+          status?: "active" | "paused" | "pending_invitation"
+          permissions?: string[]
           invitation_token?: string | null
           invitation_expires_at?: string | null
-          subscription_plan?: "free" | "pro" | "enterprise"
-          subscription_features?: string[]
-          billing_amount?: number
-          billing_currency?: string
-          billing_interval?: "monthly" | "yearly" | null
-          next_billing?: string | null
-          messages_per_day?: number
-          tokens_per_month?: number
-          file_uploads?: number
-          custom_models?: number
           messages_count?: number
           tokens_used?: number
           files_uploaded?: number
+          max_storage?: number
+          max_tokens?: number
+          max_messages_per_day?: number
+          max_tasks_per_day?: number
+          max_api_calls_per_day?: number
           last_active?: string
         }
         Update: {
@@ -82,178 +59,19 @@ export interface Database {
           language?: string
           timezone?: string
           is_admin?: boolean
-          status?: UserStatus
-          permissions?: UserPermission[]
-          last_sign_in?: string | null
+          status?: "active" | "paused" | "pending_invitation"
+          permissions?: string[]
           invitation_token?: string | null
           invitation_expires_at?: string | null
-          subscription_plan?: "free" | "pro" | "enterprise"
-          subscription_features?: string[]
-          billing_amount?: number
-          billing_currency?: string
-          billing_interval?: "monthly" | "yearly" | null
-          next_billing?: string | null
-          messages_per_day?: number
-          tokens_per_month?: number
-          file_uploads?: number
-          custom_models?: number
           messages_count?: number
           tokens_used?: number
           files_uploaded?: number
+          max_storage?: number
+          max_tokens?: number
+          max_messages_per_day?: number
+          max_tasks_per_day?: number
+          max_api_calls_per_day?: number
           last_active?: string
-          updated_at?: string
-        }
-      }
-      user_settings: {
-        Row: {
-          id: string
-          user_id: string
-          email_notifications: boolean
-          push_notifications: boolean
-          desktop_notifications: boolean
-          sound_notifications: boolean
-          mention_notifications: boolean
-          reply_notifications: boolean
-          profile_visibility: "public" | "private" | "friends"
-          data_sharing: boolean
-          analytics: boolean
-          marketing: boolean
-          high_contrast: boolean
-          reduced_motion: boolean
-          screen_reader: boolean
-          font_size: "small" | "medium" | "large" | "xl"
-          keyboard_navigation: boolean
-          default_model: string
-          temperature: number
-          system_prompt: string
-          max_tokens: number
-          custom_instructions: string
-          communication_style: "professional" | "casual" | "friendly" | "balanced" | "technical"
-          response_length: "concise" | "balanced" | "detailed" | "comprehensive"
-          expertise_level: "beginner" | "intermediate" | "advanced" | "expert"
-          show_timestamps: boolean
-          show_word_count: boolean
-          show_model_info: boolean
-          show_token_count: boolean
-          show_avatars: boolean
-          compact_mode: boolean
-          full_screen_mode: boolean
-          auto_save: boolean
-          auto_save_interval: number
-          encrypt_messages: boolean
-          retention_days: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          user_id: string
-          email_notifications?: boolean
-          push_notifications?: boolean
-          desktop_notifications?: boolean
-          sound_notifications?: boolean
-          mention_notifications?: boolean
-          reply_notifications?: boolean
-          profile_visibility?: "public" | "private" | "friends"
-          data_sharing?: boolean
-          analytics?: boolean
-          marketing?: boolean
-          high_contrast?: boolean
-          reduced_motion?: boolean
-          screen_reader?: boolean
-          font_size?: "small" | "medium" | "large" | "xl"
-          keyboard_navigation?: boolean
-          default_model?: string
-          temperature?: number
-          system_prompt?: string
-          max_tokens?: number
-          custom_instructions?: string
-          communication_style?: "professional" | "casual" | "friendly" | "balanced" | "technical"
-          response_length?: "concise" | "balanced" | "detailed" | "comprehensive"
-          expertise_level?: "beginner" | "intermediate" | "advanced" | "expert"
-          show_timestamps?: boolean
-          show_word_count?: boolean
-          show_model_info?: boolean
-          show_token_count?: boolean
-          show_avatars?: boolean
-          compact_mode?: boolean
-          full_screen_mode?: boolean
-          auto_save?: boolean
-          auto_save_interval?: number
-          encrypt_messages?: boolean
-          retention_days?: number
-        }
-        Update: {
-          user_id?: string
-          email_notifications?: boolean
-          push_notifications?: boolean
-          desktop_notifications?: boolean
-          sound_notifications?: boolean
-          mention_notifications?: boolean
-          reply_notifications?: boolean
-          profile_visibility?: "public" | "private" | "friends"
-          data_sharing?: boolean
-          analytics?: boolean
-          marketing?: boolean
-          high_contrast?: boolean
-          reduced_motion?: boolean
-          screen_reader?: boolean
-          font_size?: "small" | "medium" | "large" | "xl"
-          keyboard_navigation?: boolean
-          default_model?: string
-          temperature?: number
-          system_prompt?: string
-          max_tokens?: number
-          custom_instructions?: string
-          communication_style?: "professional" | "casual" | "friendly" | "balanced" | "technical"
-          response_length?: "concise" | "balanced" | "detailed" | "comprehensive"
-          expertise_level?: "beginner" | "intermediate" | "advanced" | "expert"
-          show_timestamps?: boolean
-          show_word_count?: boolean
-          show_model_info?: boolean
-          show_token_count?: boolean
-          show_avatars?: boolean
-          compact_mode?: boolean
-          full_screen_mode?: boolean
-          auto_save?: boolean
-          auto_save_interval?: number
-          encrypt_messages?: boolean
-          retention_days?: number
-          updated_at?: string
-        }
-      }
-      ai_models: {
-        Row: {
-          id: string
-          name: string
-          provider: string
-          type: "text" | "image" | "audio" | "video" | "multimodal"
-          capabilities: any
-          pricing: any
-          limits: any
-          status: "active" | "deprecated" | "beta"
-          description: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          name: string
-          provider: string
-          type: "text" | "image" | "audio" | "video" | "multimodal"
-          capabilities?: any
-          pricing?: any
-          limits?: any
-          status?: "active" | "deprecated" | "beta"
-          description?: string | null
-        }
-        Update: {
-          name?: string
-          provider?: string
-          type?: "text" | "image" | "audio" | "video" | "multimodal"
-          capabilities?: any
-          pricing?: any
-          limits?: any
-          status?: "active" | "deprecated" | "beta"
-          description?: string | null
           updated_at?: string
         }
       }
@@ -261,101 +79,47 @@ export interface Database {
         Row: {
           id: string
           title: string
-          description: string | null
-          user_id: string
-          category: string
-          status: "active" | "archived" | "deleted"
-          visibility: "private" | "shared" | "public"
-          is_template: boolean
-          bookmarked: boolean
-          archived: boolean
-          shared: boolean
-          tags: string[]
-          model: string
-          temperature: number
-          max_tokens: number
-          system_prompt: string
-          context_window: number
-          streaming: boolean
-          auto_save: boolean
-          encryption: boolean
-          retention_days: number
-          total_messages: number
-          total_tokens: number
-          average_response_time: number
-          last_activity: string
-          participants: string[]
-          language: string
-          domain: string
-          version: number
-          parent_version: string | null
-          branch: string
           created_at: string
           updated_at: string
+          user_id: string
+          metadata: {
+            totalMessages: number
+            totalTokens: number
+            averageResponseTime: number
+            lastActivity: string
+          }
+          context_summary: string
+          status: "active" | "archived" | "deleted"
+          bookmarked: boolean
+          shared_users: string[]
         }
         Insert: {
           title?: string
-          description?: string | null
           user_id: string
-          category?: string
+          metadata?: {
+            totalMessages?: number
+            totalTokens?: number
+            averageResponseTime?: number
+            lastActivity?: string
+          }
+          context_summary?: string
           status?: "active" | "archived" | "deleted"
-          visibility?: "private" | "shared" | "public"
-          is_template?: boolean
           bookmarked?: boolean
-          archived?: boolean
-          shared?: boolean
-          tags?: string[]
-          model?: string
-          temperature?: number
-          max_tokens?: number
-          system_prompt?: string
-          context_window?: number
-          streaming?: boolean
-          auto_save?: boolean
-          encryption?: boolean
-          retention_days?: number
-          total_messages?: number
-          total_tokens?: number
-          average_response_time?: number
-          last_activity?: string
-          participants?: string[]
-          language?: string
-          domain?: string
-          version?: number
-          parent_version?: string | null
-          branch?: string
+          shared_users?: string[]
         }
         Update: {
           title?: string
-          description?: string | null
           user_id?: string
-          category?: string
+          metadata?: {
+            totalMessages?: number
+            totalTokens?: number
+            averageResponseTime?: number
+            lastActivity?: string
+          }
+          context_summary?: string
           status?: "active" | "archived" | "deleted"
-          visibility?: "private" | "shared" | "public"
-          is_template?: boolean
           bookmarked?: boolean
-          archived?: boolean
-          shared?: boolean
-          tags?: string[]
-          model?: string
-          temperature?: number
-          max_tokens?: number
-          system_prompt?: string
-          context_window?: number
-          streaming?: boolean
-          auto_save?: boolean
-          encryption?: boolean
-          retention_days?: number
-          total_messages?: number
-          total_tokens?: number
-          average_response_time?: number
-          last_activity?: string
-          participants?: string[]
-          language?: string
-          domain?: string
-          version?: number
-          parent_version?: string | null
-          branch?: string
+          shared_users?: string[]
           updated_at?: string
         }
       }
@@ -366,83 +130,113 @@ export interface Database {
           user_id: string | null
           role: "user" | "assistant" | "system" | "function"
           content: string
-          edited: boolean
+          created_at: string
+          updated_at: string
           deleted: boolean
-          thread_id: string | null
-          parent_id: string | null
+          metadata: {
+            tokens?: number
+            cost?: number
+            processingTime?: number
+            confidence?: number
+            citations?: Array<{
+              text: string
+              source: string
+              type: "url" | "document" | "knowledge_base"
+              page?: number
+              line?: number
+            }>
+            language?: string
+            sentiment?: "positive" | "negative" | "neutral"
+            isTaskNotification?: boolean
+            taskId?: string
+            commandData?: any
+          }
           sent: boolean
           delivered: boolean
           read: boolean
           error_message: string | null
           retries: number
           status: "sending" | "sent" | "delivered" | "read" | "error"
-          encrypted: boolean
-          algorithm: string | null
-          key_id: string | null
-          model: string | null
           tokens: number | null
           cost: number | null
           processing_time: number | null
           confidence: number | null
           language: string | null
           sentiment: "positive" | "negative" | "neutral" | null
-          topics: string[]
-          created_at: string
-          updated_at: string
         }
         Insert: {
           chat_id: string
           user_id?: string | null
           role: "user" | "assistant" | "system" | "function"
           content: string
-          edited?: boolean
           deleted?: boolean
-          thread_id?: string | null
-          parent_id?: string | null
+          metadata?: {
+            tokens?: number
+            cost?: number
+            processingTime?: number
+            confidence?: number
+            citations?: Array<{
+              text: string
+              source: string
+              type: "url" | "document" | "knowledge_base"
+              page?: number
+              line?: number
+            }>
+            language?: string
+            sentiment?: "positive" | "negative" | "neutral"
+            isTaskNotification?: boolean
+            taskId?: string
+            commandData?: any
+          }
           sent?: boolean
           delivered?: boolean
           read?: boolean
           error_message?: string | null
           retries?: number
           status?: "sending" | "sent" | "delivered" | "read" | "error"
-          encrypted?: boolean
-          algorithm?: string | null
-          key_id?: string | null
-          model?: string | null
           tokens?: number | null
           cost?: number | null
           processing_time?: number | null
           confidence?: number | null
           language?: string | null
           sentiment?: "positive" | "negative" | "neutral" | null
-          topics?: string[]
         }
         Update: {
           chat_id?: string
           user_id?: string | null
           role?: "user" | "assistant" | "system" | "function"
           content?: string
-          edited?: boolean
           deleted?: boolean
-          thread_id?: string | null
-          parent_id?: string | null
+          metadata?: {
+            tokens?: number
+            cost?: number
+            processingTime?: number
+            confidence?: number
+            citations?: Array<{
+              text: string
+              source: string
+              type: "url" | "document" | "knowledge_base"
+              page?: number
+              line?: number
+            }>
+            language?: string
+            sentiment?: "positive" | "negative" | "neutral"
+            isTaskNotification?: boolean
+            taskId?: string
+            commandData?: any
+          }
           sent?: boolean
           delivered?: boolean
           read?: boolean
           error_message?: string | null
           retries?: number
           status?: "sending" | "sent" | "delivered" | "read" | "error"
-          encrypted?: boolean
-          algorithm?: string | null
-          key_id?: string | null
-          model?: string | null
           tokens?: number | null
           cost?: number | null
           processing_time?: number | null
           confidence?: number | null
           language?: string | null
           sentiment?: "positive" | "negative" | "neutral" | null
-          topics?: string[]
           updated_at?: string
         }
       }
@@ -454,22 +248,13 @@ export interface Database {
           name: string
           type: string
           size: number
-          url: string
-          thumbnail_url: string | null
           content: string | null
-          preview: string | null
-          width: number | null
-          height: number | null
-          duration: number | null
-          pages: number | null
-          encoding: string | null
           checksum: string
           scanned: boolean
           clean: boolean
           threats: string[]
           scanned_at: string | null
           created_at: string
-          uploaded_at: string
         }
         Insert: {
           message_id?: string | null
@@ -477,21 +262,12 @@ export interface Database {
           name: string
           type: string
           size: number
-          url: string
-          thumbnail_url?: string | null
           content?: string | null
-          preview?: string | null
-          width?: number | null
-          height?: number | null
-          duration?: number | null
-          pages?: number | null
-          encoding?: string | null
           checksum: string
           scanned?: boolean
           clean?: boolean
           threats?: string[]
           scanned_at?: string | null
-          uploaded_at?: string
         }
         Update: {
           message_id?: string | null
@@ -499,193 +275,12 @@ export interface Database {
           name?: string
           type?: string
           size?: number
-          url?: string
-          thumbnail_url?: string | null
           content?: string | null
-          preview?: string | null
-          width?: number | null
-          height?: number | null
-          duration?: number | null
-          pages?: number | null
-          encoding?: string | null
           checksum?: string
           scanned?: boolean
           clean?: boolean
           threats?: string[]
           scanned_at?: string | null
-          uploaded_at?: string
-        }
-      }
-      reactions: {
-        Row: {
-          id: string
-          message_id: string
-          user_id: string
-          type: string
-          emoji: string
-          created_at: string
-        }
-        Insert: {
-          message_id: string
-          user_id: string
-          type: string
-          emoji: string
-        }
-        Update: {
-          message_id?: string
-          user_id?: string
-          type?: string
-          emoji?: string
-        }
-      }
-      mentions: {
-        Row: {
-          id: string
-          message_id: string
-          user_id: string
-          start_pos: number
-          end_pos: number
-          type: "user" | "channel" | "file" | "url"
-          created_at: string
-        }
-        Insert: {
-          message_id: string
-          user_id: string
-          start_pos: number
-          end_pos: number
-          type: "user" | "channel" | "file" | "url"
-        }
-        Update: {
-          message_id?: string
-          user_id?: string
-          start_pos?: number
-          end_pos?: number
-          type?: "user" | "channel" | "file" | "url"
-        }
-      }
-      chat_versions: {
-        Row: {
-          id: string
-          chat_id: string
-          version: number
-          title: string
-          description: string | null
-          changes: any
-          parent_version: string | null
-          branch: string
-          tags: string[]
-          created_by: string
-          created_at: string
-        }
-        Insert: {
-          chat_id: string
-          version: number
-          title: string
-          description?: string | null
-          changes?: any
-          parent_version?: string | null
-          branch?: string
-          tags?: string[]
-          created_by: string
-        }
-        Update: {
-          chat_id?: string
-          version?: number
-          title?: string
-          description?: string | null
-          changes?: any
-          parent_version?: string | null
-          branch?: string
-          tags?: string[]
-          created_by?: string
-        }
-      }
-      comments: {
-        Row: {
-          id: string
-          message_id: string | null
-          user_id: string
-          content: string
-          resolved: boolean
-          parent_id: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          message_id?: string | null
-          user_id: string
-          content: string
-          resolved?: boolean
-          parent_id?: string | null
-        }
-        Update: {
-          message_id?: string | null
-          user_id?: string
-          content?: string
-          resolved?: boolean
-          parent_id?: string | null
-          updated_at?: string
-        }
-      }
-      context_files: {
-        Row: {
-          id: string
-          chat_id: string
-          name: string
-          type: string
-          size: number
-          path: string
-          content: string | null
-          added_at: string
-        }
-        Insert: {
-          chat_id: string
-          name: string
-          type: string
-          size: number
-          path: string
-          content?: string | null
-        }
-        Update: {
-          chat_id?: string
-          name?: string
-          type?: string
-          size?: number
-          path?: string
-          content?: string | null
-        }
-      }
-      share_settings: {
-        Row: {
-          id: string
-          chat_id: string
-          is_public: boolean
-          allow_comments: boolean
-          allow_editing: boolean
-          expires_at: string | null
-          password_hash: string | null
-          domain_restriction: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          chat_id: string
-          is_public?: boolean
-          allow_comments?: boolean
-          allow_editing?: boolean
-          expires_at?: string | null
-          password_hash?: string | null
-          domain_restriction?: string | null
-        }
-        Update: {
-          chat_id?: string
-          is_public?: boolean
-          allow_comments?: boolean
-          allow_editing?: boolean
-          expires_at?: string | null
-          password_hash?: string | null
-          domain_restriction?: string | null
-          updated_at?: string
         }
       }
       analytics: {
@@ -717,8 +312,7 @@ export interface Database {
           id: string
           user_id: string
           chat_id: string | null
-          type: "organize" | "search" | "cleanup" | "folder_operation" | "backup" | "analysis"
-          command: string
+          command_id: string
           parameters: any
           status: "pending" | "running" | "completed" | "failed" | "cancelled"
           progress: number
@@ -731,50 +325,141 @@ export interface Database {
           estimated_duration: number | null
           priority: number
           retry_count: number
-          max_retries: number
           updated_at: string
         }
         Insert: {
-          id?: string
           user_id: string
           chat_id?: string | null
-          type: "organize" | "search" | "cleanup" | "folder_operation" | "backup" | "analysis"
-          command: string
+          command_id: string
           parameters?: any
           status?: "pending" | "running" | "completed" | "failed" | "cancelled"
           progress?: number
           result?: any | null
           error_message?: string | null
           logs?: string[]
-          created_at?: string
           started_at?: string | null
           completed_at?: string | null
           estimated_duration?: number | null
           priority?: number
           retry_count?: number
-          max_retries?: number
-          updated_at?: string
         }
         Update: {
-          id?: string
           user_id?: string
           chat_id?: string | null
-          type?: "organize" | "search" | "cleanup" | "folder_operation" | "backup" | "analysis"
-          command?: string
+          command_id?: string
           parameters?: any
           status?: "pending" | "running" | "completed" | "failed" | "cancelled"
           progress?: number
           result?: any | null
           error_message?: string | null
           logs?: string[]
-          created_at?: string
           started_at?: string | null
           completed_at?: string | null
           estimated_duration?: number | null
           priority?: number
           retry_count?: number
-          max_retries?: number
           updated_at?: string
+        }
+      }
+      versions: {
+        Row: {
+          id: string
+          version: string
+          title: string
+          description: string
+          user_id: string
+          timestamp: string
+          status: "current" | "previous" | "archived"
+          created_at: string
+          data: any | null
+        }
+        Insert: {
+          version: string
+          title: string
+          description: string
+          user_id: string
+          timestamp: string
+          status?: "current" | "previous" | "archived"
+          data?: any | null
+        }
+        Update: {
+          version?: string
+          title?: string
+          description?: string
+          user_id?: string
+          timestamp?: string
+          status?: "current" | "previous" | "archived"
+          data?: any | null
+        }
+      }
+      commands: {
+        Row: {
+          id: string
+          name: string
+          description: string
+          pattern: string
+          instruction: string
+          enabled: boolean
+          user_id: string | null
+          type: "system" | "admin" | "user"
+          created_at: string
+        }
+        Insert: {
+          name: string
+          description: string
+          pattern: string
+          instruction: string
+          enabled?: boolean
+          user_id?: string | null
+          type: "system" | "admin" | "user"
+        }
+        Update: {
+          name?: string
+          description?: string
+          pattern?: string
+          instruction?: string
+          enabled?: boolean
+          user_id?: string | null
+          type?: "system" | "admin" | "user"
+        }
+      }
+      changes: {
+        Row: {
+          id: string
+          version_id: string
+          type: "added" | "modified" | "deleted"
+          original_path: string
+          new_path: string | null
+          original_value: any | null
+          new_value: any | null
+          description: string | null
+          command_id: string | null
+          user_id: string | null
+          timestamp: string
+        }
+        Insert: {
+          version_id: string
+          type: "added" | "modified" | "deleted"
+          original_path: string
+          new_path?: string | null
+          original_value?: any | null
+          new_value?: any | null
+          description?: string | null
+          command_id?: string | null
+          user_id?: string | null
+          timestamp: string
+        }
+        Update: {
+          version_id?: string
+          type?: "added" | "modified" | "deleted"
+          original_path?: string
+          new_path?: string | null
+          original_value?: any | null
+          new_value?: any | null
+          description?: string | null
+          command_id?: string | null
+          user_id?: string | null
+          timestamp?: string
         }
       }
     }

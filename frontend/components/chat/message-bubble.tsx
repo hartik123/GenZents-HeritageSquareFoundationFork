@@ -27,22 +27,21 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { useChat } from "@/hooks/chat-provider"
-import { useSettings } from "@/hooks/settings-provider"
 import { formatDistanceToNow, format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import type { MessageBubbleProps } from "@/lib/types/ui"
 import { renderMarkdown } from "@/lib/utils/markdown"
-
-// Remove duplicate interface as it now comes from centralized types
+import { useChatStore } from "@/lib/stores/chat-store"
+import { useSettingsStore } from "@/lib/stores/settings-store"
 
 export function MessageBubble({ message, isLast }: MessageBubbleProps) {
-  const { dispatch, regenerateMessage, currentSession } = useChat()
-  const { settings } = useSettings()
+  const { editMessage, deleteMessage, reactToMessage, getCurrentChat, currentChatId } = useChatStore()
+  const settingsStore = useSettingsStore()
   const { toast } = useToast()
   const [isHovered, setIsHovered] = React.useState(false)
 
+  const attachments = getCurrentChat()?.attachments || []
   const isUser = message.role === "user"
   const isSystem = message.role === "system"
 
@@ -62,46 +61,43 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
     }
   }
 
-  const handleReaction = (type: "thumbs_up" | "thumbs_down") => {
-    if (!currentSession) return
+  const handleReaction = (type: "liked" | "disliked") => {
+    if (!currentChatId) return
 
-    const existingReaction = message.reactions?.find((r) => r.type === type)
-    const updatedReactions = existingReaction
-      ? message.reactions?.filter((r) => r.type !== type) || []
-      : [
-          ...(message.reactions || []),
-          {
-            id: `${Date.now()}`,
-            user_id: "current_user",
-            type,
-            emoji: type === "thumbs_up" ? "👍" : "👎",
-            created_at: new Date().toISOString(),
-          },
-        ]
-
-    dispatch({
-      type: "UPDATE_MESSAGE",
-      payload: {
-        sessionId: currentSession.id,
-        messageId: message.id,
-        updates: { reactions: updatedReactions },
-      },
-    })
+    reactToMessage(message.id, type === "liked" ? "liked" : "disliked")
   }
 
-  const handleRegenerate = () => {
-    regenerateMessage(message.id)
+  const handleRegenerate = async () => {
+    if (!currentChatId) return
+    try {
+      await editMessage(message.id, message.content)
+      toast({
+        title: "Message regenerated",
+        description: "The message has been regenerated.",
+      })
+    } catch (error) {
+      toast({
+        title: "Failed to regenerate",
+        description: "Could not regenerate the message.",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleDelete = () => {
-    if (!currentSession) return
-    dispatch({
-      type: "DELETE_MESSAGE",
-      payload: {
-        sessionId: currentSession.id,
-        messageId: message.id,
-      },
-    })
+  const handleDelete = async () => {
+    try {
+      await deleteMessage(message.id)
+      toast({
+        title: "Message deleted",
+        description: "The message has been deleted.",
+      })
+    } catch (error) {
+      toast({
+        title: "Failed to delete",
+        description: "Could not delete the message.",
+        variant: "destructive",
+      })
+    }
   }
 
   const getStatusIcon = () => {
@@ -123,7 +119,7 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
   }
 
   const formatTimestamp = (date: Date) => {
-    if (settings.showTimestamps) {
+    if (settingsStore.theme) {
       return format(date, "HH:mm")
     }
     return formatDistanceToNow(date, { addSuffix: true })
@@ -139,7 +135,7 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {!isSystem && !isUser && settings.showAvatars && (
+      {!isSystem && !isUser && settingsStore.theme && (
         <Avatar className="h-8 w-8 flex-shrink-0">
           <AvatarImage src="/placeholder.svg?height=32&width=32" />
           <AvatarFallback>AI</AvatarFallback>
@@ -161,9 +157,9 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
             <div className="whitespace-pre-wrap break-words">{message.content}</div>
           )}
 
-          {message.attachments && message.attachments.length > 0 && (
+          {attachments && attachments.length > 0 && (
             <div className="mt-2 space-y-2">
-              {message.attachments.map((attachment) => (
+              {attachments.map((attachment: any) => (
                 <div key={attachment.id} className="flex items-center gap-2 p-2 bg-muted/50 rounded">
                   <div className="text-xs">
                     📎 {attachment.name} ({(attachment.size / 1024).toFixed(1)}KB)
@@ -177,7 +173,7 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
             <div className="flex gap-1 mt-2">
               {message.reactions.map((reaction, index) => (
                 <Badge key={index} variant="secondary" className="text-xs">
-                  {reaction.type === "thumbs_up" ? "👍" : "👎"}
+                  {reaction.type === "liked" ? "👍" : "👎"}
                 </Badge>
               ))}
             </div>
@@ -185,17 +181,12 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
         </div>
 
         <div className={cn("flex items-center gap-2 text-xs text-muted-foreground", isUser && "order-first")}>
-          {settings.showTimestamps && message.timestamp && <span>{formatTimestamp(message.timestamp)}</span>}
+          {settingsStore.theme && message.created_at && <span>{formatTimestamp(message.created_at)}</span>}
 
           {isUser && getStatusIcon()}
 
           {message.metadata && (
             <div className="flex items-center gap-1">
-              {message.metadata.model && (
-                <Badge variant="outline" className="text-xs">
-                  {message.metadata.model}
-                </Badge>
-              )}
               {message.metadata.tokens && <span className="text-xs">{message.metadata.tokens} tokens</span>}
             </div>
           )}
@@ -218,11 +209,8 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleReaction("thumbs_up")}
-                className={cn(
-                  "h-8 w-8 p-0",
-                  message.reactions?.some((r) => r.type === "thumbs_up") && "text-green-500"
-                )}
+                onClick={() => handleReaction("liked")}
+                className={cn("h-8 w-8 p-0", message.reactions?.some((r) => r.type === "liked") && "text-green-500")}
               >
                 <ThumbsUp className="h-3 w-3" />
               </Button>
@@ -230,11 +218,8 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleReaction("thumbs_down")}
-                className={cn(
-                  "h-8 w-8 p-0",
-                  message.reactions?.some((r) => r.type === "thumbs_down") && "text-red-500"
-                )}
+                onClick={() => handleReaction("disliked")}
+                className={cn("h-8 w-8 p-0", message.reactions?.some((r) => r.type === "disliked") && "text-red-500")}
               >
                 <ThumbsDown className="h-3 w-3" />
               </Button>
@@ -278,7 +263,7 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
         </div>
       )}
 
-      {isUser && settings.showAvatars && (
+      {isUser && settingsStore.theme && (
         <Avatar className="h-8 w-8 flex-shrink-0">
           <AvatarImage src="/placeholder.svg?height=32&width=32" />
           <AvatarFallback>U</AvatarFallback>

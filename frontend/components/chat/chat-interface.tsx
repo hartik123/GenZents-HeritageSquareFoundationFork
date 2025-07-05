@@ -15,9 +15,7 @@ export function ChatInterface() {
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-md">
             <h1 className="text-3xl font-bold mb-4">Welcome to Archyx AI</h1>
-            <p className="text-muted-foreground mb-6">
-              Start a conversation by typing your message below. A new chat will be created automatically.
-            </p>
+            <p className="text-muted-foreground mb-6">Start a conversation by typing your message below.</p>
           </div>
         </div>
         <ChatInput />

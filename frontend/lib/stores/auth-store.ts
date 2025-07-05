@@ -2,7 +2,8 @@ import { create } from "zustand"
 import { supabase } from "@/lib/supabase/client"
 import { logger } from "@/lib/utils/logger"
 import type { User, Session } from "@supabase/supabase-js"
-import type { Database, UserPermission, UserStatus } from "@/lib/types/database"
+import type { Database } from "@/lib/types/database"
+import type { UserPermission } from "@/lib/types/user"
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"]
 
@@ -119,16 +120,42 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     try {
+      // Clear state immediately to prevent UI interactions
+      set({ loading: true })
+
       const { error } = await supabase.auth.signOut()
       if (error) {
         logger.error("Error signing out", error as Error, { component: "auth-store" })
-        throw error
       }
-      set({ user: null, profile: null, session: null })
+
+      // Clear all state regardless of supabase response
+      set({ user: null, profile: null, session: null, loading: false })
+
+      // Clear any cached data
+      if (typeof window !== "undefined") {
+        // Clear all localStorage items that might be related to auth
+        Object.keys(localStorage).forEach((key) => {
+          if (key.includes("supabase") || key.includes("auth") || key.includes("chat")) {
+            localStorage.removeItem(key)
+          }
+        })
+        sessionStorage.clear()
+      }
     } catch (error) {
       logger.error("Error signing out", error as Error, { component: "auth-store" })
-      set({ user: null, profile: null, session: null })
-      throw error
+      // Clear state even if there's an error
+      set({ user: null, profile: null, session: null, loading: false })
+
+      // Clear any cached data
+      if (typeof window !== "undefined") {
+        // Clear all localStorage items that might be related to auth
+        Object.keys(localStorage).forEach((key) => {
+          if (key.includes("supabase") || key.includes("auth") || key.includes("chat")) {
+            localStorage.removeItem(key)
+          }
+        })
+        sessionStorage.clear()
+      }
     }
   },
 

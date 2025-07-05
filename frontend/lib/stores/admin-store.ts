@@ -1,10 +1,10 @@
 import { create } from "zustand"
 import { supabase } from "@/lib/supabase/client"
 import { logger } from "@/lib/utils/logger"
-import type { Database, UserPermission, UserStatus } from "@/lib/types/database"
+import type { Database } from "@/lib/types/database"
+import type { UserPermission, UserStatus } from "@/lib/types/user"
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"]
-type ProfileInsert = Database["public"]["Tables"]["profiles"]["Insert"]
 type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"]
 
 interface AdminState {

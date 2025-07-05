@@ -262,6 +262,18 @@ class CommandProcessor:
         """Get command descriptions"""
         return self.command_descriptions.copy()
 
+    def extract_all_commands(self, text: str) -> List[str]:
+        """Extract all commands from the text"""
+        commands = []
+        lines = text.strip().split('\n')
+
+        for line in lines:
+            line = line.strip()
+            if self.is_command(line):
+                commands.append(line)
+
+        return commands
+
 
 # Global instance
 command_processor = CommandProcessor()
