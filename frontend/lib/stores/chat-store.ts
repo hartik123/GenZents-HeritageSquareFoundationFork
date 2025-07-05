@@ -39,6 +39,7 @@ interface ChatState {
   createChat: (title?: string, template?: Partial<Chat>) => Promise<string>
   selectChat: (chatId: string) => void
   clearCurrentChat: () => void
+  clearAll: () => void
   deleteChat: (chatId: string) => Promise<void>
   updateChat: (chatId: string, updates: Partial<Chat>) => Promise<void>
   duplicateChat: (chatId: string) => Promise<string>
@@ -167,6 +168,18 @@ export const useChatStore = create<ChatState>()(
 
       clearCurrentChat: () => {
         set({ currentChatId: null, messages: [] })
+      },
+
+      clearAll: () => {
+        set({
+          chats: [],
+          messages: [],
+          currentChatId: null,
+          loading: false,
+          isStreaming: false,
+          searchQuery: "",
+          attachments: [],
+        })
       },
 
       deleteChat: async (chatId: string) => {

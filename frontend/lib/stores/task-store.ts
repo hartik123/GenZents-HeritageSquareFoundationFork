@@ -216,4 +216,27 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       logger.error("Error refreshing task", error as Error, { component: "task-store" })
     }
   },
+
+  clearAll: () => {
+    // Clean up subscription if it exists
+    const state = get()
+    if (state.subscriptionCleanup) {
+      state.subscriptionCleanup()
+    }
+
+    set({
+      tasks: [],
+      taskStats: {
+        pending: 0,
+        running: 0,
+        completed: 0,
+        failed: 0,
+        cancelled: 0,
+        total: 0,
+      },
+      loading: false,
+      error: null,
+      subscriptionCleanup: undefined,
+    })
+  },
 }))

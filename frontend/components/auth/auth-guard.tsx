@@ -29,22 +29,18 @@ export function AuthGuard({
 
   useEffect(() => {
     if (!initialized || loading || !storeProvider.isInitialized) return
-
     if (requireAuth && !user) {
-      router.push("/auth")
+      router.replace("/auth")
       return
     }
-
     if (requireAdmin && !isAdmin()) {
-      router.push("/")
+      router.replace("/")
       return
     }
-
     if (requiredPermissions.length > 0) {
       const hasAllPermissions = requiredPermissions.every((permission) => hasPermission(permission))
-
       if (!hasAllPermissions) {
-        router.push("/")
+        router.replace("/")
         return
       }
     }

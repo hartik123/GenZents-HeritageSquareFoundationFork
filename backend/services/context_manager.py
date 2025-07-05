@@ -9,6 +9,7 @@ import json
 from utils.logger import logger
 from storage.database import get_user_supabase_client
 from services.generative_ai import generate_text
+from services.user_security import get_security_service
 
 
 class ContextManager:
@@ -16,6 +17,7 @@ class ContextManager:
 
     def __init__(self, user_supabase_client):
         self.user_supabase = user_supabase_client
+        self.security_service = get_security_service(user_supabase_client)
 
     async def get_user_preferences(self, user_id: str) -> Dict[str, Any]:
         """Retrieve user preferences and custom instructions from the database."""
@@ -77,6 +79,7 @@ class ContextManager:
             self, chat_id: str, limit: int = 5) -> List[Dict[str, Any]]:
         """Get the last N messages from the chat for context."""
         try:
+            # Fetch exactly the last N messages, ordered by creation time
             messages_response = self.user_supabase.table("messages").select(
                 "role, content, created_at, metadata"
             ).eq("chat_id", chat_id).eq("deleted", False).order(
@@ -293,14 +296,15 @@ Please create a concise summary (2-3 sentences) of this conversation, focusing o
         user_id: str,
         chat_id: str,
         user_message: str
-    ) -> Tuple[str, List[Dict[str, Any]], Dict[str, Any]]:
+    ) -> Tuple[str, List[Dict[str, Any]], Dict[str, Any], Dict[str, Any]]:
         """
         Prepare comprehensive context for LLM including:
         - Enhanced system prompt with user preferences
         - Recent message history
         - User preferences for response generation
+        - User constraints and security context
 
-        Returns: (enhanced_system_prompt, message_history, user_preferences)
+        Returns: (enhanced_system_prompt, message_history, user_preferences, security_context)
         """
         try:
             # Get all context data concurrently
@@ -310,6 +314,25 @@ Please create a concise summary (2-3 sentences) of this conversation, focusing o
                 user_id, chat_id
             )
 
+            # Get user constraints and security context
+            user_constraints = await self.security_service.get_user_constraints(user_id)
+
+            # Validate message safety
+            safety_check = await self.security_service.validate_safe_prompt(user_message)
+            if not safety_check.allowed:
+                raise ValueError(
+                    f"Message safety check failed: {
+                        safety_check.reason}")
+
+            # Check if user can send message
+            message_check = await self.security_service.check_user_can_send_message(
+                user_id, user_message
+            )
+            if not message_check.allowed:
+                raise ValueError(
+                    f"Message not allowed: {
+                        message_check.reason}")
+
             # Add the current user message to history
             current_message = {
                 "role": "user",
@@ -318,18 +341,36 @@ Please create a concise summary (2-3 sentences) of this conversation, focusing o
             }
             message_history = recent_messages + [current_message]
 
+            # Build security context for LLM
+            security_context = {
+                "user_permissions": user_constraints.permissions,
+                "is_admin": user_constraints.is_admin,
+                "remaining_quota": message_check.remaining_quota,
+                "user_status": user_constraints.status,
+                "constraints": {
+                    "max_tokens": user_constraints.max_tokens,
+                    "max_tasks_per_day": user_constraints.max_tasks_per_day
+                }
+            }
+
             logger.info(
                 f"Prepared LLM context for user {user_id}, chat {chat_id}")
 
-            return enhanced_prompt, message_history, preferences
+            return enhanced_prompt, message_history, preferences, security_context
 
         except Exception as e:
             logger.error(f"Error preparing LLM context: {str(e)}")
-            # Return minimal context on error
+            # Re-raise validation errors
+            if "safety check failed" in str(
+                    e) or "Message not allowed" in str(e):
+                raise
+
+            # Return minimal context on other errors
             return (
                 "You are a helpful AI assistant.",
                 [{"role": "user", "content": user_message}],
-                {}
+                {},
+                {"user_permissions": [], "is_admin": False}
             )
 
 

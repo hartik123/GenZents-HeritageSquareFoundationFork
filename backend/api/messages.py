@@ -8,6 +8,7 @@ from models.task import TaskType
 from models.user import User
 from utils.logger import logger
 from services.context_manager import get_context_manager
+from services.user_security import get_security_service
 import uuid
 import json
 from datetime import datetime
@@ -77,8 +78,9 @@ async def create_message(
             f"Creating message for chat {chat_id} by user {
                 current_user.id}")
 
-        # 1. Initialize context manager
+        # 1. Initialize services
         context_manager = get_context_manager(user_supabase)
+        security_service = get_security_service(user_supabase)
 
         # 2. Verify user has access to this chat and get chat details
         chat_response = user_supabase.table("chats").select(
@@ -97,119 +99,199 @@ async def create_message(
             raise HTTPException(
                 status_code=400, detail="Only user messages can be created through this endpoint.")
 
-        # 3. Prepare comprehensive LLM context (includes last 5 messages + user
-        # preferences)
-        enhanced_system_prompt, message_history, user_preferences = await context_manager.prepare_llm_context(
-            user_id=current_user.id,
-            chat_id=chat_id,
-            user_message=message.content
-        )
+        # 3. Fetch user stats/constraints and validate request should be
+        # processed
+        security_service = get_security_service(user_supabase)
+        user_constraints = await security_service.get_user_constraints(current_user.id)
 
-        # 4. Check for commands in the message
+        # Check if user's request should be processed based on constraints
+        message_check = await security_service.check_user_can_send_message(
+            current_user.id, message.content
+        )
+        if not message_check.allowed:
+            raise HTTPException(status_code=403, detail=message_check.reason)
+
+        # 4. Prepare comprehensive LLM context with security checks
+        try:
+            enhanced_system_prompt, message_history, user_preferences, security_context = await context_manager.prepare_llm_context(
+                user_id=current_user.id,
+                chat_id=chat_id,
+                user_message=message.content
+            )
+        except ValueError as e:
+            # Security validation failed
+            raise HTTPException(status_code=403, detail=str(e))
+
+        # 5. Check for commands in the message and filter allowed commands
         command_result, remaining_message = command_processor.extract_command_and_message(
             message.content)
 
-        # 4. Check if this is a long-running command that should become a task
-        if command_result and command_processor.is_long_running_command(
-                message.content):
-            # Create a background task instead of processing immediately
-            task_type = _determine_task_type_from_command(message.content)
+        # 5.1. If command found, check permissions and filter allowed commands
+        allowed_commands = []
+        if command_result:
+            # Extract all commands from the message
+            all_commands = command_processor.extract_all_commands(
+                message.content)
 
-            task_data = {
-                "id": str(uuid.uuid4()),
-                "user_id": current_user.id,
-                "chat_id": chat_id,
-                "type": task_type.value,
-                "command": message.content,
-                "parameters": {},
-                "status": "pending",
-                "progress": 0,
-                "priority": 5,
-                "max_retries": 3,
-                "retry_count": 0,
-                "created_at": datetime.utcnow().isoformat(),
-                "updated_at": datetime.utcnow().isoformat()
-            }
+            # Filter commands based on user permissions
+            for cmd in all_commands:
+                command_permission_check = await security_service.check_command_permissions(
+                    current_user.id, cmd
+                )
+                if command_permission_check.allowed:
+                    allowed_commands.append(cmd)
+                else:
+                    # Log denied command for auditing
+                    logger.warning(
+                        f"Command denied for user {
+                            current_user.id}: {cmd} - {
+                            command_permission_check.reason}")
 
-            # Save the task
-            task_response = user_supabase.table(
-                "tasks").insert(task_data).execute()
-            task_id = task_response.data[0]["id"]
+            # If no commands are allowed, create error message
+            if not allowed_commands and all_commands:
+                permission_error_content = f"❌ **Commands Not Permitted**\n\n"
+                permission_error_content += "The following commands were denied:\n"
+                for cmd in all_commands:
+                    check = await security_service.check_command_permissions(current_user.id, cmd)
+                    permission_error_content += f"• `{cmd}`: {check.reason}\n"
 
-            # Create a message indicating task was created
-            task_notification_content = f"🔄 **Long-running task started**\n\nCommand: `{
-                message.content}`\nTask ID: `{task_id}`\n\nThis task is running in the background. You can check its progress in the Tasks page."
-
-            task_message_data = {
-                "id": str(uuid.uuid4()),
-                "chat_id": chat_id,
-                "role": "assistant",
-                "content": task_notification_content,
-                "created_at": datetime.utcnow().isoformat(),
-                "metadata": {
-                    "is_task_notification": True,
-                    "task_id": task_id,
-                    "task_type": task_type.value
+                error_message_data = {
+                    "id": str(uuid.uuid4()),
+                    "chat_id": chat_id,
+                    "role": "assistant",
+                    "content": permission_error_content,
+                    "created_at": datetime.utcnow().isoformat(),
+                    "metadata": {"is_error": True, "error_type": "permission_denied"}
                 }
-            }
-            user_supabase.table("messages").insert(task_message_data).execute()
 
-            # Update chat timestamp
-            user_supabase.table("chats").update({
-                "updated_at": datetime.utcnow().isoformat()
-            }).eq("id", chat_id).execute()
+                user_supabase.table("messages").insert(
+                    error_message_data).execute()
 
-            logger.info(
-                f"Created background task {task_id} for command: {
-                    message.content}")
-            return task_message_data
+                raise HTTPException(
+                    status_code=403,
+                    detail="No permitted commands found in message"
+                )
 
-        # Save user's message (original content)
+        # 5.2. Check if any allowed commands are long-running and should become
+        # tasks
+        long_running_commands = []
+        if allowed_commands:
+            for cmd in allowed_commands:
+                if command_processor.is_long_running_command(cmd):
+                    long_running_commands.append(cmd)
+
+            # Create tasks for long-running commands
+            if long_running_commands:
+                task_ids = []
+                for cmd in long_running_commands:
+                    task_type = _determine_task_type_from_command(cmd)
+
+                    task_data = {
+                        "id": str(uuid.uuid4()),
+                        "user_id": current_user.id,
+                        "chat_id": chat_id,
+                        "type": task_type.value,
+                        "command": cmd,
+                        "parameters": {},
+                        "status": "pending",
+                        "progress": 0,
+                        "priority": 5,
+                        "max_retries": 3,
+                        "retry_count": 0,
+                        "created_at": datetime.utcnow().isoformat(),
+                        "updated_at": datetime.utcnow().isoformat()
+                    }
+
+                    task_response = user_supabase.table(
+                        "tasks").insert(task_data).execute()
+                    task_ids.append(task_response.data[0]["id"])
+
+                # Create notification message about created tasks
+                task_notification_content = f"🔄 **Background Tasks Created**\n\n"
+                task_notification_content += f"The following long-running commands have been queued:\n"
+                for i, cmd in enumerate(long_running_commands):
+                    task_notification_content += f"• `{cmd}` (Task ID: `{
+                        task_ids[i]}`)\n"
+                task_notification_content += "\nTasks are running in the background. Check the Tasks page for progress."
+
+                task_message_data = {
+                    "id": str(uuid.uuid4()),
+                    "chat_id": chat_id,
+                    "role": "assistant",
+                    "content": task_notification_content,
+                    "created_at": datetime.utcnow().isoformat(),
+                    "metadata": {
+                        "is_task_notification": True,
+                        "task_ids": task_ids,
+                        "commands": long_running_commands
+                    }
+                }
+                user_supabase.table("messages").insert(
+                    task_message_data).execute()
+
+                # Remove long-running commands from allowed_commands for
+                # immediate processing
+                allowed_commands = [
+                    cmd for cmd in allowed_commands if cmd not in long_running_commands]
+
+        # 6. Save user's message (original content)
         user_message_data = {
             "id": str(uuid.uuid4()),
             "chat_id": chat_id,
             "role": "user",
             "content": message.content,
             "created_at": datetime.utcnow().isoformat(),
-            "metadata": {"has_commands": command_result is not None} if command_result else None
+            "metadata": {
+                "has_commands": len(allowed_commands) > 0,
+                "commands_processed": allowed_commands,
+                "long_running_tasks_created": len(long_running_commands) if 'long_running_commands' in locals() else 0
+            }
         }
         user_response = user_supabase.table(
             "messages").insert(user_message_data).execute()
         logger.info(f"User message saved: {user_message_data['id']}")
 
-        # 5. Handle regular commands if present (not long-running)
-        if command_result and command_result.success:
-            # Save command result as assistant message
-            command_content = f"**Command Executed:** {command_result.message}"
-            if command_result.suggestions:
-                command_content += f"\n\n{
-                    chr(10).join(
-                        f'• {suggestion}' for suggestion in command_result.suggestions)}"
+        # 7. Process immediate (non-long-running) allowed commands
+        command_results = []
+        if allowed_commands:
+            for cmd in allowed_commands:
+                cmd_result = command_processor.process_command(cmd)
+                if cmd_result and cmd_result.success:
+                    command_results.append(cmd_result)
 
-            command_message_data = {
-                "id": str(uuid.uuid4()),
-                "chat_id": chat_id,
-                "role": "assistant",
-                "content": command_content,
-                "created_at": datetime.utcnow().isoformat(),
-                "metadata": {
-                    "is_command_result": True,
-                    "command_data": command_result.data
+            # If we have command results, save them
+            if command_results:
+                command_content = "**Commands Executed:**\n\n"
+                for result in command_results:
+                    command_content += f"• `{
+                        result.command}`: {
+                        result.message}\n"
+                    if result.suggestions:
+                        command_content += f"  - {
+                            ', '.join(
+                                result.suggestions)}\n"
+
+                command_message_data = {
+                    "id": str(uuid.uuid4()),
+                    "chat_id": chat_id,
+                    "role": "assistant",
+                    "content": command_content,
+                    "created_at": datetime.utcnow().isoformat(),
+                    "metadata": {
+                        "is_command_result": True,
+                        "command_results": [{"command": r.command, "success": r.success, "data": r.data} for r in command_results]
+                    }
                 }
-            }
-            user_supabase.table("messages").insert(
-                command_message_data).execute()
-            logger.info(f"Command result saved: {command_message_data['id']}")
+                user_supabase.table("messages").insert(
+                    command_message_data).execute()
+                logger.info(
+                    f"Command results saved: {
+                        command_message_data['id']}")
 
-            # If no remaining message after commands, return command result
-            if not remaining_message:
-                user_supabase.table("chats").update({
-                    "updated_at": datetime.utcnow().isoformat()
-                }).eq("id", chat_id).execute()
-                return command_message_data
-
-        # 5. Generate AI response for remaining message (if any)
-        message_for_ai = remaining_message if remaining_message else message.content
+        # 8. Generate AI response for the message (including any remaining content)
+        # Use the remaining message or full content if no commands were
+        # processed
+        message_for_ai = remaining_message if remaining_message and allowed_commands else message.content
 
         # Convert message_history to the format expected by generate_text
         formatted_history = []
@@ -220,10 +302,52 @@ async def create_message(
                 "content": msg.get("content")
             })
 
-        ai_response_text = generate_text(
-            prompt=message_for_ai,
-            history=formatted_history,
-            system_prompt=enhanced_system_prompt
+        # Enhance system prompt with security context
+        security_enhanced_prompt = enhanced_system_prompt + f"""
+
+SECURITY CONTEXT:
+- User permissions: {', '.join(security_context['user_permissions'])}
+- Admin status: {security_context['is_admin']}
+- User status: {security_context.get('user_status', 'active')}
+
+IMPORTANT SAFETY GUIDELINES:
+1. Only suggest actions the user has permission for
+2. If user requests unauthorized actions, explain why it's not allowed
+3. Always respect user constraints and quotas
+4. Never bypass security measures or suggest workarounds
+5. Be helpful within the allowed scope of permissions
+"""
+
+        # Check if user has file organization permissions to use drive tools
+        has_drive_permissions = "file_organization" in security_context[
+            'user_permissions'] or security_context['is_admin']
+
+        if has_drive_permissions:
+            # Use AI with drive tools
+            from services.generative_ai import generate_text_with_tools
+            ai_response_text = await generate_text_with_tools(
+                prompt=message_for_ai,
+                history=formatted_history,
+                system_prompt=security_enhanced_prompt,
+                user_id=current_user.id,
+                user_supabase_client=user_supabase
+            )
+        else:
+            # Use regular AI without tools
+            ai_response_text = generate_text(
+                prompt=message_for_ai,
+                history=formatted_history,
+                system_prompt=security_enhanced_prompt
+            )
+
+        # Calculate token usage (approximate)
+        estimated_tokens = (len(message.content) + len(ai_response_text)) // 4
+
+        # Update user usage statistics
+        await security_service.update_user_usage(
+            user_id=current_user.id,
+            tokens_used=estimated_tokens,
+            messages_count=1
         )
 
         # 6. Save AI's response
@@ -236,7 +360,9 @@ async def create_message(
             "metadata": {
                 "model": user_preferences.get('default_model', 'gemini-1.5-flash'),
                 "enhanced_context": True,
-                "context_summary_updated": True
+                "context_summary_updated": True,
+                "tokens_used": estimated_tokens,
+                "security_context_applied": True
             }
         }
         response = user_supabase.table(

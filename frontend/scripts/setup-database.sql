@@ -321,6 +321,60 @@ CREATE POLICY "Users can view attachments in accessible chats/messages" ON attac
     ))
   );
 
+-- =====================================================
+-- METADATA COLUMNS VALIDATION AND INITIALIZATION
+-- =====================================================
+
+-- Add metadata column to chats table if it doesn't exist
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'chats' AND column_name = 'metadata') THEN
+        ALTER TABLE chats ADD COLUMN metadata JSONB DEFAULT '{"totalMessages": 0, "totalTokens": 0, "averageResponseTime": 0, "lastActivity": ""}';
+    END IF;
+END $$;
+
+-- Add shared_users column to chats table if it doesn't exist
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'chats' AND column_name = 'shared_users') THEN
+        ALTER TABLE chats ADD COLUMN shared_users TEXT[] DEFAULT '{}';
+    END IF;
+END $$;
+
+-- Add updated_at column to chats table if it doesn't exist
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'chats' AND column_name = 'updated_at') THEN
+        ALTER TABLE chats ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW();
+    END IF;
+END $$;
+
+-- Add metadata column to messages table if it doesn't exist
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'messages' AND column_name = 'metadata') THEN
+        ALTER TABLE messages ADD COLUMN metadata JSONB DEFAULT '{}';
+    END IF;
+END $$;
+
+-- Update existing chats to have proper metadata structure
+UPDATE chats 
+SET metadata = jsonb_build_object(
+    'totalMessages', 0,
+    'totalTokens', 0,
+    'averageResponseTime', 0,
+    'lastActivity', created_at::text
+)
+WHERE metadata IS NULL OR metadata = '{}';
+
+-- Create indexes for the metadata columns
+CREATE INDEX IF NOT EXISTS idx_chats_metadata ON chats USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS idx_messages_metadata ON messages USING GIN (metadata);
+
 
 
 -- =====================================================
@@ -634,6 +688,34 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Function to create version using existing table structure
+CREATE OR REPLACE FUNCTION create_version_for_changes(
+  p_version TEXT,
+  p_title TEXT,
+  p_description TEXT,
+  p_user_id UUID,
+  p_data JSONB DEFAULT '{}'::jsonb
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  version_id UUID;
+BEGIN
+  -- Create version entry using existing schema only
+  INSERT INTO versions (
+    version, title, description, user_id, timestamp, status, data
+  )
+  VALUES (
+    p_version, p_title, p_description, p_user_id, NOW(), 'current', p_data
+  )
+  RETURNING id INTO version_id;
+  
+  RETURN version_id;
+END;
+$$;
+
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -788,5 +870,3 @@ GRANT EXECUTE ON FUNCTION promote_user_to_admin TO authenticated;
 
 -- Promote admin user if they exist
 -- SELECT promote_user_to_admin('admin@example.com');
-
-

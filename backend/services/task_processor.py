@@ -161,193 +161,137 @@ class TaskProcessor:
 
     async def _run_task_by_type(
             self, task_type: TaskType, task_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute task based on its type"""
-        command = task_data["command"]
-        parameters = task_data.get("parameters", {})
-        task_id = task_data["id"]
+        """Execute task based on its type with proper permission checking"""
+        try:
+            from services.user_security import get_security_service
+            from storage.database import get_user_supabase_client
 
-        # Add progress logging
-        await self._add_task_log(task_id, f"Starting {task_type.value} task: {command}")
+            # Get user's authenticated supabase client
+            user_id = task_data["user_id"]
+            user_supabase = get_user_supabase_client(
+                None)  # This will need to be enhanced
+            security_service = get_security_service(user_supabase)
 
-        if task_type == TaskType.ORGANIZE:
-            return await self._handle_organize_task(task_id, command, parameters)
-        elif task_type == TaskType.SEARCH:
-            return await self._handle_search_task(task_id, command, parameters)
-        elif task_type == TaskType.CLEANUP:
-            return await self._handle_cleanup_task(task_id, command, parameters)
-        elif task_type == TaskType.FOLDER_OPERATION:
-            return await self._handle_folder_task(task_id, command, parameters)
-        elif task_type == TaskType.BACKUP:
-            return await self._handle_backup_task(task_id, command, parameters)
-        elif task_type == TaskType.ANALYSIS:
-            return await self._handle_analysis_task(task_id, command, parameters)
-        else:
-            raise ValueError(f"Unknown task type: {task_type}")
+            # Check if user still has permission to execute this task
+            constraints = await security_service.get_user_constraints(user_id)
+            command = task_data.get("command", "")
 
-    async def _handle_organize_task(
-            self, task_id: str, command: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle file organization task"""
-        await self._update_task_progress(task_id, 10)
-        await self._add_task_log(task_id, "Scanning directory structure...")
-        await asyncio.sleep(2)  # Simulate work
+            # Re-check command permissions
+            if command:
+                permission_check = await security_service.check_command_permissions(user_id, command)
+                if not permission_check.allowed:
+                    return {
+                        "error": f"Permission denied: {permission_check.reason}",
+                        "status": "permission_denied"
+                    }
 
-        await self._update_task_progress(task_id, 30)
-        await self._add_task_log(task_id, "Analyzing file types and sizes...")
-        await asyncio.sleep(3)
+            # Execute based on task type
+            if task_type == TaskType.FILE_ORGANIZATION:
+                return await self._execute_file_organization_task(task_data, user_supabase)
+            elif task_type == TaskType.SEARCH_OPERATION:
+                return await self._execute_search_task(task_data, user_supabase)
+            elif task_type == TaskType.CLEANUP_OPERATION:
+                return await self._execute_cleanup_task(task_data, user_supabase)
+            elif task_type == TaskType.COMMAND_EXECUTION:
+                return await self._execute_command_task(task_data, user_supabase)
+            else:
+                return {"error": f"Unknown task type: {task_type}",
+                        "status": "error"}
 
-        await self._update_task_progress(task_id, 60)
-        await self._add_task_log(task_id, "Creating organized folder structure...")
-        await asyncio.sleep(2)
+        except Exception as e:
+            logger.error(f"Error executing task {task_data['id']}: {e}")
+            return {"error": str(e), "status": "error"}
 
-        await self._update_task_progress(task_id, 80)
-        await self._add_task_log(task_id, "Moving files to appropriate folders...")
-        await asyncio.sleep(3)
+    async def _execute_file_organization_task(
+            self, task_data: Dict[str, Any], user_supabase) -> Dict[str, Any]:
+        """Execute file organization task with change tracking"""
+        try:
+            from services.drive_agent import create_drive_agent
 
-        await self._update_task_progress(task_id, 95)
-        await self._add_task_log(task_id, "Cleaning up empty directories...")
-        await asyncio.sleep(1)
+            # Create drive agent with user context
+            drive_agent = create_drive_agent(
+                user_id=task_data["user_id"],
+                user_supabase_client=user_supabase
+            )
 
-        return {
-            "files_organized": 342,
-            "folders_created": 12,
-            "empty_folders_removed": 5,
-            "space_saved": "2.3 GB",
-            "duration_seconds": 11
-        }
+            # Process the organization command
+            command = task_data.get("command", "")
+            result = await drive_agent.process_message(command)
 
-    async def _handle_search_task(
-            self, task_id: str, command: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle search task"""
-        query = parameters.get("query", "")
+            # The drive agent will handle change tracking internally
+            return {
+                "result": result,
+                "status": "completed",
+                "changes_tracked": True
+            }
 
-        await self._update_task_progress(task_id, 20)
-        await self._add_task_log(task_id, f"Indexing files for search query: '{query}'...")
-        await asyncio.sleep(2)
+        except Exception as e:
+            logger.error(f"Error in file organization task: {e}")
+            return {"error": str(e), "status": "error"}
 
-        await self._update_task_progress(task_id, 50)
-        await self._add_task_log(task_id, "Searching through file contents...")
-        await asyncio.sleep(3)
+    async def _execute_search_task(
+            self, task_data: Dict[str, Any], user_supabase) -> Dict[str, Any]:
+        """Execute search task"""
+        try:
+            from services.drive_agent import create_drive_agent
 
-        await self._update_task_progress(task_id, 80)
-        await self._add_task_log(task_id, "Ranking and filtering results...")
-        await asyncio.sleep(1)
+            drive_agent = create_drive_agent(
+                user_id=task_data["user_id"],
+                user_supabase_client=user_supabase
+            )
 
-        return {
-            "query": query,
-            "results_found": 28,
-            "files_searched": 1543,
-            "search_time_seconds": 6,
-            "top_matches": [
-                {"file": "document1.pdf", "relevance": 0.95},
-                {"file": "notes.txt", "relevance": 0.87},
-                {"file": "presentation.pptx", "relevance": 0.76}
-            ]
-        }
+            command = task_data.get("command", "")
+            result = await drive_agent.process_message(command)
 
-    async def _handle_cleanup_task(
-            self, task_id: str, command: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle cleanup task"""
-        await self._update_task_progress(task_id, 15)
-        await self._add_task_log(task_id, "Scanning for temporary files...")
-        await asyncio.sleep(2)
+            return {
+                "result": result,
+                "status": "completed"
+            }
 
-        await self._update_task_progress(task_id, 35)
-        await self._add_task_log(task_id, "Finding duplicate files...")
-        await asyncio.sleep(3)
+        except Exception as e:
+            logger.error(f"Error in search task: {e}")
+            return {"error": str(e), "status": "error"}
 
-        await self._update_task_progress(task_id, 55)
-        await self._add_task_log(task_id, "Clearing cache directories...")
-        await asyncio.sleep(2)
+    async def _execute_cleanup_task(
+            self, task_data: Dict[str, Any], user_supabase) -> Dict[str, Any]:
+        """Execute cleanup task with change tracking"""
+        try:
+            from services.drive_agent import create_drive_agent
 
-        await self._update_task_progress(task_id, 75)
-        await self._add_task_log(task_id, "Optimizing file system...")
-        await asyncio.sleep(2)
+            drive_agent = create_drive_agent(
+                user_id=task_data["user_id"],
+                user_supabase_client=user_supabase
+            )
 
-        await self._update_task_progress(task_id, 90)
-        await self._add_task_log(task_id, "Removing empty folders...")
-        await asyncio.sleep(1)
+            command = task_data.get("command", "")
+            result = await drive_agent.process_message(command)
 
-        return {
-            "temp_files_removed": 156,
-            "duplicates_found": 23,
-            "cache_cleared": "1.8 GB",
-            "empty_folders_removed": 8,
-            "total_space_freed": "2.1 GB"
-        }
+            return {
+                "result": result,
+                "status": "completed",
+                "changes_tracked": True
+            }
 
-    async def _handle_folder_task(
-            self, task_id: str, command: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle folder operation task"""
-        folder_name = parameters.get("folder_name", "")
-        action = parameters.get("action", "create")
+        except Exception as e:
+            logger.error(f"Error in cleanup task: {e}")
+            return {"error": str(e), "status": "error"}
 
-        await self._update_task_progress(task_id, 25)
-        await self._add_task_log(task_id, f"Processing folder '{folder_name}' with action '{action}'...")
-        await asyncio.sleep(1)
+    async def _execute_command_task(
+            self, task_data: Dict[str, Any], user_supabase) -> Dict[str, Any]:
+        """Execute general command task"""
+        try:
+            command = task_data.get("command", "")
+            result = command_processor.process_command(command)
 
-        await self._update_task_progress(task_id, 75)
-        await self._add_task_log(task_id, "Setting up folder structure...")
-        await asyncio.sleep(2)
+            return {
+                "result": result.message if result else "Command executed",
+                "status": "completed",
+                "command_success": result.success if result else False
+            }
 
-        return {
-            "folder_name": folder_name,
-            "action": action,
-            "success": True,
-            "path": f"/organized/{folder_name}"
-        }
-
-    async def _handle_backup_task(
-            self, task_id: str, command: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle backup task"""
-        await self._update_task_progress(task_id, 10)
-        await self._add_task_log(task_id, "Preparing backup...")
-        await asyncio.sleep(2)
-
-        await self._update_task_progress(task_id, 40)
-        await self._add_task_log(task_id, "Compressing files...")
-        await asyncio.sleep(4)
-
-        await self._update_task_progress(task_id, 80)
-        await self._add_task_log(task_id, "Uploading to cloud storage...")
-        await asyncio.sleep(3)
-
-        return {
-            "files_backed_up": 1247,
-            "backup_size": "4.2 GB",
-            "compression_ratio": 0.73,
-            "backup_location": "cloud://backups/user_backup_20250626.zip"
-        }
-
-    async def _handle_analysis_task(
-            self, task_id: str, command: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle analysis task"""
-        await self._update_task_progress(task_id, 20)
-        await self._add_task_log(task_id, "Collecting file statistics...")
-        await asyncio.sleep(2)
-
-        await self._update_task_progress(task_id, 50)
-        await self._add_task_log(task_id, "Analyzing usage patterns...")
-        await asyncio.sleep(3)
-
-        await self._update_task_progress(task_id, 80)
-        await self._add_task_log(task_id, "Generating insights...")
-        await asyncio.sleep(2)
-
-        return {
-            "total_files": 2847,
-            "total_size": "12.4 GB",
-            "file_types": {
-                "documents": 1203,
-                "images": 856,
-                "videos": 124,
-                "code": 664
-            },
-            "recommendations": [
-                "Consider archiving files older than 2 years",
-                "Large video files can be compressed",
-                "Duplicate documents found in multiple folders"
-            ]
-        }
+        except Exception as e:
+            logger.error(f"Error in command task: {e}")
+            return {"error": str(e), "status": "error"}
 
     async def _update_task_status(
             self, task_id: str, status: TaskStatus, updates: Dict[str, Any] = None):

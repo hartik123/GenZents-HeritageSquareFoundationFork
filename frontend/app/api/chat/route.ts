@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server"
-import { logger } from "@/lib/utils/logger"
+import { createClient } from "@supabase/supabase-js"
 import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
@@ -7,28 +7,31 @@ export async function POST(request: NextRequest) {
     const supabase = createSupabaseServerClient()
     const { message, chatId } = await request.json()
 
-    // Debug: Log the request
-    logger.info("Chat API request received", {
-      component: "chat-api",
-      chatId,
-      hasMessage: !!message,
-    })
-
-    // Try to get user from authorization header first
     const authHeader = request.headers.get("authorization")
     let user = null
     let token = null
 
     if (authHeader && authHeader.startsWith("Bearer ")) {
       token = authHeader.substring(7)
-      // Verify the token with Supabase
-      const { data: userData, error: tokenError } = await supabase.auth.getUser(token)
+
+      const tokenClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          auth: { autoRefreshToken: false, persistSession: false },
+          global: {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        }
+      )
+
+      const { data: userData, error: tokenError } = await tokenClient.auth.getUser()
+
       if (!tokenError && userData.user) {
         user = userData.user
       }
     }
 
-    // Fallback to server-side session
     if (!user) {
       const {
         data: { user: sessionUser },
@@ -37,40 +40,60 @@ export async function POST(request: NextRequest) {
 
       if (!authError && sessionUser) {
         user = sessionUser
-        // Get the session token
         const { data: sessionData } = await supabase.auth.getSession()
         token = sessionData.session?.access_token
       }
     }
 
-    // Debug: Log auth status
-    logger.info("Auth check result", {
-      component: "chat-api",
-      hasUser: !!user,
-      userId: user?.id,
-      hasToken: !!token,
-      authMethod: authHeader ? "bearer" : "session",
-    })
-
     if (!user || !token) {
-      logger.error("Authentication failed", new Error("No user or token"), { component: "chat-api" })
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const backendUrl = process.env.BACKEND_URL || "http://127.0.0.1:8000"
+    const { createAdminClient } = await import("@/lib/supabase/server")
+    const adminSupabase = createAdminClient()
 
-    logger.info("Proxying to backend", {
-      component: "chat-api",
-      backendUrl,
-      endpoint: `${backendUrl}/api/messages/chat/${chatId}`,
-      userId: user.id,
-    })
+    let { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("permissions, is_admin, status")
+      .eq("id", user.id)
+      .single()
+
+    if (profileError && !profile) {
+      const { data: adminProfile, error: adminError } = await adminSupabase
+        .from("profiles")
+        .select("permissions, is_admin, status")
+        .eq("id", user.id)
+        .single()
+
+      if (adminProfile) {
+        profile = adminProfile
+        profileError = null
+      }
+    }
+
+    if (profileError || !profile) {
+      return NextResponse.json(
+        {
+          error: "Profile not found. Please ensure your account is properly set up.",
+        },
+        { status: 404 }
+      )
+    }
+
+    if (profile.status !== "active") {
+      return NextResponse.json({ error: "Account not active" }, { status: 403 })
+    }
+
+    const backendUrl = process.env.BACKEND_URL || "http://127.0.0.1:8000"
 
     const res = await fetch(`${backendUrl}/api/messages/chat/${chatId}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+        "X-User-Id": user.id,
+        "X-User-Permissions": JSON.stringify(profile.permissions || []),
+        "X-User-Is-Admin": profile.is_admin ? "true" : "false",
       },
       body: JSON.stringify({
         role: "user",
@@ -86,6 +109,7 @@ export async function POST(request: NextRequest) {
       } catch {
         errorData = { detail: errorText }
       }
+
       return NextResponse.json(
         {
           error: errorData.detail || "Failed to process message",
@@ -95,9 +119,9 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await res.json()
+
     return NextResponse.json(data)
   } catch (error) {
-    logger.error("Chat API error", error as Error, { component: "chat-api" })
     return NextResponse.json(
       {
         error: "Internal server error",

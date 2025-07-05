@@ -49,5 +49,6 @@ export interface TaskStore {
   getTask: (taskId: string) => Promise<Task | null>
   subscribeToTasks: () => () => void
   refreshTask: (taskId: string) => Promise<void>
+  clearAll: () => void
   subscriptionCleanup?: () => void
 }

@@ -13,7 +13,7 @@ import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import { sanitizeInput } from "@/lib/utils/security"
 import { CommandSuggestions } from "./command-suggestions"
-import { chatCommandProcessor } from "@/lib/services/chat-command-processor"
+import { chatCommandProcessor } from "@/lib/services/command-processor"
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const ALLOWED_FILE_TYPES = [

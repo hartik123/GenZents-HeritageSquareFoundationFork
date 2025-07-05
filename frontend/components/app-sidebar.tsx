@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge"
 import { MessageSquare, Plus, LogOut, MoreHorizontal, User, GitBranch, Shield, Activity } from "lucide-react"
 import { useChatStore } from "@/lib/stores/chat-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { useTaskStore } from "@/lib/stores/task-store"
 
 const NAVIGATION_ITEMS = [
   { title: "Tasks", url: "/tasks", icon: Activity, permission: "ai_chat" },
@@ -37,8 +38,9 @@ const NAVIGATION_ITEMS = [
 
 export function AppSidebar() {
   const router = useRouter()
-  const { chats, createChat, selectChat, deleteChat, loadChats, currentChatId } = useChatStore()
-  const { user, profile, signOut, isAdmin, hasPermission } = useAuthStore()
+  const { chats, createChat, selectChat, deleteChat, loadChats, currentChatId, clearAll: clearChats } = useChatStore()
+  const { user, profile, signOut, isAdmin, hasPermission, loading } = useAuthStore()
+  const { clearAll: clearTasks } = useTaskStore()
 
   useEffect(() => {
     loadChats()
@@ -63,11 +65,30 @@ export function AppSidebar() {
 
   const handleSignOut = async () => {
     try {
+      // Clear all user-specific data
+      clearChats()
+      clearTasks()
+
       await signOut()
+
+      // Use router.replace for better UX
+      router.replace("/auth")
+
+      // Fallback to window.location if router fails
+      setTimeout(() => {
+        if (window.location.pathname !== "/auth") {
+          window.location.href = "/auth"
+        }
+      }, 100)
     } catch (error) {
       console.error("Sign out failed:", error)
-    } finally {
-      router.push("/auth")
+      // Still redirect to auth even if sign out fails
+      router.replace("/auth")
+      setTimeout(() => {
+        if (window.location.pathname !== "/auth") {
+          window.location.href = "/auth"
+        }
+      }, 100)
     }
   }
 
@@ -191,9 +212,9 @@ export function AppSidebar() {
                   </>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
+                <DropdownMenuItem onClick={handleSignOut} disabled={loading}>
                   <LogOut className="h-4 w-4 mr-2" />
-                  Sign Out
+                  {loading ? "Signing out..." : "Sign Out"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

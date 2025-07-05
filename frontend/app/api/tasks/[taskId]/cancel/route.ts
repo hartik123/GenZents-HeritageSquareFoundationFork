@@ -42,7 +42,6 @@ export async function POST(request: NextRequest, { params }: { params: { taskId:
 
     return NextResponse.json(data)
   } catch (error) {
-    console.error("Error cancelling task:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

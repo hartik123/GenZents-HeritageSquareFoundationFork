@@ -17,7 +17,7 @@ export default function HomePage() {
   useEffect(() => {
     if (initialized && !loading && storeProvider.isInitialized) {
       if (!user) {
-        router.push("/auth")
+        router.replace("/auth")
       } else {
         clearCurrentChat()
       }

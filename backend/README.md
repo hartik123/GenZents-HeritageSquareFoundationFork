@@ -66,8 +66,6 @@ cp .env.example .env
 ```env
 SUPABASE_URL=your_supabase_url_here
 SUPABASE_ANON_KEY=your_supabase_anon_key_here
-OPENAI_API_KEY=your_openai_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
 ```
 
 4. Start the development server:
@@ -128,10 +126,8 @@ This backend handles **computation-heavy operations**:
 ## Database Schema
 
 The backend uses Supabase with the following main tables:
-- `chats` - Chat conversations
 - `messages` - Individual messages within chats
 - `tasks` - Background task management
-- `usage_logs` - AI API usage tracking
 - `analytics` - User analytics events
 
 ## Security
