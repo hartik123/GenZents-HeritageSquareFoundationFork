@@ -12,7 +12,7 @@
 
     ## Team "GenZents"
     - [Aakash Khepar](https://github.com/ak-asu)
-    - [Hartik Mukesh Suhagiya](GitHub profile link)
+    - [Hartik Mukesh Suhagiya](https://github.com/hartik123)
     - [Manas Dani](GitHub profile link)
     - [Vuong Nguyen](GitHub profile link)
     - [Waleed Alfar](https://github.com/waleedalfar)
