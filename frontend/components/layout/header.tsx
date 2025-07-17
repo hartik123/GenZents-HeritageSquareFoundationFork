@@ -18,9 +18,27 @@ import { SettingsDialog } from "@/components/settings/settings-dialog"
 import { usePathname } from "next/navigation"
 import { useChatStore } from "@/lib/stores/chat-store"
 
+import { MoreHorizontal, Edit, Bookmark, Share, Trash2 } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useEffect, useRef, useState } from "react"
+import { Input } from "@/components/ui/input"
+import { useRouter } from "next/navigation"
+
 export function Header() {
   const pathname = usePathname()
-  const { getCurrentChat } = useChatStore()
+  const { getCurrentChat, updateChat, deleteChat } = useChatStore()
+  const chatTitleInputRef = useRef<HTMLInputElement>(null)
+   const [isEditing, setIsEditing] = useState(false)
+  const [title, setTitle] = useState("")
+  const router = useRouter()
+
+  const currentChat = getCurrentChat()
+
+   useEffect(() => {
+    if (isEditing && chatTitleInputRef.current) {
+      chatTitleInputRef.current.focus()
+    }
+  }, [isEditing])
 
   const getPageTitle = () => {
     if (pathname === "/") {
@@ -46,6 +64,64 @@ export function Header() {
     }
   }
 
+ 
+
+  if (!currentChat) return null
+
+  const handleEditTitle = () => {
+    chatTitleInputRef.current?.focus()
+    setTitle(currentChat.title)
+    setIsEditing(true)
+  }
+
+  const handleSaveTitle = async () => {
+    if (title.trim()) {
+      await updateChat(currentChat.id, { title: title.trim() })
+    }
+    setIsEditing(false)
+  }
+
+  const handleBookmark = async () => {
+    await updateChat(currentChat.id, { bookmarked: !currentChat.bookmarked })
+  }
+
+  const handleDelete = async () => {
+    await deleteChat(currentChat.id)
+    router.push("/")
+  }
+
+  const getSettingsButton = () => {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={handleEditTitle}>
+            <Edit className="h-4 w-4 mr-2" />
+            Edit Title
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleBookmark}>
+            <Bookmark className={`h-4 w-4 mr-2 ${currentChat.bookmarked ? "fill-current" : ""}`} />
+            {currentChat.bookmarked ? "Remove Bookmark" : "Bookmark"}
+          </DropdownMenuItem>
+          <DropdownMenuItem>
+            <Share className="h-4 w-4 mr-2" />
+            Share
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+  }
+
+ 
+
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
       <SidebarTrigger className="-ml-1" />
@@ -53,21 +129,26 @@ export function Header() {
 
       <Breadcrumb>
         <BreadcrumbList>
-          <BreadcrumbItem className="hidden md:block">
-            <BreadcrumbLink href="/">{getPageTitle()}</BreadcrumbLink>
+          <BreadcrumbItem className="hidden md:block" onClick={handleEditTitle}>
+            {isEditing ? (
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onBlur={handleSaveTitle}
+                onKeyDown={(e) => e.key === "Enter" && handleSaveTitle()}
+                className="text-base font-semibold"
+                ref={chatTitleInputRef}
+              />
+            ) : (
+              <h1 className="text-base truncate">{currentChat.title}</h1>
+            )}
+
           </BreadcrumbItem>
-          {pathname.startsWith("/chat/") && getCurrentChat() && (
-            <>
-              <BreadcrumbSeparator className="hidden md:block" />
-              <BreadcrumbItem>
-                <BreadcrumbPage className="max-w-[200px] truncate">{getCurrentChat()?.title}</BreadcrumbPage>
-              </BreadcrumbItem>
-            </>
-          )}
         </BreadcrumbList>
       </Breadcrumb>
 
       <div className="ml-auto flex items-center gap-2">
+        {getSettingsButton()}
         <SettingsDialog>
           <Button variant="ghost" size="sm">
             <Settings className="h-4 w-4" />
