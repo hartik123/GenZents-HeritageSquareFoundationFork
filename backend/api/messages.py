@@ -89,8 +89,8 @@ async def create_message(
 
         if not chat_response.data:
             logger.warning(
-                f"Chat {chat_id} not found for user {
-                    current_user.id}")
+                f"""Chat {chat_id} not found for user {
+                    current_user.id}""")
             raise HTTPException(status_code=404, detail="Chat not found")
 
         chat_data = chat_response.data[0]
@@ -143,9 +143,9 @@ async def create_message(
                 else:
                     # Log denied command for auditing
                     logger.warning(
-                        f"Command denied for user {
+                        f"""Command denied for user {
                             current_user.id}: {cmd} - {
-                            command_permission_check.reason}")
+                            command_permission_check.reason}""")
 
             # If no commands are allowed, create error message
             if not allowed_commands and all_commands:
@@ -210,8 +210,7 @@ async def create_message(
                 task_notification_content = f"🔄 **Background Tasks Created**\n\n"
                 task_notification_content += f"The following long-running commands have been queued:\n"
                 for i, cmd in enumerate(long_running_commands):
-                    task_notification_content += f"• `{cmd}` (Task ID: `{
-                        task_ids[i]}`)\n"
+                    task_notification_content += f"""• `{cmd}` (Task ID: `{task_ids[i]}`)\n"""
                 task_notification_content += "\nTasks are running in the background. Check the Tasks page for progress."
 
                 task_message_data = {
@@ -263,13 +262,12 @@ async def create_message(
             if command_results:
                 command_content = "**Commands Executed:**\n\n"
                 for result in command_results:
-                    command_content += f"• `{
+                    command_content += f"""• `{
                         result.command}`: {
-                        result.message}\n"
+                        result.message}\n"""
                     if result.suggestions:
-                        command_content += f"  - {
-                            ', '.join(
-                                result.suggestions)}\n"
+                        command_content += f"""  - {
+                            ', '.join(result.suggestions)}\n"""
 
                 command_message_data = {
                     "id": str(uuid.uuid4()),
@@ -285,8 +283,8 @@ async def create_message(
                 user_supabase.table("messages").insert(
                     command_message_data).execute()
                 logger.info(
-                    f"Command results saved: {
-                        command_message_data['id']}")
+                    f"""Command results saved: {
+                        command_message_data['id']}""")
 
         # 8. Generate AI response for the message (including any remaining content)
         # Use the remaining message or full content if no commands were
@@ -379,8 +377,8 @@ IMPORTANT SAFETY GUIDELINES:
             )
         except Exception as e:
             logger.warning(
-                f"Failed to update context summary for chat {chat_id}: {
-                    str(e)}")
+                f"""Failed to update context summary for chat {chat_id}: {
+                    str(e)}""")
             # Don't fail the request if summary update fails
 
         # 8. Update chat's updated_at timestamp
@@ -408,8 +406,8 @@ async def create_message_stream(
     """Create a new message and stream AI response"""
     try:
         logger.info(
-            f"Creating streaming message for chat {chat_id} by user {
-                current_user.id}")
+            f"""Creating streaming message for chat {chat_id} by user {
+                current_user.id}""")
 
         # Initialize context manager
         context_manager = get_context_manager(user_supabase)
@@ -421,8 +419,8 @@ async def create_message_stream(
 
         if not chat_response.data:
             logger.warning(
-                f"Chat {chat_id} not found for user {
-                    current_user.id}")
+                f"""Chat {chat_id} not found for user {
+                    current_user.id}""")
             raise HTTPException(status_code=404, detail="Chat not found")
 
         chat_data = chat_response.data[0]
@@ -453,8 +451,8 @@ async def create_message_stream(
         }
         user_supabase.table("messages").insert(user_message_data).execute()
         logger.info(
-            f"User message saved for streaming: {
-                user_message_data['id']}")
+            f"""User message saved for streaming: {
+                user_message_data['id']}""")
 
         async def generate_response():
             try:
@@ -463,9 +461,9 @@ async def create_message_stream(
                     command_content = f"**Command Executed:** {
                         command_result.message}"
                     if command_result.suggestions:
-                        command_content += f"\n\n{
+                        command_content += f"""\n\n{
                             chr(10).join(
-                                f'• {suggestion}' for suggestion in command_result.suggestions)}"
+                                f'• {suggestion}' for suggestion in command_result.suggestions)}"""
 
                     # Stream command result
                     yield f"data: {json.dumps({'type': 'command', 'content': command_content})}\n\n"
@@ -542,8 +540,8 @@ async def create_message_stream(
                     )
                 except Exception as e:
                     logger.warning(
-                        f"Failed to update context summary for chat {chat_id}: {
-                            str(e)}")
+                        f"""Failed to update context summary for chat {chat_id}: {
+                            str(e)}""")
                     # Don't fail the stream if summary update fails
 
                 # Update chat timestamp
@@ -552,8 +550,8 @@ async def create_message_stream(
                 }).eq("id", chat_id).execute()
 
                 logger.info(
-                    f"AI streaming message saved: {
-                        ai_message_data['id']}")
+                    f"""AI streaming message saved: {
+                        ai_message_data['id']}""")
                 # Send completion signal with the saved message
                 yield f"data: {json.dumps({'type': 'complete', 'message': ai_response.data[0]})}\n\n"
 

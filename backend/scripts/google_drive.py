@@ -37,8 +37,8 @@ class GoogleDriveService:
             # Verify it's a service account credentials file
             if creds_info.get('type') != 'service_account':
                 raise ValueError(
-                    f"Invalid credentials type. Expected 'service_account', got '{
-                        creds_info.get('type')}'. "
+                    f"""Invalid credentials type. Expected 'service_account', got '{
+                        creds_info.get('type')}'. """
                     "Please use a service account credentials file for backend applications."
                 )
 

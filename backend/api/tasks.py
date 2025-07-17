@@ -39,9 +39,7 @@ async def create_task(
     """Create a new long-running task"""
     try:
         logger.info(
-            f"Creating task for user {
-                current_user.id}: {
-                task.command}")
+            f"""Creating task for user {current_user.id}: {task.command}""")
 
         # Parse command to determine task type and parameters
         task_type, parameters = _parse_command_for_task(
