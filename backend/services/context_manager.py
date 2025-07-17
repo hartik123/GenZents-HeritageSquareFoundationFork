@@ -3,9 +3,8 @@ Context Manager Service for handling chat context, user preferences, and chat su
 This service manages the context that gets passed to the LLM for enhanced responses.
 """
 
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Tuple
 from datetime import datetime
-import json
 from utils.logger import logger
 from storage.database import get_user_supabase_client
 from services.generative_ai import generate_text
@@ -60,7 +59,8 @@ class ContextManager:
 
         except Exception as e:
             logger.error(
-                f"Error retrieving user preferences for {user_id}: {str(e)}")
+                f"""Error retrieving user preferences for {user_id}: {
+                    str(e)}""")
             # Return default preferences on error
             return {
                 "theme": "system",
@@ -91,12 +91,14 @@ class ContextManager:
             # Reverse to get chronological order (oldest first)
             messages = list(reversed(messages_response.data))
             logger.info(
-                f"Retrieved {len(messages)} recent messages for chat {chat_id}")
+                f"""Retrieved {
+                    len(messages)} recent messages for chat {chat_id}""")
             return messages
 
         except Exception as e:
             logger.error(
-                f"Error retrieving recent messages for chat {chat_id}: {str(e)}")
+                f"""Error retrieving recent messages for chat {chat_id}: {
+                    str(e)}""")
             return []
 
     async def get_chat_context_summary(self, chat_id: str) -> str:
@@ -115,7 +117,8 @@ class ContextManager:
 
         except Exception as e:
             logger.error(
-                f"Error retrieving context summary for chat {chat_id}: {str(e)}")
+                f"""Error retrieving context summary for chat {chat_id}: {
+                    str(e)}""")
             return ""
 
     async def generate_enhanced_system_prompt(
@@ -148,7 +151,8 @@ class ContextManager:
                     f"Conversation context: {context_summary}")
 
             enhanced_prompt = "\n\n".join(enhanced_prompt_parts)
-            logger.info(f"Generated enhanced system prompt for user {user_id}, chat {chat_id}")
+            logger.info(
+                f"Generated enhanced system prompt for user {user_id}, chat {chat_id}")
             return enhanced_prompt
 
         except Exception as e:
@@ -227,7 +231,8 @@ class ContextManager:
 
         except Exception as e:
             logger.error(
-                f"Error updating context summary for chat {chat_id}: {str(e)}")
+                f"""Error updating context summary for chat {chat_id}: {
+                    str(e)}""")
             return current_summary
 
     def _format_conversation_for_summary(
@@ -281,7 +286,8 @@ Please create a concise summary (2-3 sentences) of this conversation, focusing o
 
         except Exception as e:
             logger.error(
-                f"Error saving context summary for chat {chat_id}: {str(e)}")
+                f"""Error saving context summary for chat {chat_id}: {
+                    str(e)}""")
             raise
 
     async def prepare_llm_context(
@@ -314,7 +320,8 @@ Please create a concise summary (2-3 sentences) of this conversation, focusing o
             safety_check = await self.security_service.validate_safe_prompt(user_message)
             if not safety_check.allowed:
                 raise ValueError(
-                    f"Message safety check failed: {safety_check.reason}")
+                    f"""Message safety check failed: {
+                        safety_check.reason}""")
 
             # Check if user can send message
             message_check = await self.security_service.check_user_can_send_message(
@@ -322,7 +329,8 @@ Please create a concise summary (2-3 sentences) of this conversation, focusing o
             )
             if not message_check.allowed:
                 raise ValueError(
-                    f"Message not allowed: {message_check.reason}")
+                    f"""Message not allowed: {
+                        message_check.reason}""")
 
             # Add the current user message to history
             current_message = {
