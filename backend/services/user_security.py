@@ -100,8 +100,7 @@ class UserSecurityService:
             if constraints.status != "active":
                 return SecurityCheck(
                     allowed=False,
-                    reason=f"Account status is {
-                        constraints.status}. Please contact support."
+                    reason=f"Account status is {constraints.status}. Please contact support."
                 )
 
             # Check daily message limit
@@ -109,9 +108,7 @@ class UserSecurityService:
             if today_messages >= constraints.max_messages_per_day:
                 return SecurityCheck(
                     allowed=False,
-                    reason=f"Daily message limit reached ({
-                        constraints.max_messages_per_day}). Try again tomorrow.",
-                    remaining_quota={"messages": 0}
+                    reason=f"Daily message limit reached ({constraints.max_messages_per_day}). Try again tomorrow.",remaining_quota={"messages": 0}
                 )
 
             # Estimate tokens (rough approximation: 1 token ≈ 4 characters)
@@ -121,9 +118,7 @@ class UserSecurityService:
             if constraints.tokens_used + estimated_tokens > constraints.max_tokens:
                 return SecurityCheck(
                     allowed=False,
-                    reason=f"Token limit exceeded. Used: {
-                        constraints.tokens_used}, Limit: {
-                        constraints.max_tokens}",
+                    reason=f"Token limit exceeded. Used: {constraints.tokens_used}, Limit: {constraints.max_tokens}",
                     remaining_quota={
                         "tokens": max(
                             0,
@@ -200,8 +195,7 @@ class UserSecurityService:
                 if today_tasks >= constraints.max_tasks_per_day:
                     return SecurityCheck(
                         allowed=False,
-                        reason=f"Daily task limit reached ({
-                            constraints.max_tasks_per_day}). Try again tomorrow.",
+                        reason=f"Daily task limit reached ({constraints.max_tasks_per_day}). Try again tomorrow.",
                         remaining_quota={"tasks": 0}
                     )
 

@@ -173,8 +173,7 @@ class CommandProcessor:
 
         return CommandResult(
             success=True,
-            message=f"{
-                'Created' if action == 'create' else 'Navigated to'} folder: {folder_name}",
+            message=f"{'Created' if action == 'create' else 'Navigated to'} folder: {folder_name}",
             data={"folder_name": folder_name, "action": action},
             is_command=True
         )

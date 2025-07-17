@@ -47,25 +47,27 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     try {
       set({ loading: true })
 
-      const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
-        data: {
+      const res = await fetch('/api/send-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
           full_name: fullName,
           permissions,
-          status: "pending_invitation" as UserStatus,
-          is_admin: false,
-        },
-        redirectTo: `${window.location.origin}/auth/set-password`,
+          is_admin: false
+        })
       })
+      set({ loading: false })
+      await get().fetchUsers()
 
-      if (error) {
-        logger.error("Error inviting user", error as Error, { component: "admin-store" })
-        set({ loading: false })
-        return { error: error.message }
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData?.error || 'Failed to invite user')
       }
 
-      await get().fetchUsers()
-      set({ loading: false })
-      return {}
+
+      return { success: true }
+
     } catch (error) {
       logger.error("Error inviting user", error as Error, { component: "admin-store" })
       set({ loading: false })

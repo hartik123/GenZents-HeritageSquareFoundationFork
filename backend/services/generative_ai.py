@@ -215,12 +215,10 @@ Be helpful and explain what you're doing when using drive tools.
             for msg in history:
                 if msg.get('role') == 'user':
                     drive_agent.chat.send_message(
-                        f"[CONTEXT] User previously said: {
-                            msg.get('content')}")
+                        f"[CONTEXT] User previously said: {msg.get('content')}")
                 elif msg.get('role') == 'assistant':
                     drive_agent.chat.send_message(
-                        f"[CONTEXT] Assistant previously responded: {
-                            msg.get('content')}")
+                        f"[CONTEXT] Assistant previously responded: {msg.get('content')}")
 
         # Process the current message
         response = await drive_agent.process_message(prompt)
