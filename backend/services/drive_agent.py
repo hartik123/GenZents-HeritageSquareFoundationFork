@@ -239,8 +239,7 @@ Be helpful, safe, and provide clear explanations of what you're doing."""
         """Start a new chat session"""
         self.chat = self.model.start_chat()
         logger.info(
-            f"Started new Google Drive agent chat session for user {
-                self.user_id}")
+            f"""Started new Google Drive agent chat session for user {self.user_id}""")
 
     async def process_message(self, message: str) -> str:
         """Process user message and execute any necessary function calls"""
@@ -249,8 +248,7 @@ Be helpful, safe, and provide clear explanations of what you're doing."""
 
         try:
             logger.info(
-                f"Processing user message for user {
-                    self.user_id}: {message}")
+                f"""Processing user message for user {self.user_id}: {message}""")
             response = self.chat.send_message(message)
 
             # Handle function calls
@@ -308,8 +306,7 @@ Be helpful, safe, and provide clear explanations of what you're doing."""
 
         except Exception as e:
             logger.error(
-                f"Error checking permissions for user {
-                    self.user_id}: {e}")
+                f"""Error checking permissions for user {self.user_id}: {e}""")
             return False
 
     async def _track_change(self, change_type: str, resource_path: str,
@@ -399,8 +396,7 @@ Be helpful, safe, and provide clear explanations of what you're doing."""
         if not has_permission:
             error_msg = f"Permission denied for operation: {function_name}"
             logger.warning(
-                f"User {
-                    self.user_id} denied permission for {function_name}")
+                f"""User {self.user_id} denied permission for {function_name}""")
             return {"error": error_msg}
 
         # Execute the original function

@@ -139,7 +139,7 @@ class TaskProcessor:
                     }
                 )
                 logger.info(
-                    f"Task {task_id} will be retried ({retry_count + 1}/{max_retries})")
+                    f"""Task {task_id} will be retried ({retry_count + 1}/{max_retries})""")
             else:
                 # Mark as failed
                 await self._update_task_status(
