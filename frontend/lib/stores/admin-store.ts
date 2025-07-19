@@ -25,17 +25,14 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   fetchUsers: async () => {
     try {
       set({ loading: true })
-
       const { data: users, error } = await supabase
         .from("profiles")
         .select("*")
         .order("created_at", { ascending: false })
-
       if (error) {
         logger.error("Error fetching users", error as Error, { component: "admin-store" })
         return
       }
-
       set({ users: users || [], loading: false })
     } catch (error) {
       logger.error("Error fetching users", error as Error, { component: "admin-store" })
@@ -46,28 +43,19 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   inviteUser: async (email: string, fullName: string, permissions: UserPermission[]) => {
     try {
       set({ loading: true })
-
-      const res = await fetch('/api/send-invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const res = await supabase.auth.admin.inviteUserByEmail(email, {
+        data: {
           email,
           full_name: fullName,
           permissions,
-          is_admin: false
-        })
+          status: "pending_invitation" as UserStatus,
+          is_admin: false,
+        },
+        redirectTo: `${window.location.origin}/auth/set-password`,
       })
-      set({ loading: false })
       await get().fetchUsers()
-
-      if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData?.error || 'Failed to invite user')
-      }
-
-
+      set({ loading: false })
       return { success: true }
-
     } catch (error) {
       logger.error("Error inviting user", error as Error, { component: "admin-store" })
       set({ loading: false })
@@ -78,18 +66,15 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   updateUser: async (id: string, updates: ProfileUpdate) => {
     try {
       set({ loading: true })
-
       const { error } = await supabase
         .from("profiles")
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq("id", id)
-
       if (error) {
         logger.error("Error updating user", error as Error, { component: "admin-store" })
         set({ loading: false })
         return { error: error.message }
       }
-
       await get().fetchUsers()
       set({ loading: false })
       return {}
@@ -103,20 +88,16 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   deleteUser: async (id: string) => {
     try {
       set({ loading: true })
-
       const { error: authError } = await supabase.auth.admin.deleteUser(id)
       if (authError) {
         logger.error("Error deleting user from auth", authError as Error, { component: "admin-store" })
       }
-
       const { error } = await supabase.from("profiles").delete().eq("id", id)
-
       if (error) {
         logger.error("Error deleting user profile", error as Error, { component: "admin-store" })
         set({ loading: false })
         return { error: error.message }
       }
-
       await get().fetchUsers()
       set({ loading: false })
       return {}

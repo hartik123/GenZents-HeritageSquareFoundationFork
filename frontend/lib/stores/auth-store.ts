@@ -36,34 +36,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initialize: async () => {
     try {
       set({ loading: true })
-
       const {
         data: { session },
         error,
       } = await supabase.auth.getSession()
-
       if (error) {
         logger.error("Error getting session", error as Error, { component: "auth-store" })
       }
-
       if (session?.user) {
         await get().refreshProfile()
       }
-
       set({
         session,
         user: session?.user || null,
         loading: false,
         initialized: true,
       })
-
       supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === "SIGNED_IN" && session?.user) {
           await get().refreshProfile()
         } else if (event === "SIGNED_OUT") {
           set({ profile: null, user: null, session: null })
         }
-
         set({
           session,
           user: session?.user || null,
@@ -78,15 +72,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   refreshProfile: async () => {
     const { user } = get()
     if (!user) return
-
     try {
       const { data: profile, error } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-
       if (error) {
         logger.error("Error fetching profile", error as Error, { component: "auth-store" })
         return
       }
-
       set({ profile })
     } catch (error) {
       logger.error("Error refreshing profile", error as Error, { component: "auth-store" })
@@ -100,14 +91,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         email,
         password,
       })
-
       if (error) {
         set({ loading: false })
         return { error: error.message }
       }
-
       await supabase.from("profiles").update({ last_sign_in: new Date().toISOString() }).eq("id", data.user.id)
-
       await get().refreshProfile()
       set({ loading: false })
       return {}
@@ -122,15 +110,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       // Clear state immediately to prevent UI interactions
       set({ loading: true })
-
       const { error } = await supabase.auth.signOut()
       if (error) {
         logger.error("Error signing out", error as Error, { component: "auth-store" })
       }
-
       // Clear all state regardless of supabase response
       set({ user: null, profile: null, session: null, loading: false })
-
       // Clear any cached data
       if (typeof window !== "undefined") {
         // Clear all localStorage items that might be related to auth
@@ -145,7 +130,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       logger.error("Error signing out", error as Error, { component: "auth-store" })
       // Clear state even if there's an error
       set({ user: null, profile: null, session: null, loading: false })
-
       // Clear any cached data
       if (typeof window !== "undefined") {
         // Clear all localStorage items that might be related to auth
@@ -178,17 +162,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const { user } = get()
       if (!user) return { error: "No authenticated user" }
-
       const { error } = await supabase
         .from("profiles")
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq("id", user.id)
-
       if (error) {
         logger.error("Error updating profile", error as Error, { component: "auth-store" })
         return { error: error.message }
       }
-
       await get().refreshProfile()
       return {}
     } catch (error) {
@@ -202,11 +183,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/reset-password`,
       })
-
       if (error) {
         return { error: error.message }
       }
-
       return {}
     } catch (error) {
       logger.error("Error resetting password", error as Error, { component: "auth-store" })
@@ -217,11 +196,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   updatePassword: async (password: string) => {
     try {
       const { error } = await supabase.auth.updateUser({ password })
-
       if (error) {
         return { error: error.message }
       }
-
       return {}
     } catch (error) {
       logger.error("Error updating password", error as Error, { component: "auth-store" })
@@ -236,18 +213,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           token_hash: token,
           type: "recovery",
         })
-
         if (error) {
           return { error: error.message }
         }
       }
-
       const { error } = await supabase.auth.updateUser({ password })
-
       if (error) {
         return { error: error.message }
       }
-
       return {}
     } catch (error) {
       logger.error("Error setting password", error as Error, { component: "auth-store" })

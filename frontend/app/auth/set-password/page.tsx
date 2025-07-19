@@ -53,28 +53,23 @@ export default function SetPasswordPage() {
     e.preventDefault()
     setError("")
     setSuccess("")
-
     if (!token) {
       setError("Invalid or missing invitation token")
       return
     }
-
     if (!password || !confirmPassword) {
       setError("Please fill in all fields")
       return
     }
-
     const passwordError = validatePassword(password)
     if (passwordError) {
       setError(passwordError)
       return
     }
-
     if (password !== confirmPassword) {
       setError("Passwords do not match")
       return
     }
-
     const result = await setPassword(password, token)
     if (result.error) {
       setError(result.error)
@@ -100,13 +95,11 @@ export default function SetPasswordPage() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-
             {success && (
               <Alert>
                 <AlertDescription>{success}</AlertDescription>
               </Alert>
             )}
-
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
@@ -129,7 +122,6 @@ export default function SetPasswordPage() {
                 </button>
               </div>
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
               <div className="relative">
@@ -152,7 +144,6 @@ export default function SetPasswordPage() {
                 </button>
               </div>
             </div>
-
             <div className="text-sm text-muted-foreground space-y-1">
               <p>Password requirements:</p>
               <ul className="text-xs space-y-1 ml-4">
@@ -163,7 +154,6 @@ export default function SetPasswordPage() {
                 <li>• One special character (@$!%*?&)</li>
               </ul>
             </div>
-
             <Button type="submit" disabled={loading || !token} className="w-full">
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Set Password

@@ -109,6 +109,9 @@ importers:
       next-themes:
         specifier: latest
         version: 0.4.6(react-dom@18.0.0(react@18.0.0))(react@18.0.0)
+      nodemailer:
+        specifier: ^7.0.5
+        version: 7.0.5
       react:
         specifier: ^18
         version: 18.0.0
@@ -127,6 +130,9 @@ importers:
       use-sync-external-store:
         specifier: latest
         version: 1.5.0(react@18.0.0)
+      uuid:
+        specifier: ^11.1.0
+        version: 11.1.0
       zod:
         specifier: ^3.25.67
         version: 3.25.67
@@ -2761,6 +2767,11 @@ packages:
     resolution:
       { integrity: sha512-xxOWJsBKtzAq7DY0J+DTzuz58K8e7sJbdgwkbMWQe8UYB6ekmsQ45q0M/tJDsGaZmbC+l7n57UV8Hl5tHxO9uw== }
 
+  nodemailer@7.0.5:
+    resolution:
+      { integrity: sha512-nsrh2lO3j4GkLLXoeEksAMgAOqxOv6QumNRVQTJwKH4nuiww6iC2y7GyANs9kRAxCexg3+lTWM3PZ91iLlVjfg== }
+    engines: { node: ">=6.0.0" }
+
   normalize-path@3.0.0:
     resolution:
       { integrity: sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA== }
@@ -3536,6 +3547,11 @@ packages:
   util-deprecate@1.0.2:
     resolution:
       { integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw== }
+
+  uuid@11.1.0:
+    resolution:
+      { integrity: sha512-0/A9rDy9P7cJ+8w1c9WD9V//9Wj15Ce2MPz8Ri6032usz+NfePxx5AcN3bN+r6ZL6jEo066/yNYB3tn4pQEx+A== }
+    hasBin: true
 
   v8-compile-cache@2.4.0:
     resolution:
@@ -6035,6 +6051,8 @@ snapshots:
 
   node-releases@2.0.19: {}
 
+  nodemailer@7.0.5: {}
+
   normalize-path@3.0.0: {}
 
   normalize-range@0.1.2: {}
@@ -6745,6 +6763,8 @@ snapshots:
       react: 18.0.0
 
   util-deprecate@1.0.2: {}
+
+  uuid@11.1.0: {}
 
   v8-compile-cache@2.4.0: {}
 
