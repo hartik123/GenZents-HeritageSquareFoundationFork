@@ -26,24 +26,16 @@ import { useRouter } from "next/navigation"
 
 export function Header() {
   const pathname = usePathname()
-  const { getCurrentChat, updateChat, deleteChat } = useChatStore()
+  const { getCurrentChat, updateChat, deleteChat, selectChat } = useChatStore()
   const chatTitleInputRef = useRef<HTMLInputElement>(null)
-   const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState("")
   const router = useRouter()
 
   const currentChat = getCurrentChat()
 
-   useEffect(() => {
-    if (isEditing && chatTitleInputRef.current) {
-      chatTitleInputRef.current.focus()
-    }
-  }, [isEditing])
-
   const getPageTitle = () => {
-    if (pathname === "/") {
-      return "Archyx AI"
-    }
+    if (pathname === "/") return "Archyx AI"
 
     if (pathname.startsWith("/chat/")) {
       const currentChat = getCurrentChat()
@@ -58,11 +50,22 @@ export function Header() {
       case "/account":
         return "Account"
       default:
-        // For any other paths, capitalize the first segment
         const segments = pathname.split("/").filter(Boolean)
-        return segments.length > 0 ? segments[0].charAt(0).toUpperCase() + segments[0].slice(1) : "Archyx AI"
+        return segments.length > 0
+          ? segments[0].charAt(0).toUpperCase() + segments[0].slice(1)
+          : "Archyx AI"
     }
   }
+
+  useEffect(() => {
+    const match = pathname.match(/\/chat\/([a-f0-9-]+)/)
+    const chatId = match ? match[1] : null
+    if (chatId) selectChat(chatId)
+  }, [pathname, selectChat])
+
+  useEffect(() => {
+    setTitle(getPageTitle())
+  }, [pathname, currentChat])
 
   if (!currentChat) return null
 
@@ -88,36 +91,33 @@ export function Header() {
     router.push("/")
   }
 
-  const getSettingsButton = () => {
-    return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={handleEditTitle}>
-            <Edit className="h-4 w-4 mr-2" />
-            Edit Title
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleBookmark}>
-            <Bookmark className={`h-4 w-4 mr-2 ${currentChat.bookmarked ? "fill-current" : ""}`} />
-            {currentChat.bookmarked ? "Remove Bookmark" : "Bookmark"}
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Share className="h-4 w-4 mr-2" />
-            Share
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleDelete} className="text-destructive">
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    )
-  }
-
+  const getSettingsButton = () => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm">
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={handleEditTitle}>
+          <Edit className="h-4 w-4 mr-2" />
+          Edit Title
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleBookmark}>
+          <Bookmark className={`h-4 w-4 mr-2 ${currentChat.bookmarked ? "fill-current" : ""}`} />
+          {currentChat.bookmarked ? "Remove Bookmark" : "Bookmark"}
+        </DropdownMenuItem>
+        <DropdownMenuItem>
+          <Share className="h-4 w-4 mr-2" />
+          Share
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+          <Trash2 className="h-4 w-4 mr-2" />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
@@ -137,9 +137,8 @@ export function Header() {
                 ref={chatTitleInputRef}
               />
             ) : (
-              <h1 className="text-base truncate">{currentChat.title}</h1>
+              <h1 className="text-base truncate">{title}</h1>
             )}
-
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -151,7 +150,6 @@ export function Header() {
             <Settings className="h-4 w-4" />
           </Button>
         </SettingsDialog>
-
         <ThemeToggle />
       </div>
     </header>
