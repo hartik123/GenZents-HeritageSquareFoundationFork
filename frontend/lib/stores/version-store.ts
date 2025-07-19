@@ -90,18 +90,29 @@ export const useVersionStore = create<VersionState>((set, get) => ({
 
   rollbackToVersion: async (versionId: string) => {
     try {
+      // TODO: Implement rollback logic
       const supabase = createClient()
-
-      const { data: version, error: versionError } = await supabase
-        .from("chat_versions")
+      // Get all versions sorted by created_at ascending
+      const { data: allVersions, error: allVersionsError } = await supabase
+        .from("versions")
         .select("*")
-        .eq("id", versionId)
-        .single()
+        .order("created_at", { ascending: true })
+      if (allVersionsError) throw allVersionsError
 
-      if (versionError) throw versionError
+      // Find the rollback version and its index
+      const rollbackIdx = allVersions.findIndex((v: any) => v.id === versionId)
+      if (rollbackIdx === -1) throw new Error("Version not found")
 
-      const chatData = version.data as Chat
+      // Delete all versions after the rollback version
+      const laterVersionIds = allVersions.slice(rollbackIdx + 1).map((v: any) => v.id)
+      if (laterVersionIds.length > 0) {
+        const { error: deleteError } = await supabase.from("chat_versions").delete().in("id", laterVersionIds)
+        if (deleteError) throw deleteError
+      }
 
+      // Restore chat data from the rollback version
+      const rollbackVersion = allVersions[rollbackIdx]
+      const chatData = rollbackVersion.data as Chat
       const { error: updateError } = await supabase
         .from("chats")
         .update({
@@ -111,10 +122,10 @@ export const useVersionStore = create<VersionState>((set, get) => ({
           status: chatData.status,
         })
         .eq("id", chatData.id)
-
       if (updateError) throw updateError
 
-      await get().createVersion(chatData.id, `Rolled back to version ${version.version}`)
+      // Reload versions
+      await get().loadVersions(chatData.id)
     } catch (error) {
       logger.error("Error rolling back to version", error as Error, { component: "version-store", versionId })
       throw error

@@ -75,8 +75,8 @@ async def create_message(
     """Create a new message in a chat and get a response from the AI"""
     try:
         logger.info(
-            f"Creating message for chat {chat_id} by user {
-                current_user.id}")
+            f"""Creating message for chat {chat_id} by user {
+                current_user.id}""")
 
         # 1. Initialize services
         context_manager = get_context_manager(user_supabase)

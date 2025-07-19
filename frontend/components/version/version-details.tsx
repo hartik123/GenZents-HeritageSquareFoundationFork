@@ -5,15 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Version } from "@/lib/types/version"
-import { getStatusColor, exportVersion } from "@/lib/utils/version"
+import { exportVersion } from "@/lib/utils/version"
 
 interface VersionDetailsProps {
   version: Version
+  isCurrent?: boolean
   onRollback: (versionId: string) => void
   onBack: () => void
 }
 
-export const VersionDetails = memo<VersionDetailsProps>(function VersionDetails({ version, onRollback, onBack }) {
+export const VersionDetails = memo<VersionDetailsProps>(function VersionDetails({
+  version,
+  isCurrent = false,
+  onRollback,
+  onBack,
+}) {
   const handleRollback = () => {
     onRollback(version.id)
   }
@@ -45,7 +51,7 @@ export const VersionDetails = memo<VersionDetailsProps>(function VersionDetails(
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          {version.status !== "current" && (
+          {!isCurrent && (
             <Button variant="default" size="sm" onClick={handleRollback}>
               <RotateCcw className="h-4 w-4 mr-2" />
               Rollback
@@ -63,7 +69,7 @@ export const VersionDetails = memo<VersionDetailsProps>(function VersionDetails(
               </Badge>
               <span>{version.title}</span>
             </CardTitle>
-            <Badge className={getStatusColor(version.status)}>{version.status}</Badge>
+            <Badge className="bg-green-100 text-green-800">current</Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
