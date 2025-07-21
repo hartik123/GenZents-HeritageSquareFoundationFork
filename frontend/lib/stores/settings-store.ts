@@ -5,10 +5,6 @@ import type { UserPreferences } from "@/lib/types"
 
 interface SettingsState extends UserPreferences {
   chats: any[]
-  apiKeys: {
-    openai?: string
-    anthropic?: string
-  }
   googleDriveConnected: boolean
   googleDriveEmail: string
   googleDriveAutoSync: boolean
@@ -38,7 +34,6 @@ const defaultSettings: Omit<SettingsState, "updateSetting" | "resetSettings" | "
   maxTokens: 2048,
   systemPrompt: "",
   chats: [],
-  apiKeys: {},
   googleDriveConnected: false,
   googleDriveEmail: "",
   googleDriveAutoSync: false,
@@ -53,7 +48,11 @@ export const useSettingsStore = create<SettingsState>()(
       ...defaultSettings,
 
       updateSetting: (key, value) => {
-        set((state) => ({ ...state, [key]: value }))
+        if (key === "language") {
+          set((state) => ({ ...state, language: "en" }))
+        } else {
+          set((state) => ({ ...state, [key]: value }))
+        }
       },
 
       resetSettings: () => {
@@ -68,7 +67,8 @@ export const useSettingsStore = create<SettingsState>()(
       importSettings: (settingsJson: string) => {
         try {
           const settings = JSON.parse(settingsJson)
-          set({ ...defaultSettings, ...settings })
+          // Always force language to English
+          set({ ...defaultSettings, ...settings, language: "en" })
         } catch (error) {
           logger.error("Failed to import settings", error as Error, { component: "settings-store" })
         }

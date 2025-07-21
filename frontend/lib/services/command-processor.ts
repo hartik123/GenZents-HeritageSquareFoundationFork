@@ -79,37 +79,28 @@ export class ChatCommandProcessor {
       const {
         data: { session },
       } = await supabase.auth.getSession()
-
       if (!session) {
         return "Status: Not authenticated"
       }
-
-      // Get task statistics using frontend API route for monitoring
-      const response = await fetch(`/api/tasks`, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        const tasks = data.tasks || []
-
-        const stats = tasks.reduce((acc: any, task: Task) => {
-          acc[task.status] = (acc[task.status] || 0) + 1
-          return acc
-        }, {})
-
-        return `
-**System Status:**
-- Active Tasks: ${stats.running || 0}
-- Pending Tasks: ${stats.pending || 0}
-- Completed Today: ${stats.completed || 0}
-- Connection: ✅ Connected
-        `.trim()
+      const { data: tasks, error } = await supabase.from("tasks").select("status").eq("user_id", session.user.id)
+      if (error) {
+        return `Status: ❌ Error - ${error.message}`
       }
-
-      return "Status: ✅ Connected (Task data unavailable)"
+      const stats = { running: 0, pending: 0, completed: 0, failed: 0, cancelled: 0 }
+      for (const t of tasks || []) {
+        if (typeof t.status === "string" && t.status in stats) {
+          stats[t.status as keyof typeof stats]++
+        }
+      }
+      return `
+**System Status:**
+- Active Tasks: ${stats.running}
+- Pending Tasks: ${stats.pending}
+- Completed: ${stats.completed}
+- Failed: ${stats.failed}
+- Cancelled: ${stats.cancelled}
+- Connection: ✅ Connected
+          `.trim()
     } catch (error) {
       return `Status: ❌ Error - ${(error as Error).message}`
     }
