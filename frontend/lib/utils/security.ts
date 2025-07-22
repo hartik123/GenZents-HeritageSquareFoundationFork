@@ -68,7 +68,7 @@ export const getCSPHeader = (): string => {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https:",
     "font-src 'self' data:",
-    "connect-src 'self' https://api.openai.com https://api.anthropic.com https://*.supabase.co wss://*.supabase.co",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
     "media-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",

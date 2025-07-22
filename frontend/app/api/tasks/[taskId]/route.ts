@@ -71,32 +71,3 @@ export async function PUT(request: NextRequest, { params }: { params: { taskId: 
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
-
-export async function DELETE(request: NextRequest, { params }: { params: { taskId: string } }) {
-  try {
-    const supabase = createSupabaseServerClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const { data, error } = await supabase
-      .from("tasks")
-      .delete()
-      .eq("id", params.taskId)
-      .eq("user_id", user.id)
-      .select()
-
-    if (error || !data.length) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 })
-    }
-
-    return NextResponse.json({ message: "Task deleted successfully" })
-  } catch (error) {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
-}

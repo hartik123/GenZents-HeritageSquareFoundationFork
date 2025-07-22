@@ -20,15 +20,12 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Loader2, UserPlus, MoreHorizontal, Trash2, UserCheck, UserX, Settings } from "lucide-react"
+import { Loader2, UserPlus, MoreHorizontal, Trash2, UserCheck, UserX, Settings2 } from "lucide-react"
 import type { UserPermission, UserStatus } from "@/lib/types"
 
 const PERMISSION_OPTIONS: { value: UserPermission; label: string; description: string }[] = [
-  { value: "ai_chat", label: "AI Chat", description: "Can chat with AI assistants" },
-  { value: "file_organization", label: "File Organization", description: "Can organize files and folders" },
-  { value: "version_history", label: "Version History", description: "Can manage version history" },
-  { value: "context_management", label: "Context Management", description: "Can manage context" },
-  { value: "tools_access", label: "Tools Access", description: "Can access additional tools" },
+  { value: "read", label: "Read", description: "Can only read content" },
+  { value: "write", label: "Write", description: "Can manipulate the drive files" },
 ]
 
 export function AdminUserManagement() {
@@ -36,11 +33,32 @@ export function AdminUserManagement() {
     useAdminStore()
 
   const [showInviteDialog, setShowInviteDialog] = useState(false)
-  const [inviteEmail, setInviteEmail] = useState("")
   const [inviteFullName, setInviteFullName] = useState("")
-  const [invitePermissions, setInvitePermissions] = useState<UserPermission[]>([])
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [invitePermissions, setInvitePermissions] = useState<UserPermission[]>(["read"])
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const [showPermissionDialog, setShowPermissionDialog] = useState<string | null>(null)
+  const [editPermissions, setEditPermissions] = useState<UserPermission[]>([])
+  const openPermissionDialog = (userId: string, currentPermissions: UserPermission[]) => {
+    setShowPermissionDialog(userId)
+    setEditPermissions(currentPermissions)
+    setError("")
+  }
+
+  const handleEditPermissionChange = (permission: UserPermission, checked: boolean) => {
+    if (checked) {
+      setEditPermissions([...editPermissions, permission])
+    } else {
+      setEditPermissions(editPermissions.filter((p) => p !== permission))
+    }
+  }
+
+  const handleSavePermissions = async (userId: string) => {
+    setError("")
+    await handleUserPermissionUpdate(userId, editPermissions)
+    setShowPermissionDialog(null)
+  }
 
   useEffect(() => {
     fetchUsers()
@@ -50,17 +68,10 @@ export function AdminUserManagement() {
     e.preventDefault()
     setError("")
     setSuccess("")
-
-    if (!inviteEmail || !inviteFullName) {
-      setError("Please fill in all required fields")
+    if (!inviteEmail || !inviteFullName || invitePermissions.length === 0) {
+      setError("Please enter an email address, full name and select at least one permission")
       return
     }
-
-    if (invitePermissions.length === 0) {
-      setError("Please select at least one permission")
-      return
-    }
-
     const result = await inviteUser(inviteEmail, inviteFullName, invitePermissions)
     if (result.error) {
       setError(result.error)
@@ -69,7 +80,7 @@ export function AdminUserManagement() {
       setShowInviteDialog(false)
       setInviteEmail("")
       setInviteFullName("")
-      setInvitePermissions([])
+      setInvitePermissions(["read"])
       setTimeout(() => setSuccess(""), 3000)
     }
   }
@@ -78,7 +89,6 @@ export function AdminUserManagement() {
     if (!confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
       return
     }
-
     const result = await deleteUser(userId)
     if (result.error) {
       setError(result.error)
@@ -87,6 +97,10 @@ export function AdminUserManagement() {
   }
 
   const handleToggleStatus = async (userId: string, currentStatus: UserStatus) => {
+    if (currentStatus === "pending_invitation") {
+      setError("Cannot toggle status for users with pending invitations")
+      return
+    }
     const newStatus: UserStatus = currentStatus === "active" ? "paused" : "active"
     const result = await toggleUserStatus(userId, newStatus)
     if (result.error) {
@@ -163,7 +177,6 @@ export function AdminUserManagement() {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
                 <Input
@@ -175,7 +188,6 @@ export function AdminUserManagement() {
                   required
                 />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="fullName">Full Name</Label>
                 <Input
@@ -288,33 +300,89 @@ export function AdminUserManagement() {
                     </TableCell>
                     <TableCell className="text-right">
                       {!user.is_admin && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <span className="sr-only">Open menu</span>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleToggleStatus(user.id, user.status)}>
-                              {user.status === "active" ? (
-                                <>
-                                  <UserX className="mr-2 h-4 w-4" />
-                                  Pause Access
-                                </>
-                              ) : (
-                                <>
-                                  <UserCheck className="mr-2 h-4 w-4" />
-                                  Resume Access
-                                </>
+                        <>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleToggleStatus(user.id, user.status)}>
+                                {user.status === "active" ? (
+                                  <>
+                                    <UserX className="mr-2 h-4 w-4" />
+                                    Pause Access
+                                  </>
+                                ) : (
+                                  <>
+                                    <UserCheck className="mr-2 h-4 w-4" />
+                                    Resume Access
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  openPermissionDialog(user.id, (user.permissions || []) as UserPermission[])
+                                }
+                              >
+                                <Settings2 className="mr-2 h-4 w-4" />
+                                Edit Permissions
+                              </DropdownMenuItem>
+                              {user.status === "pending_invitation" && (
+                                <DropdownMenuItem onClick={() => handleDeleteUser(user.id)} className="text-red-600">
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete User
+                                </DropdownMenuItem>
                               )}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDeleteUser(user.id)} className="text-red-600">
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete User
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+
+                          <Dialog
+                            open={showPermissionDialog === user.id}
+                            onOpenChange={(open) => !open && setShowPermissionDialog(null)}
+                          >
+                            <DialogContent className="sm:max-w-md">
+                              <DialogHeader>
+                                <DialogTitle>Edit Permissions</DialogTitle>
+                                <DialogDescription>
+                                  Update permissions for {user.full_name || user.email}
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-3 py-2">
+                                {PERMISSION_OPTIONS.map((permission) => (
+                                  <div key={permission.value} className="flex items-start space-x-3">
+                                    <Checkbox
+                                      id={`edit-${permission.value}`}
+                                      checked={editPermissions.includes(permission.value)}
+                                      onCheckedChange={(checked) =>
+                                        handleEditPermissionChange(permission.value, checked as boolean)
+                                      }
+                                    />
+                                    <div className="grid gap-1.5 leading-none">
+                                      <Label
+                                        htmlFor={`edit-${permission.value}`}
+                                        className="text-sm font-medium leading-none"
+                                      >
+                                        {permission.label}
+                                      </Label>
+                                      <p className="text-xs text-muted-foreground">{permission.description}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <DialogFooter>
+                                <Button type="button" variant="outline" onClick={() => setShowPermissionDialog(null)}>
+                                  Cancel
+                                </Button>
+                                <Button type="button" onClick={() => handleSavePermissions(user.id)}>
+                                  Save
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </>
                       )}
                     </TableCell>
                   </TableRow>

@@ -16,7 +16,7 @@ import type { Task } from "@/lib/types/tasks"
 import { formatDistanceToNow } from "date-fns"
 
 export function TaskManager() {
-  const { tasks, loading, error, cancelTask, deleteTask, subscribeToTasks, fetchTasks } = useTaskStore()
+  const { tasks, loading, error, cancelTask, subscribeToTasks, fetchTasks } = useTaskStore()
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
@@ -69,10 +69,6 @@ export function TaskManager() {
     await cancelTask(taskId)
   }
 
-  const handleDeleteTask = async (taskId: string) => {
-    await deleteTask(taskId)
-  }
-
   const TaskCard = ({ task }: { task: Task }) => (
     <Card className="mb-4">
       <CardHeader className="pb-3">
@@ -98,12 +94,6 @@ export function TaskManager() {
                   <DropdownMenuItem onClick={() => handleCancelTask(task.id)}>
                     <Square className="mr-2 h-4 w-4" />
                     Cancel Task
-                  </DropdownMenuItem>
-                )}
-                {(task.status === "completed" || task.status === "failed" || task.status === "cancelled") && (
-                  <DropdownMenuItem onClick={() => handleDeleteTask(task.id)} className="text-red-600">
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete Task
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>

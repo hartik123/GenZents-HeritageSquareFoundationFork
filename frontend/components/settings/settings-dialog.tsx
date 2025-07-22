@@ -58,18 +58,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Language</Label>
-                  <Select
-                    value={settings.language || "en"}
-                    onValueChange={(value) => settings.updateSetting("language", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="es">Spanish</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Input value="English" readOnly disabled />
                 </div>
 
                 <Separator />
@@ -197,31 +186,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
             <div>
               <h3 className="text-lg font-medium mb-4">Privacy & Data</h3>
               <div className="space-y-4">
-                <div className="space-y-4">
-                  <h4 className="font-medium">API Keys</h4>
-                  <div className="space-y-2">
-                    <Label>OpenAI API Key</Label>
-                    <Input
-                      type="password"
-                      value={settings.apiKeys?.openai || ""}
-                      onChange={(e) =>
-                        settings.updateSetting("apiKeys", { ...settings.apiKeys, openai: e.target.value })
-                      }
-                      placeholder="sk-..."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Anthropic API Key</Label>
-                    <Input
-                      type="password"
-                      value={settings.apiKeys?.anthropic || ""}
-                      onChange={(e) =>
-                        settings.updateSetting("apiKeys", { ...settings.apiKeys, anthropic: e.target.value })
-                      }
-                      placeholder="sk-ant-..."
-                    />
-                  </div>
-                </div>
+                {/* API Keys removed */}
 
                 <Separator />
 

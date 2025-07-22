@@ -144,14 +144,6 @@ export class APIClient {
     return response.json()
   }
 
-  static async deleteTask(taskId: string) {
-    const response = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" })
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || "Failed to delete task")
-    }
-  }
-
   // Analytics & Monitoring
   static async getUsageAnalytics() {
     const response = await fetch("/api/analytics/usage")
@@ -210,52 +202,6 @@ export class APIClient {
   }
 
   // Task Operations (Computation-Heavy)
-  static async createTask(data: {
-    type: string
-    command: string
-    chat_id?: string
-    priority?: number
-    parameters?: any
-    estimated_duration?: number
-    max_retries?: number
-  }) {
-    const response = await fetch("/api/tasks/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || "Failed to create task")
-    }
-    return response.json()
-  }
-
-  static async cancelTask(taskId: string, reason?: string) {
-    const response = await fetch(`/api/tasks/${taskId}/cancel`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reason }),
-    })
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || "Failed to cancel task")
-    }
-    return response.json()
-  }
-
-  static async processCommand(command: string, chatId?: string, priority?: number) {
-    const response = await fetch("/api/tasks/process-command", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ command, chat_id: chatId, priority }),
-    })
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || "Failed to process command")
-    }
-    return response.json()
-  }
 
   // ===== UTILITY METHODS =====
 

@@ -1,70 +1,78 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Search, Plus, Filter } from "lucide-react"
+import { useState } from "react"
+import { Search, Plus, History } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useVersionStore } from "@/lib/stores/version-store"
 import { filterVersions } from "@/lib/utils/version"
-import { Version, VersionStatus } from "@/lib/types/version"
+import { useVersionStore } from "@/lib/stores/version-store"
+import { Version } from "@/lib/types/version"
 import { VersionCard } from "./version-card"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog"
 import { VersionDetails } from "./version-details"
-import { EmptyVersionState } from "./empty-version-state"
 
 interface VersionManagerProps {
-  chatId: string
-  onCreateVersion?: () => void
+  versions: Version[]
 }
 
-export function VersionManager({ chatId, onCreateVersion }: VersionManagerProps) {
+export function VersionManager({ versions }: VersionManagerProps) {
   const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState<VersionStatus | "all">("all")
   const [selectedVersion, setSelectedVersion] = useState<Version | null>(null)
-  const { versions, loading, loadVersions, rollbackToVersion, createVersion } = useVersionStore()
+  const [allVersions, setAllVersions] = useState<Version[]>(versions)
+  const [loading, setLoading] = useState(false)
+  const [rollbackTarget, setRollbackTarget] = useState<Version | null>(null)
+  const [isRollingBack, setIsRollingBack] = useState(false)
 
-  const filteredVersions = versions.filter((version) => {
-    const matchesSearch = filterVersions([version], searchQuery, "").length > 0
-    const matchesStatus = statusFilter === "all" || version.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+  // Sort by most recent (created_at desc)
+  const sortedVersions = [...allVersions].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  )
+  const filteredVersions = filterVersions(sortedVersions, searchQuery, "")
 
-  useEffect(() => {
-    if (chatId) {
-      loadVersions(chatId)
-    }
-  }, [chatId, loadVersions])
-
-  const handleRollback = async (versionId: string) => {
-    try {
-      await rollbackToVersion(versionId)
-      await loadVersions(chatId)
-      setSelectedVersion(null)
-    } catch (error) {
-      console.error("Failed to rollback version:", error)
-    }
+  const handleRequestRollback = (versionId: string) => {
+    const version = allVersions.find((v) => v.id === versionId)
+    if (version) setRollbackTarget(version)
   }
 
-  const handleCreateVersion = async () => {
-    if (onCreateVersion) {
-      onCreateVersion()
-    } else {
-      try {
-        await createVersion(chatId, "New version")
-        await loadVersions(chatId)
-      } catch (error) {
-        console.error("Failed to create version:", error)
-      }
-    }
-  }
-
-  const handleVersionSelect = (version: Version) => {
-    setSelectedVersion(version)
-  }
-
-  const handleBackToList = () => {
+  const handleConfirmRollback = async () => {
+    if (!rollbackTarget) return
+    setIsRollingBack(true)
+    setAllVersions((prev) => {
+      const idx = prev.findIndex((v) => v.id === rollbackTarget.id)
+      if (idx === -1) return prev
+      return prev.slice(0, idx + 1)
+    })
     setSelectedVersion(null)
+    setIsRollingBack(false)
+    setRollbackTarget(null)
+  }
+
+  const handleCreateVersion = () => {
+    // Add a new mock version
+    const nextVersionNum = allVersions.length + 1
+    const newVersion: Version = {
+      id: String(Date.now()),
+      version: `1.0.${nextVersionNum}`,
+      title: `Mock Version ${nextVersionNum}`,
+      description: `This is a mock version ${nextVersionNum}.`,
+      user_id: "mockuser",
+      timestamp: new Date(),
+      created_at: new Date().toISOString(),
+      data: {},
+    }
+    setAllVersions((prev) => [newVersion, ...prev])
+  }
+
+  const handleViewDetails = (version: Version) => {
+    setSelectedVersion(version)
   }
 
   if (loading) {
@@ -78,7 +86,12 @@ export function VersionManager({ chatId, onCreateVersion }: VersionManagerProps)
   if (selectedVersion) {
     return (
       <div className="h-full p-4">
-        <VersionDetails version={selectedVersion} onRollback={handleRollback} onBack={handleBackToList} />
+        <VersionDetails
+          version={selectedVersion}
+          isCurrent={selectedVersion.id === allVersions[0].id}
+          onRollback={() => handleRequestRollback(selectedVersion.id)}
+          onBack={() => setSelectedVersion(null)}
+        />
       </div>
     )
   }
@@ -93,7 +106,6 @@ export function VersionManager({ chatId, onCreateVersion }: VersionManagerProps)
             New Version
           </Button>
         </div>
-
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -104,57 +116,70 @@ export function VersionManager({ chatId, onCreateVersion }: VersionManagerProps)
               className="pl-10"
             />
           </div>
-
-          <Select value={statusFilter} onValueChange={(value: VersionStatus | "all") => setStatusFilter(value)}>
-            <SelectTrigger className="w-40">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="current">Current</SelectItem>
-              <SelectItem value="previous">Previous</SelectItem>
-              <SelectItem value="archived">Archived</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       </div>
-
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-3">
           {filteredVersions.length > 0 ? (
             filteredVersions.map((version) => (
-              <div key={version.id}>
-                <VersionCard version={version} onRollback={handleRollback} />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleVersionSelect(version)}
-                  className="w-full mt-2 text-xs"
-                >
-                  View Details
-                </Button>
-              </div>
+              <VersionCard
+                key={version.id}
+                version={version}
+                onRollback={() => handleRequestRollback(version.id)}
+                onViewDetails={handleViewDetails}
+              />
             ))
-          ) : searchQuery || statusFilter !== "all" ? (
+          ) : searchQuery ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground">No versions match your search criteria</p>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setSearchQuery("")
-                  setStatusFilter("all")
-                }}
-                className="mt-2"
-              >
+              <Button variant="ghost" onClick={() => setSearchQuery("")} className="mt-2">
                 Clear Filters
               </Button>
             </div>
           ) : (
-            <EmptyVersionState />
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className="text-center space-y-4 max-w-md">
+                <History className="h-16 w-16 mx-auto text-muted-foreground/50" />
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold">No Versions Found</h3>
+                  <p className="text-muted-foreground text-sm">
+                    No versions have been created yet. Create your first version to track changes and enable rollback
+                    functionality.
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </ScrollArea>
+      {/* Rollback Confirmation Dialog */}
+      <Dialog
+        open={!!rollbackTarget}
+        onOpenChange={(open) => {
+          if (!open) setRollbackTarget(null)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Rollback</DialogTitle>
+            <DialogDescription>
+              {rollbackTarget && (
+                <>
+                  Are you sure you want to rollback to version v{rollbackTarget.version}? This action cannot be undone.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRollbackTarget(null)} disabled={isRollingBack}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmRollback} disabled={isRollingBack}>
+              {isRollingBack ? "Rolling back..." : "Confirm Rollback"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

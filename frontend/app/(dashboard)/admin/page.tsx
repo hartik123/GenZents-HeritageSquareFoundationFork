@@ -4,7 +4,7 @@ import { AuthGuard } from "@/components/auth/auth-guard"
 import { AdminUserManagement } from "@/components/admin/user-management"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuthStore } from "@/lib/stores/auth-store"
-import { Shield, Users, Settings, Activity } from "lucide-react"
+import { Users, Activity } from "lucide-react"
 
 export default function AdminPage() {
   const { profile } = useAuthStore()
@@ -32,34 +32,12 @@ export default function AdminPage() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+                <CardTitle className="text-sm font-medium">Total API Calls</CardTitle>
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">0</div>
-                <p className="text-xs text-muted-foreground">Current sessions</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Security Status</CardTitle>
-                <Shield className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">Secure</div>
-                <p className="text-xs text-muted-foreground">All systems operational</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">System Health</CardTitle>
-                <Settings className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">100%</div>
-                <p className="text-xs text-muted-foreground">Uptime this month</p>
+                <p className="text-xs text-muted-foreground">Total GEMINI API calls made</p>
               </CardContent>
             </Card>
           </div>

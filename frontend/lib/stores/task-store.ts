@@ -113,30 +113,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     }
   },
 
-  deleteTask: async (taskId: string) => {
-    try {
-      const supabase = createClient()
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session) throw new Error("No authentication session")
-
-      const { error } = await supabase.from("tasks").delete().eq("id", taskId).eq("user_id", session.user.id)
-
-      if (error) throw error
-
-      set((state) => ({
-        tasks: state.tasks.filter((task) => task.id !== taskId),
-      }))
-
-      return true
-    } catch (error) {
-      logger.error("Error deleting task", error as Error, { component: "task-store" })
-      set({ error: (error as Error).message })
-      return false
-    }
-  },
-
   getTask: async (taskId: string) => {
     try {
       const supabase = createClient()
