@@ -1,0 +1,26 @@
+{
+    "rules": [
+      {
+        "keywords": ["proposal", "grant"],
+        "target_folder": "Grants/2025"
+      },
+      {
+        "keywords": ["budget", "finance"],
+        "target_folder": "Operations/Reports"
+      },
+      {
+        "keywords": ["report"],
+        "target_folder": "Operations/Reports"
+      },
+      {
+        "keywords": ["campaign", "ad", "promo"],
+        "target_folder": "Marketing/Campaigns"
+      },
+      {
+        "keywords": ["media", "image", "photo"],
+        "target_folder": "Marketing/Media"
+      }
+    ],
+    "default_pdf_folder": "Grants/2025",
+    "default_misc_folder": "Miscellaneous"
+  }
