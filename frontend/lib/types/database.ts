@@ -398,7 +398,6 @@ export interface Database {
           description: string
           user_id: string
           timestamp: string
-          status: "current" | "previous" | "archived"
           created_at: string
           data: any | null
         }

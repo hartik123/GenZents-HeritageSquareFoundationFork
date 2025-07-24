@@ -153,7 +153,6 @@ CREATE TABLE IF NOT EXISTS versions (
   description TEXT NOT NULL,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   timestamp TIMESTAMPTZ NOT NULL,
-  status TEXT DEFAULT 'current' CHECK (status IN ('current', 'previous', 'archived')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   data JSONB
 );

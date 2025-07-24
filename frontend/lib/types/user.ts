@@ -41,13 +41,7 @@ export interface UsageStats {
   apiCalls: number
 }
 
-export type UserPermission =
-  | "ai_chat"
-  | "file_organization"
-  | "version_history"
-  | "context_management"
-  | "tools_access"
-  | "admin_access"
+export type UserPermission = "read" | "write"
 
 export type UserStatus = "active" | "paused" | "pending_invitation"
 

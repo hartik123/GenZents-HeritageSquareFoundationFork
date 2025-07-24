@@ -19,10 +19,8 @@ export interface Version {
   description: string
   user_id: string
   timestamp: Date
-  status: "current" | "previous" | "archived"
   created_at: string
   data?: any
 }
 
 export type ChangeType = Change["type"]
-export type VersionStatus = Version["status"]

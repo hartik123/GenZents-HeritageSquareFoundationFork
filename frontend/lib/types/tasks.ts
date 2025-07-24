@@ -45,7 +45,6 @@ export interface TaskStore {
   fetchTasks: (filters?: TaskFilterOptions) => Promise<void>
   fetchTaskStats: () => Promise<void>
   cancelTask: (taskId: string) => Promise<boolean>
-  deleteTask: (taskId: string) => Promise<boolean>
   getTask: (taskId: string) => Promise<Task | null>
   subscribeToTasks: () => () => void
   refreshTask: (taskId: string) => Promise<void>
