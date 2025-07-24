@@ -261,11 +261,7 @@ ON CONFLICT (id) DO NOTHING;
 
 
 
--- =====================================================
--- FILE AND ATTACHMENT TABLES
--- =====================================================
 
--- Create attachments table
 CREATE TABLE IF NOT EXISTS attachments (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
@@ -294,6 +290,19 @@ CREATE TABLE IF NOT EXISTS attachments (
   
   created_at TIMESTAMPTZ DEFAULT NOW(),
   uploaded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- FILE METADATA TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS file_metadata (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  file_type BOOLEAN NOT NULL,
+  file_name TEXT NOT NULL,
+  file_path TEXT NOT NULL,
+  summary TEXT,
+  tags TEXT[] DEFAULT '{}',
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Enable RLS and create policies for attachments
