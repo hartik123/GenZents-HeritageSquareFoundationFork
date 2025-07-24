@@ -155,20 +155,6 @@ class GoogleDriveAgent:
                 parameters={"type": "object", "properties": {}}
             ),
             FunctionDeclaration(
-                name="organize_by_type",
-                description="Organize files by type within a folder",
-                parameters={
-                    "type": "object",
-                    "properties": {
-                        "source_folder_id": {
-                            "type": "string",
-                            "description": "ID of the folder to organize"
-                        }
-                    },
-                    "required": ["source_folder_id"]
-                }
-            ),
-            FunctionDeclaration(
                 name="get_folder_structure",
                 description="Get hierarchical folder structure",
                 parameters={
@@ -231,7 +217,6 @@ Be helpful, safe, and provide clear explanations of what you're doing."""
             "delete_file": self.drive_service.delete_file,
             "search_files": self.drive_service.search_files,
             "get_storage_info": self.drive_service.get_storage_info,
-            "organize_by_type": self.drive_service.organize_by_type,
             "get_folder_structure": self.drive_service.get_folder_structure
         }
 
@@ -283,19 +268,18 @@ Be helpful, safe, and provide clear explanations of what you're doing."""
 
             # Permission mapping for different operations
             permission_map = {
-                "list_files": "file_organization",
-                "get_file_info": "file_organization",
-                "create_folder": "file_organization",
-                "move_file": "file_organization",
-                "rename_file": "file_organization",
-                "delete_file": "file_organization",
-                "search_files": "file_organization",
-                "organize_by_type": "file_organization",
-                "get_folder_structure": "file_organization"
+                "list_files": "read",
+                "get_file_info": "read",
+                "create_folder": "write",
+                "move_file": "write",
+                "rename_file": "write",
+                "delete_file": "write",
+                "search_files": "read",
+                "get_folder_structure": "read"
             }
 
             required_permission = permission_map.get(
-                operation, "file_organization")
+                operation, "write")
 
             # Admin can do everything
             if constraints.is_admin:
@@ -407,7 +391,7 @@ Be helpful, safe, and provide clear explanations of what you're doing."""
 
             # Track changes for modification operations
             if function_name in ["move_file", "rename_file",
-                                 "delete_file", "create_folder", "organize_by_type"]:
+                                 "delete_file", "create_folder"]:
                 await self._track_file_operation(function_name, function_args, result)
 
             return result
@@ -436,9 +420,6 @@ Be helpful, safe, and provide clear explanations of what you're doing."""
 
             elif operation == "create_folder":
                 await self._track_change("create", args.get("name", ""))
-
-            elif operation == "organize_by_type":
-                await self._track_change("organize", args.get("source_folder_id", ""))
 
         except Exception as e:
             logger.error(f"Error tracking file operation {operation}: {e}")

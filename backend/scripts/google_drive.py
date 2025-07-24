@@ -261,51 +261,6 @@ class GoogleDriveService:
             logger.error(f"Failed to get permissions for file {file_id}: {e}")
             raise
 
-    def organize_by_type(
-            self, source_folder_id: str) -> Dict[str, List[Dict[str, Any]]]:
-        """Organize files by type within a folder"""
-        try:
-            files = self.list_files(source_folder_id)
-            organized = {
-                'documents': [],
-                'images': [],
-                'videos': [],
-                'audio': [],
-                'spreadsheets': [],
-                'presentations': [],
-                'pdfs': [],
-                'folders': [],
-                'others': []
-            }
-
-            for file in files:
-                mime_type = file.get('mimeType', '')
-
-                if mime_type == 'application/vnd.google-apps.folder':
-                    organized['folders'].append(file)
-                elif 'document' in mime_type or 'text' in mime_type:
-                    organized['documents'].append(file)
-                elif 'image' in mime_type:
-                    organized['images'].append(file)
-                elif 'video' in mime_type:
-                    organized['videos'].append(file)
-                elif 'audio' in mime_type:
-                    organized['audio'].append(file)
-                elif 'spreadsheet' in mime_type:
-                    organized['spreadsheets'].append(file)
-                elif 'presentation' in mime_type:
-                    organized['presentations'].append(file)
-                elif 'pdf' in mime_type:
-                    organized['pdfs'].append(file)
-                else:
-                    organized['others'].append(file)
-
-            return organized
-        except HttpError as e:
-            logger.error(
-                f"Failed to organize files in folder {source_folder_id}: {e}")
-            raise
-
     def get_storage_info(self) -> Dict[str, Any]:
         """Get Google Drive storage information"""
         try:
