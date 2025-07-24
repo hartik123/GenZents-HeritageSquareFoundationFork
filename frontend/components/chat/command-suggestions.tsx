@@ -3,6 +3,8 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { DEFAULT_COMMANDS } from "@/lib/types"
+import { supabase } from "@/lib/supabase/client"
+import type { User } from "@supabase/supabase-js"
 
 interface CommandSuggestionsProps {
   input: string
@@ -19,21 +21,74 @@ export function CommandSuggestions({
   textareaRef,
   visible,
 }: CommandSuggestionsProps) {
+  const [user, setUser] = React.useState<User | null>(null)
+  const [userCommands, setUserCommands] = React.useState<typeof DEFAULT_COMMANDS>([])
   const [suggestions, setSuggestions] = React.useState<typeof DEFAULT_COMMANDS>([])
   const [selectedIndex, setSelectedIndex] = React.useState(0)
   const [position, setPosition] = React.useState({ top: 0, left: 0 })
   const dropdownRef = React.useRef<HTMLDivElement>(null)
 
-  // Get command suggestions based on input
+  React.useEffect(() => {
+    async function fetchUserCommands() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) return
+
+      const { data, error } = await supabase
+        .from("commands")
+        .select("*")
+        .eq("user_id", user.id)
+
+      if (error) {
+        console.error('Error fetching user commands:', error)
+        return
+      }
+
+      // Map the fetched data to the Command type shape expected
+      const commands = data?.map((cmd: any) => ({
+        id: cmd.id,
+        name: cmd.command,
+        description: cmd.description,
+        pattern: new RegExp(cmd.pattern), // if stored as string
+        instruction: cmd.command,
+        enabled: true,
+        type: cmd.type,
+      })) || []
+
+      setUserCommands(commands)
+    }
+    fetchUserCommands()
+  }, [])
+
+  // Combine default + user commands
+  const allCommands = React.useMemo(() => {
+    return [...DEFAULT_COMMANDS, ...userCommands]
+  }, [userCommands])
+
+  // getSuggestions uses allCommands
   const getSuggestions = (input: string) => {
     const query = input.toLowerCase().trim()
-    if (!query.startsWith("/")) return []
+    if (!query.startsWith('/')) return []
     const searchTerm = query.substring(1)
-    if (!searchTerm) return DEFAULT_COMMANDS
-    return DEFAULT_COMMANDS.filter((cmd) => cmd.instruction.toLowerCase().includes(searchTerm))
+    if (!searchTerm) return allCommands
+    return allCommands.filter((cmd) =>
+      cmd.instruction.toLowerCase().includes(searchTerm)
+    )
   }
 
-  // Update suggestions based on input
+  React.useEffect(() => {
+    const getUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    getUser()
+  }, [])
+
+
   React.useEffect(() => {
     if (!visible || !textareaRef?.current) {
       setSuggestions([])
@@ -43,18 +98,16 @@ export function CommandSuggestions({
     const textarea = textareaRef.current
     const cursorPosition = textarea.selectionStart || 0
     const textBeforeCursor = input.substring(0, cursorPosition)
-    // Find the last occurrence of / before cursor position
-    const lastSlashIndex = textBeforeCursor.lastIndexOf("/")
+    const lastSlashIndex = textBeforeCursor.lastIndexOf('/')
     if (lastSlashIndex !== -1) {
-      // Get the command text (everything after the last slash)
-      const commandText = "/" + textBeforeCursor.substring(lastSlashIndex + 1)
+      const commandText = '/' + textBeforeCursor.substring(lastSlashIndex + 1)
       const newSuggestions = getSuggestions(commandText)
       setSuggestions(newSuggestions)
     } else {
       setSuggestions([])
     }
     setSelectedIndex(0)
-  }, [input, visible, textareaRef])
+  }, [input, visible, textareaRef, allCommands])
 
   // Calculate dropdown position based on cursor position
   React.useEffect(() => {
@@ -80,7 +133,7 @@ export function CommandSuggestions({
     const calculatedHeight = suggestions.length * suggestionHeight
     const actualHeight = Math.min(calculatedHeight, maxHeight)
     // Position dropdown above the cursor
-    const top = Math.max(10, cursorTop - actualHeight)
+    const top = Math.max(10, cursorTop - actualHeight - 15)
     const left = Math.max(10, Math.min(cursorLeft, window.innerWidth - 410))
     setPosition({ top, left })
   }, [visible, textareaRef, input, suggestions.length])

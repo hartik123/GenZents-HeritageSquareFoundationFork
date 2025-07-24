@@ -26,7 +26,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { MessageSquare, Plus, LogOut, MoreHorizontal, User, GitBranch, Shield, Activity } from "lucide-react"
+import { MessageSquare, Plus, LogOut, MoreHorizontal, User, GitBranch, ChartNoAxesCombined, Shield, Activity } from "lucide-react"
 import { useChatStore } from "@/lib/stores/chat-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useTaskStore } from "@/lib/stores/task-store"

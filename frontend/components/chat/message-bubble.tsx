@@ -231,14 +231,6 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
               <ThumbsDown className="h-4 w-4" />
             </Button>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleRegenerate}
-              className="h-8 w-8 p-0 transition-colors duration-200 hover:bg-gray-100 text-muted-foreground"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
           </>
         )}
 
@@ -256,10 +248,6 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
             <DropdownMenuItem>
               <Share className="h-4 w-4 mr-2" />
               Share
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Bookmark className="h-4 w-4 mr-2" />
-              Bookmark
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
@@ -337,7 +325,7 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
         </div>
 
         {/* Footer: timestamp, status, tokens, buttons */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground h-7">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground h-8">
           {settingsStore.theme && message.created_at && <span>{formatTimestamp(message.created_at)}</span>}
 
           {isUser && getStatusIcon()}
