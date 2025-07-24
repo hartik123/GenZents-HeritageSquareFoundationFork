@@ -75,6 +75,35 @@ export interface Database {
           updated_at?: string
         }
       }
+      file_metadata: {
+        Row: {
+          id: string
+          file_type: boolean
+          file_name: string
+          file_path: string
+          summary: string | null
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          file_type: boolean
+          file_name: string
+          file_path: string
+          summary?: string | null
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          file_type?: boolean
+          file_name?: string
+          file_path?: string
+          summary?: string | null
+          tags?: string[]
+          updated_at?: string
+        }
+      }
       chats: {
         Row: {
           id: string
