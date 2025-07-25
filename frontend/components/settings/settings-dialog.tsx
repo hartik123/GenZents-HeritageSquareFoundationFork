@@ -58,7 +58,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
     if (!error && data) {
       const formattedCommands = data.map((cmd) => ({
         id: cmd.id,
-        command: "/" + cmd.command,
+        command: "/" + cmd.name,
         description: cmd.description,
       }))
       setUserCommands(formattedCommands)
@@ -83,8 +83,11 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
       .from("commands")
       .insert({
         user_id: user.id,
-        command: customCommand.substring(1),
+        name: customCommand.substring(1),
         description: customDescription,
+        pattern: "^/cleanup$",
+        instruction: customCommand.substring(1),
+        type: "user"
       })
       .select("*")
       .single()
@@ -100,7 +103,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
         ...prev,
         {
           id: data.id,
-          command: "/" + data.command,
+          command: "/" + data.name,
           description: data.description,
         },
       ])

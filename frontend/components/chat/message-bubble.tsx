@@ -94,7 +94,6 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
       console.error("User not logged in");
       return;
     }
-
     const existing = reactions.find((r) => r.type === type);
 
     if (existing?.id) {

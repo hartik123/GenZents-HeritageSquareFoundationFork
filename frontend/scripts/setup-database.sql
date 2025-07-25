@@ -175,6 +175,30 @@ CREATE TABLE IF NOT EXISTS changes (
 );
 
 -- =====================================================
+-- REACTIONS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS reactions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  type TEXT NOT NULL CHECK (type IN ('liked', 'disliked')),
+  emoji TEXT NOT NULL,
+  timestamp TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Allow users to SELECT (read) their own reactions
+CREATE POLICY "Users can view own reactions" ON reactions
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Allow users to INSERT reactions with their own user_id
+CREATE POLICY "Users can insert own reactions" ON reactions
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Allow users to DELETE their own reactions
+CREATE POLICY "Users can delete own reactions" ON reactions
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- =====================================================
 -- INDEXES
 -- =====================================================
 
@@ -211,7 +235,7 @@ CREATE INDEX IF NOT EXISTS idx_commands_user_id ON commands(user_id);
 
 -- Versions indexes
 CREATE INDEX IF NOT EXISTS idx_versions_user_id ON versions(user_id);
-CREATE INDEX IF NOT EXISTS idx_versions_status ON versions(status);
+-- CREATE INDEX IF NOT EXISTS idx_versions_status ON versions(status);
 CREATE INDEX IF NOT EXISTS idx_versions_timestamp ON versions(timestamp);
 
 -- Changes indexes
@@ -568,6 +592,11 @@ CREATE POLICY "Users can insert own user commands" ON commands
 
 CREATE POLICY "Users can update own user commands" ON commands
   FOR UPDATE 
+  TO authenticated
+  USING (type = 'user' AND auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own user commands" ON commands
+  FOR DELETE 
   TO authenticated
   USING (type = 'user' AND auth.uid() = user_id);
 

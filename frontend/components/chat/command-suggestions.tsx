@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { DEFAULT_COMMANDS } from "@/lib/types"
+import { Command, DEFAULT_COMMANDS } from "@/lib/types"
 import { supabase } from "@/lib/supabase/client"
 import type { User } from "@supabase/supabase-js"
 
@@ -22,8 +22,8 @@ export function CommandSuggestions({
   visible,
 }: CommandSuggestionsProps) {
   const [user, setUser] = React.useState<User | null>(null)
-  const [userCommands, setUserCommands] = React.useState<typeof DEFAULT_COMMANDS>([])
-  const [suggestions, setSuggestions] = React.useState<typeof DEFAULT_COMMANDS>([])
+  const [userCommands, setUserCommands] = React.useState<Command[]>([])
+  const [suggestions, setSuggestions] = React.useState<Command[]>([])
   const [selectedIndex, setSelectedIndex] = React.useState(0)
   const [position, setPosition] = React.useState({ top: 0, left: 0 })
   const dropdownRef = React.useRef<HTMLDivElement>(null)
@@ -39,7 +39,7 @@ export function CommandSuggestions({
       const { data, error } = await supabase
         .from("commands")
         .select("*")
-        .eq("user_id", user.id)
+        .or(`user_id.is.null,user_id.eq.${user.id}`)
 
       if (error) {
         console.error('Error fetching user commands:', error)
@@ -49,11 +49,11 @@ export function CommandSuggestions({
       // Map the fetched data to the Command type shape expected
       const commands = data?.map((cmd: any) => ({
         id: cmd.id,
-        name: cmd.command,
+        name: cmd.name,
         description: cmd.description,
         pattern: new RegExp(cmd.pattern), // if stored as string
-        instruction: cmd.command,
-        enabled: true,
+        instruction: cmd.name,
+        enabled: cmd.enabled,
         type: cmd.type,
       })) || []
 
@@ -64,7 +64,7 @@ export function CommandSuggestions({
 
   // Combine default + user commands
   const allCommands = React.useMemo(() => {
-    return [...DEFAULT_COMMANDS, ...userCommands]
+    return [ ...userCommands]
   }, [userCommands])
 
   // getSuggestions uses allCommands
