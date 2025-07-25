@@ -1,0 +1,23 @@
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.log
+*.pid
+*.pkl
+*.egg-info
+*.DS_Store
+
+# env files
+.env*
+!.env.example
+credentials.json
+token.json
+
+# secret files
+client_secret_credentials.json
+ohack_service_account_token.json
+token.json
