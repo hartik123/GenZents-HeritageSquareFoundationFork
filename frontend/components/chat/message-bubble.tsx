@@ -343,7 +343,7 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
       {/* Right Avatar */}
       {isUser && settingsStore.theme && (
         <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarImage src="/paceholder.svg?height=32&width=32" />
+          {/* <AvatarImage src="/paceholder.svg?height=32&width=32" /> */}
           <AvatarFallback>{fullName ? fullName.charAt(0).toUpperCase() : "U"}</AvatarFallback>
         </Avatar>
       )}

@@ -52,19 +52,51 @@ export function CommandSuggestions({
         name: cmd.name,
         description: cmd.description,
         pattern: new RegExp(cmd.pattern), // if stored as string
-        instruction: cmd.name,
+        instruction: cmd.instruction,
         enabled: cmd.enabled,
         type: cmd.type,
       })) || []
 
       setUserCommands(commands)
     }
+
+    async function fetchUserFileMetaData() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) return
+
+      const { data, error } = await supabase
+        .from("file_metadata")
+        .select("*")
+
+      if (error) {
+        console.error('Error fetching file metadata:', error)
+        return
+      }
+
+      // Map the fetched data to the Command type shape expected
+      const allFileMetaData = data?.map((fileMetadata: any) => ({
+        id: fileMetadata.id,
+        name: fileMetadata.file_name,
+        description: fileMetadata.summary,
+        pattern: fileMetadata.file_path, // if stored as string
+        instruction: fileMetadata.file_path,
+        enabled: fileMetadata.file_type,
+        type: "user" as const,
+      })) || []
+
+      setUserCommands((prev) => [...prev, ...allFileMetaData])
+    }
+
     fetchUserCommands()
+    fetchUserFileMetaData()
   }, [])
 
   // Combine default + user commands
   const allCommands = React.useMemo(() => {
-    return [ ...userCommands]
+    return [...userCommands]
   }, [userCommands])
 
   // getSuggestions uses allCommands
@@ -207,14 +239,21 @@ export function CommandSuggestions({
               onMouseEnter={() => setSelectedIndex(index)}
             >
               <div className="flex-1 min-w-0">
-                <div className="font-medium">{suggestion.instruction}</div>
+                <div className="flex justify-between items-center">
+                  <div className="font-medium inline-block">{suggestion.name}</div>
+                  {suggestion.enabled === false && (
+                    <div className="text-xs px-2 py-0.5 bg-gray-200 text-gray-800 rounded-full">
+                      folder
+                    </div>
+                  )}
+                </div>
                 <div
                   className={cn(
                     "text-xs truncate",
                     isSelected ? "text-primary-foreground/80" : "text-muted-foreground"
                   )}
                 >
-                  {suggestion.description}
+                  {suggestion.instruction}
                 </div>
                 <div
                   className={cn(
