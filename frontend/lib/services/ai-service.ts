@@ -36,10 +36,10 @@ export class AIService {
     return chat.id
   }
 
-  static async sendMessageStream(chatId: string, content: string): Promise<ReadableStream> {
-    // Use APIClient for streaming (proxies to backend)
-    return APIClient.sendMessageStream(chatId, content)
-  }
+  // static async sendMessageStream(chatId: string, content: string): Promise<ReadableStream> {
+  //   // Use APIClient for streaming (proxies to backend)
+  //   return APIClient.sendMessageStream(chatId, content)
+  // }
 
   static async *parseStreamingResponse(stream: ReadableStream): AsyncGenerator<StreamingResponse> {
     const reader = stream.getReader()

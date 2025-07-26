@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Send, Paperclip, Mic, MicOff, StopCircle, Hash, FileText, Folder, X, Upload, Sparkles } from "lucide-react"
+import { Send, Paperclip, Mic, MicOff, StopCircle, FileText, X, Upload, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useChatStore } from "@/lib/stores/chat-store"
@@ -13,7 +13,6 @@ import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import { sanitizeInput } from "@/lib/utils/security"
 import { CommandSuggestions } from "./command-suggestions"
-import { chatCommandProcessor } from "@/lib/services/command-processor"
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const ALLOWED_FILE_TYPES = [

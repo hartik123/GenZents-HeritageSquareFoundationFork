@@ -31,7 +31,6 @@ def get_authenticated_supabase(
             detail="Failed to authenticate with database"
         )
 
-
 @router.post("/chat/{chat_id}", response_model=MessageResponse)
 async def create_message(
     chat_id: str,
@@ -40,10 +39,9 @@ async def create_message(
     user_supabase=Depends(get_authenticated_supabase)
 ):
     try:
-        logger.info(f"Creating message for chat {chat_id} by user {current_user.id}")
+        start_time = datetime.utcnow()
         chat_response = user_supabase.table("chats").select("id").eq("id", chat_id).eq("user_id", current_user.id).execute()
         if not chat_response.data:
-            logger.warning(f"Chat {chat_id} not found for user {current_user.id}")
             raise HTTPException(status_code=404, detail="Chat not found")
         if message.role != 'user':
             raise HTTPException(status_code=400, detail="Only user messages can be created through this endpoint.")
@@ -61,7 +59,6 @@ async def create_message(
             "metadata": {}
         }
         user_supabase.table("messages").insert(user_message_data).execute()
-        logger.info(f"User message saved: {user_message_data['id']}")
         # Use new context_manager prompt
         prompt = await create_prompt(user_supabase, current_user.id, chat_id, message.content)
         from services.generative_ai import generate_text
@@ -73,9 +70,10 @@ async def create_message(
             "chat_id": chat_id,
             "role": "assistant",
             "content": ai_response_text,
+            "context_summary": ai_response_text,
             "created_at": datetime.utcnow().isoformat(),
             "metadata": {
-                "model": "gemini-1.5-flash",
+                "model": "gemini-2.0-flash",
                 "enhanced_context": True,
                 "context_summary_updated": True,
                 "tokens_used": estimated_tokens,
@@ -83,7 +81,20 @@ async def create_message(
             }
         }
         response = user_supabase.table("messages").insert(ai_message_data).execute()
-        user_supabase.table("chats").update({"updated_at": datetime.utcnow().isoformat()}).eq("id", chat_id).execute()
+        end_time = datetime.utcnow()
+        total_original_messages = chat_response.data[0]["metadata"].get("totalMessages", 0)
+        user_supabase.table("chats").update(
+            {"updated_at": datetime.utcnow().isoformat(),
+             "context_summary": ai_message_data["context_summary"],
+             "metadata": {
+                "totalMessages": total_original_messages + 2,
+                "totalTokens": (chat_response.data[0]["metadata"].get("totalTokens") if chat_response.data[0].get("metadata") else 0) + estimated_tokens,
+                "averageResponseTime": (
+                    total_original_messages * (chat_response.data[0]["metadata"].get("averageResponseTime", 0) if chat_response.data[0].get("metadata") else 0)
+                    + 2 * (end_time - start_time).total_seconds()
+                ) / (total_original_messages + 2),
+             }}
+          ).eq("id", chat_id).execute()
         logger.info(f"AI message saved: {ai_message_data['id']}")
         return response.data[0]
     except HTTPException:
@@ -92,7 +103,7 @@ async def create_message(
         logger.error(f"Error creating message in chat {chat_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Message creation failed")
 
-
+# TODO: A placeholder for the message stream endpoint. Not using currently.
 @router.post("/chat/{chat_id}/stream")
 async def create_message_stream(
     chat_id: str,
@@ -150,7 +161,7 @@ async def create_message_stream(
                     "content": ai_response_text,
                     "created_at": datetime.utcnow().isoformat(),
                     "metadata": {
-                        "model": "gemini-1.5-flash",
+                        "model": "gemini-2.0-flash",
                         "enhanced_context": True,
                         "context_summary_updated": True
                     }
@@ -185,6 +196,7 @@ async def create_message_stream(
             status_code=500,
             detail=f"Streaming message creation failed: {error_detail}")
 
+# TODO: A placeholder for the message update endpoint. Not using currently.
 @router.put("/{message_id}", response_model=MessageResponse)
 async def update_message(
     message_id: str,
@@ -196,31 +208,22 @@ async def update_message(
         # Get message and verify user has access to the chat
         response = supabase.table("messages").select(
             "*, chats!inner(user_id)").eq("id", message_id).execute()
-
         if not response.data:
             raise HTTPException(status_code=404, detail="Message not found")
-
         existing_message = response.data[0]
-
         # Check if user owns the chat
         if existing_message["chats"]["user_id"] != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
-
         # Update message
         update_data = {"updated_at": datetime.utcnow().isoformat()}
         if message.content is not None:
             update_data["content"] = message.content
         if message.metadata is not None:
             update_data["metadata"] = message.metadata
-
         response = supabase.table("messages").update(
             update_data).eq("id", message_id).execute()
-
         return response.data[0]
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=str(e))
-
-
-

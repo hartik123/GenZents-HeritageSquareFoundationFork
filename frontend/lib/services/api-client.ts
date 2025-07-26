@@ -178,28 +178,28 @@ export class APIClient {
     return response.json()
   }
 
-  static async sendMessageStream(chatId: string, message: string): Promise<ReadableStream> {
-    const token = await this.getAuthToken()
-    if (!token) {
-      throw new Error("User not authenticated")
-    }
+  // static async sendMessageStream(chatId: string, message: string): Promise<ReadableStream> {
+  //   const token = await this.getAuthToken()
+  //   if (!token) {
+  //     throw new Error("User not authenticated")
+  //   }
 
-    const response = await fetch(`${this.backendURL}/api/messages/chat/${chatId}/stream`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ content: message, role: "user" }),
-    })
+  //   const response = await fetch(`${this.backendURL}/api/messages/chat/${chatId}/stream`, {
+  //     method: "POST",
+  //     headers: {
+  //       "Content-Type": "application/json",
+  //       Authorization: `Bearer ${token}`,
+  //     },
+  //     body: JSON.stringify({ content: message, role: "user" }),
+  //   })
 
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.detail || "Failed to start message stream")
-    }
+  //   if (!response.ok) {
+  //     const error = await response.json()
+  //     throw new Error(error.detail || "Failed to start message stream")
+  //   }
 
-    return response.body!
-  }
+  //   return response.body!
+  // }
 
   // Task Operations (Computation-Heavy)
 

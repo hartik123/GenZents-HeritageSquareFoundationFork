@@ -53,7 +53,7 @@ def generate_text(prompt: str) -> str:
             {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
         ]
         model = genai.GenerativeModel(
-            model_name='gemini-1.5-flash',
+            model_name='gemini-2.0-flash',
             generation_config=generation_config,
             safety_settings=safety_settings,
             system_instruction="You are a helpful AI assistant."
@@ -103,7 +103,7 @@ async def generate_text_stream(prompt: str, history: List[Dict[str, str]] = [
         ]
 
         model = genai.GenerativeModel(
-            model_name='gemini-1.5-flash',
+            model_name='gemini-2.0-flash',
             generation_config=generation_config,
             safety_settings=safety_settings,
             system_instruction=system_prompt if system_prompt else "You are a helpful AI assistant."

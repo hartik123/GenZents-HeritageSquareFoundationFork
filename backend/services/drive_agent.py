@@ -200,7 +200,7 @@ You have access to the following Google Drive functions:
 Be helpful, safe, and provide clear explanations of what you're doing."""
 
         return genai.GenerativeModel(
-            model_name='gemini-1.5-flash',
+            model_name='gemini-2.0-flash',
             generation_config=generation_config,
             tools=tools,
             system_instruction=system_instruction

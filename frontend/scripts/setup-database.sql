@@ -20,6 +20,11 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   theme TEXT DEFAULT 'system' CHECK (theme IN ('light', 'dark', 'system')),
   language TEXT DEFAULT 'en',
   timezone TEXT DEFAULT 'UTC',
+  communication_style TEXT,
+  response_length TEXT,
+  expertise_level TEXT,
+  temperature NUMERIC(3,2),
+  system_prompt TEXT,
   
   -- Admin and permissions
   is_admin BOOLEAN DEFAULT FALSE,
@@ -49,7 +54,7 @@ CREATE TABLE IF NOT EXISTS chats (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  metadata JSONB DEFAULT '{"totalMessages": 0, "totalTokens": 0, "averageResponseTime": 0, "lastActivity": ""}',
+  metadata JSONB DEFAULT '{"totalMessages": 0, "totalTokens": 0, "averageResponseTime": 0}',
   context_summary TEXT DEFAULT '',
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'archived', 'deleted')),
   bookmarked BOOLEAN DEFAULT false,
@@ -329,7 +334,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_name = 'chats' AND column_name = 'metadata') THEN
-        ALTER TABLE chats ADD COLUMN metadata JSONB DEFAULT '{"totalMessages": 0, "totalTokens": 0, "averageResponseTime": 0, "lastActivity": ""}';
+        ALTER TABLE chats ADD COLUMN metadata JSONB DEFAULT '{"totalMessages": 0, "totalTokens": 0, "averageResponseTime": 0}';
     END IF;
 END $$;
 
@@ -365,8 +370,7 @@ UPDATE chats
 SET metadata = jsonb_build_object(
     'totalMessages', 0,
     'totalTokens', 0,
-    'averageResponseTime', 0,
-    'lastActivity', created_at::text
+    'averageResponseTime', 0
 )
 WHERE metadata IS NULL OR metadata = '{}';
 

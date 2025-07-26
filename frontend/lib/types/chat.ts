@@ -2,6 +2,7 @@ export interface Chat {
   id: string
   title: string
   created_at: Date
+  updated_at: Date
   user_id: string
   metadata: ChatMetadata
   context_summary: string
@@ -15,7 +16,6 @@ export interface ChatMetadata {
   totalMessages: number
   totalTokens: number
   averageResponseTime: number
-  lastActivity: string
 }
 
 export interface Message {

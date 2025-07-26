@@ -12,6 +12,11 @@ export interface Database {
           theme: "light" | "dark" | "system"
           language: string
           timezone: string
+          communication_style: string
+          response_length: string
+          expertise_level: string
+          temperature: number
+          system_prompt: string | null
           is_admin: boolean
           status: "active" | "paused" | "pending_invitation"
           permissions: string[]
@@ -35,6 +40,11 @@ export interface Database {
           theme?: "light" | "dark" | "system"
           language?: string
           timezone?: string
+          communication_style?: string
+          response_length?: string
+          expertise_level?: string
+          temperature?: number
+          system_prompt?: string | null
           is_admin?: boolean
           status?: "active" | "paused" | "pending_invitation"
           permissions?: string[]
@@ -58,6 +68,11 @@ export interface Database {
           theme?: "light" | "dark" | "system"
           language?: string
           timezone?: string
+          communication_style?: string
+          response_length?: string
+          expertise_level?: string
+          temperature?: number
+          system_prompt?: string | null
           is_admin?: boolean
           status?: "active" | "paused" | "pending_invitation"
           permissions?: string[]
@@ -86,7 +101,6 @@ export interface Database {
             totalMessages: number
             totalTokens: number
             averageResponseTime: number
-            lastActivity: string
           }
           context_summary: string
           status: "active" | "archived" | "deleted"
@@ -100,7 +114,6 @@ export interface Database {
             totalMessages?: number
             totalTokens?: number
             averageResponseTime?: number
-            lastActivity?: string
           }
           context_summary?: string
           status?: "active" | "archived" | "deleted"
@@ -114,7 +127,6 @@ export interface Database {
             totalMessages?: number
             totalTokens?: number
             averageResponseTime?: number
-            lastActivity?: string
           }
           context_summary?: string
           status?: "active" | "archived" | "deleted"

@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     const chatData = {
       title: title || "New Chat",
       user_id: user.id,
-      model: model || "gemini-1.5-flash",
+      model: model || "gemini-2.0-flash",
       tags: tags || [],
       bookmarked: false,
       archived: false,
