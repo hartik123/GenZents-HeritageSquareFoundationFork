@@ -1,5 +1,5 @@
 from chromadb import PersistentClient
-from scan_and_embed_drive import embed_and_store_pdf
+from backend.scripts.scan_and_embed_drive import embed_and_store_pdf
 
 def sync_drive_with_chroma(service, root_folder_id):
     print("\n🔍 Scanning Google Drive...")

@@ -10,3 +10,7 @@ google-cloud-aiplatform==1.97.0
 google-api-python-client==2.173.0
 google-auth-oauthlib==1.2.2
 autopep8==2.3.2
+chromadb==1.0.15
+langchain==0.3.27
+sentence-transformers==5.0.0
+PyPDF2==3.0.1

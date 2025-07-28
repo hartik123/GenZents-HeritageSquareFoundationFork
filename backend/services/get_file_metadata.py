@@ -1,4 +1,4 @@
-from scan_and_embed_drive import query_drive_metadata
+from backend.scripts.scan_and_embed_drive import query_drive_metadata
 
 def get_file_metadata(service, folder_id=None, name_filter=None):
     """

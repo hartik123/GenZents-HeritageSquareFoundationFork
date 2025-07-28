@@ -160,7 +160,7 @@ class TaskProcessor:
     async def _run_task(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a task (generic handler, no type logic)"""
         try:
-            from services.user_security import get_security_service
+            from user_security import get_security_service
             from storage.database import get_user_supabase_client
 
             # Get user's authenticated supabase client

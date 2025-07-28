@@ -1,6 +1,6 @@
 import os
 import io
-import fitz  # PyMuPDF
+import PyPDF2
 import chromadb
 from chromadb import PersistentClient
 from sentence_transformers import SentenceTransformer
@@ -19,8 +19,11 @@ def download_pdf_text(service, file_id):
     while not done:
         status, done = downloader.next_chunk()
     fh.seek(0)
-    doc = fitz.open(stream=fh, filetype="pdf")
-    return "".join(page.get_text() for page in doc)
+    reader = PyPDF2.PdfReader(fh)
+    text = ""
+    for page in reader.pages:
+        text += page.extract_text() or ""
+    return text
 
 def get_folder_id(service, folder_name):
     response = service.files().list(

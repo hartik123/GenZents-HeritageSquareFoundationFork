@@ -7,12 +7,11 @@ from models.message import MessageCreate, MessageResponse, MessageUpdate
 from models.task import TaskResponse
 from models.user import User
 from utils.logger import logger
-from services.context_manager import create_prompt
+from backend.scripts.context_manager import create_prompt
 from services.user_security import get_security_service
 import uuid
 import json
 from datetime import datetime
-from services.generative_ai import generate_text, generate_text_stream
 
 router = APIRouter(prefix="/api/messages", tags=["messages"])
 security = HTTPBearer()
