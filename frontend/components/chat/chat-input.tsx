@@ -428,17 +428,6 @@ export function ChatInput() {
               <Paperclip className="h-4 w-4" />
             </Button>
 
-            {/* Prompt Enhancer Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleEnhancePrompt}
-              disabled={!input.trim()}
-              className="flex-shrink-0"
-              title="Enhance your prompt for better AI responses"
-            >
-              <Sparkles className="h-4 w-4" />
-            </Button>
             {/* Text Input */}
             <div className="flex-1 relative">
               <Textarea

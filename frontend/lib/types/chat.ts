@@ -63,6 +63,7 @@ export interface MessageStatus {
 }
 
 export interface Reaction {
+  id: string,
   user_id: string
   type: "liked" | "disliked" | "flagged"
   created_at: string
