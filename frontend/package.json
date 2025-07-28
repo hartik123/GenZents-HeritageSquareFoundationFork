@@ -41,7 +41,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "latest",
-    "framer-motion": "^12.23.6",
     "immer": "latest",
     "isomorphic-dompurify": "latest",
     "lucide-react": "^0.454.0",
