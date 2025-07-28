@@ -34,6 +34,10 @@ import type { MessageBubbleProps } from "@/lib/types/ui"
 import { renderMarkdown } from "@/lib/utils/markdown"
 import { useChatStore } from "@/lib/stores/chat-store"
 import { useSettingsStore } from "@/lib/stores/settings-store"
+import { useAuthStore } from "@/lib/stores/auth-store"
+import { Message, Reaction } from "@/lib/types"
+import { createClient } from "@/lib/supabase/client"
+
 
 export function MessageBubble({ message, isLast }: MessageBubbleProps) {
   const { editMessage, deleteMessage, reactToMessage, getCurrentChat, currentChatId } = useChatStore()
@@ -44,6 +48,30 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
   const attachments = getCurrentChat()?.attachments || []
   const isUser = message.role === "user"
   const isSystem = message.role === "system"
+  const { user, updateProfile } = useAuthStore()
+  const [fullName, setFullName] = React.useState(user?.user_metadata?.full_name || "")
+
+  const supabase = createClient()
+  const [reactions, setReactions] = React.useState<Reaction[]>([])
+  const [dropdownIsOpen, setDropdownIsOpen] = React.useState(false)
+
+  React.useEffect(() => {
+    const fetchReactions = async () => {
+      const { data, error } = await supabase
+        .from("reactions")
+        .select("*")
+        .eq("message_id", message.id)
+
+      if (!error) {
+        setReactions(data)
+      } else {
+        console.error("Failed to fetch reactions", error)
+      }
+    }
+
+    fetchReactions()
+  }, [message.id])
+
 
   const handleCopy = async () => {
     try {
@@ -61,11 +89,53 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
     }
   }
 
-  const handleReaction = (type: "liked" | "disliked") => {
-    if (!currentChatId) return
+  const handleReaction = async (type: "liked" | "disliked") => {
+    if (!user) {
+      console.error("User not logged in");
+      return;
+    }
+    const existing = reactions.find((r) => r.type === type);
 
-    reactToMessage(message.id, type === "liked" ? "liked" : "disliked")
-  }
+    if (existing?.id) {
+      // User clicked the same reaction → remove it
+      await supabase
+        .from("reactions")
+        .delete()
+        .eq("id", existing.id);
+
+      setReactions((prev) => prev.filter((r) => r.id !== existing.id));
+    } else {
+      // Remove opposite reaction if exists
+      const opposite = type === "liked" ? "disliked" : "liked";
+      const existingOpposite = reactions.find((r) => r.type === opposite);
+
+      if (existingOpposite?.id) {
+        await supabase
+          .from("reactions")
+          .delete()
+          .eq("id", existingOpposite.id);
+      }
+
+      // Add the new reaction
+      const { data, error } = await supabase
+        .from("reactions")
+        .insert({
+          message_id: message.id,
+          user_id: user.id,
+          type,
+          emoji: type === "liked" ? "👍" : "👎",
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        setReactions((prev) =>
+          [...prev.filter((r) => r.type !== opposite), data as Reaction]
+        );
+      }
+    }
+  };
+
 
   const handleRegenerate = async () => {
     if (!currentChatId) return
@@ -125,6 +195,74 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
     return formatDistanceToNow(date, { addSuffix: true })
   }
 
+  const getChatReactionComponent = (message: Message) => {
+    if (isSystem || (!isHovered && !isLast)) return null;
+
+    return (
+      <>
+        <Button variant="ghost" size="sm" onClick={handleCopy} className="h-8 w-8 p-0">
+          <Copy className="h-3 w-3" />
+        </Button>
+
+        {!isUser && (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleReaction("liked")}
+              className={cn(
+                "h-8 w-8 p-0 transition-colors duration-200 hover:bg-green-100",
+                reactions.some((r) => r.type === "liked") ? "text-green-600 bg-green-50" : "text-muted-foreground"
+              )}
+            >
+              <ThumbsUp className="h-4 w-4" />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleReaction("disliked")}
+              className={cn(
+                "h-8 w-8 p-0 transition-colors duration-200 hover:bg-red-100",
+                reactions.some((r) => r.type === "disliked") ? "text-red-600 bg-red-50" : "text-muted-foreground"
+              )}
+            >
+              <ThumbsDown className="h-4 w-4" />
+            </Button>
+
+          </>
+        )}
+
+        <DropdownMenu onOpenChange={(open) => setDropdownIsOpen(open)}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <MoreHorizontal className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align={isUser ? "end" : "start"}>
+            <DropdownMenuItem onClick={handleCopy}>
+              <Copy className="h-4 w-4 mr-2" />
+              Copy
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Share className="h-4 w-4 mr-2" />
+              Share
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </>
+    );
+  };
+
   return (
     <div
       className={cn(
@@ -133,15 +271,19 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
         isSystem && "justify-center"
       )}
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseLeave={() => {
+        if (!dropdownIsOpen) setIsHovered(false)
+      }}
     >
+      {/* Left Avatar */}
       {!isSystem && !isUser && settingsStore.theme && (
         <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarImage src="/placeholder.svg?height=32&width=32" />
+          <AvatarImage src="/favicon.ico" className="h-6 w-6 flex items-center justify-center" />
           <AvatarFallback>AI</AvatarFallback>
         </Avatar>
       )}
 
+      {/* Message content container */}
       <div className={cn("flex flex-col gap-1 max-w-[80%]", isUser && "order-first")}>
         <div
           className={cn(
@@ -169,18 +311,20 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
             </div>
           )}
 
-          {message.reactions && message.reactions.length > 0 && (
-            <div className="flex gap-1 mt-2">
-              {message.reactions.map((reaction, index) => (
+          {/* Reactions permanently shown at bottom right */}
+          {reactions?.length > 0 && (
+            <div className="flex items-center gap-2 mt-2 justify-end">
+              {reactions.map((reaction, index) => (
                 <Badge key={index} variant="secondary" className="text-xs">
-                  {reaction.type === "liked" ? "👍" : "👎"}
+                  {reaction.type === "liked" ? "👍" : reaction.type === "disliked" ? "👎" : "🚩"}
                 </Badge>
               ))}
             </div>
           )}
         </div>
 
-        <div className={cn("flex items-center gap-2 text-xs text-muted-foreground", isUser && "order-first")}>
+        {/* Footer: timestamp, status, tokens, buttons */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground h-8">
           {settingsStore.theme && message.created_at && <span>{formatTimestamp(message.created_at)}</span>}
 
           {isUser && getStatusIcon()}
@@ -190,85 +334,20 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
               {message.metadata.tokens && <span className="text-xs">{message.metadata.tokens} tokens</span>}
             </div>
           )}
+
+          {/* Reaction buttons */}
+          {getChatReactionComponent(message)}
         </div>
       </div>
 
-      {!isSystem && (isHovered || isLast) && (
-        <div
-          className={cn(
-            "flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity",
-            isUser && "order-first"
-          )}
-        >
-          <Button variant="ghost" size="sm" onClick={handleCopy} className="h-8 w-8 p-0">
-            <Copy className="h-3 w-3" />
-          </Button>
-
-          {!isUser && (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleReaction("liked")}
-                className={cn("h-8 w-8 p-0", message.reactions?.some((r) => r.type === "liked") && "text-green-500")}
-              >
-                <ThumbsUp className="h-3 w-3" />
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleReaction("disliked")}
-                className={cn("h-8 w-8 p-0", message.reactions?.some((r) => r.type === "disliked") && "text-red-500")}
-              >
-                <ThumbsDown className="h-3 w-3" />
-              </Button>
-
-              <Button variant="ghost" size="sm" onClick={handleRegenerate} className="h-8 w-8 p-0">
-                <RotateCcw className="h-3 w-3" />
-              </Button>
-            </>
-          )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreHorizontal className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align={isUser ? "end" : "start"}>
-              <DropdownMenuItem onClick={handleCopy}>
-                <Copy className="h-4 w-4 mr-2" />
-                Copy
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Share className="h-4 w-4 mr-2" />
-                Share
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Bookmark className="h-4 w-4 mr-2" />
-                Bookmark
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDelete} className="text-destructive">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      )}
-
+      {/* Right Avatar */}
       {isUser && settingsStore.theme && (
         <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarImage src="/placeholder.svg?height=32&width=32" />
-          <AvatarFallback>U</AvatarFallback>
+          {/* <AvatarImage src="/paceholder.svg?height=32&width=32" /> */}
+          <AvatarFallback>{fullName ? fullName.charAt(0).toUpperCase() : "U"}</AvatarFallback>
         </Avatar>
       )}
     </div>
   )
+
 }

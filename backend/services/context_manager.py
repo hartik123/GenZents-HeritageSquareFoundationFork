@@ -151,8 +151,7 @@ class ContextManager:
                     f"Conversation context: {context_summary}")
 
             enhanced_prompt = "\n\n".join(enhanced_prompt_parts)
-            logger.info(
-                f"Generated enhanced system prompt for user {user_id}, chat {chat_id}")
+            logger.info(f"Generated enhanced system prompt for user {user_id}, chat {chat_id}")
             return enhanced_prompt
 
         except Exception as e:

@@ -425,8 +425,7 @@ async def create_message_stream(
             try:
                 # Handle commands first if present
                 if command_result and command_result.success:
-                    command_content = f"**Command Executed:** {
-                        command_result.message}"
+                    command_content = f"**Command Executed:** {command_result.message}"
                     if command_result.suggestions:
                         command_content += f"""\n\n{
                             chr(10).join(

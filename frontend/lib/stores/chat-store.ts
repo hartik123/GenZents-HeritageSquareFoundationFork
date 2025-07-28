@@ -385,38 +385,129 @@ export const useChatStore = create<ChatState>()(
       reactToMessage: async (messageId: string, reaction: "liked" | "disliked" | "flagged") => {
         try {
           const supabase = createClient()
-          const user = await supabase.auth.getUser()
-          const userId = user.data.user?.id
+          const {
+            data: { user },
+            error: authError,
+          } = await supabase.auth.getUser()
 
-          if (!userId) throw new Error("User not authenticated")
+          const userId = user?.id
+          if (authError || !userId) throw new Error("User not authenticated")
 
-          set((state) => ({
-            messages: state.messages.map((msg) => {
-              if (msg.id === messageId) {
-                const existingReactions = msg.reactions || []
-                const userReactionIndex = existingReactions.findIndex((r) => r.user_id === userId)
+          // 1. Check if reaction exists
+          const { data: existingReactions, error: selectError } = await supabase
+            .from("reactions")
+            .select("*")
+            .eq("user_id", userId)
+            .eq("message_id", messageId)
+            .limit(1)
 
-                let newReactions: Reaction[]
-                if (userReactionIndex >= 0) {
-                  newReactions = existingReactions.filter((r) => r.user_id !== userId)
-                } else {
-                  newReactions = [
-                    ...existingReactions,
-                    {
-                      user_id: userId,
-                      type: reaction,
-                      created_at: new Date().toISOString(),
-                    },
-                  ]
-                }
+          if (selectError) throw selectError
 
-                return { ...msg, reactions: newReactions }
-              }
-              return msg
-            }),
-          }))
+          const existing = existingReactions[0]
+
+          const emojiMap = {
+            liked: "👍",
+            disliked: "👎",
+            flagged: "🚩",
+          }
+
+          if (existing) {
+            if (existing.type === reaction) {
+              // 2. If same reaction → remove
+              const { error: deleteError } = await supabase
+                .from("reactions")
+                .delete()
+                .eq("id", existing.id)
+
+              if (deleteError) throw deleteError
+
+              // Remove from local store
+              set((state) => ({
+                messages: state.messages.map((msg) =>
+                  msg.id === messageId
+                    ? {
+                      ...msg,
+                      reactions: (msg.reactions || []).filter((r) => r.user_id !== userId),
+                    }
+                    : msg
+                ),
+              }))
+            } else {
+              // 3. Update with new type
+              const { error: updateError } = await supabase
+                .from("reactions")
+                .update({
+                  type: reaction,
+                  emoji: emojiMap[reaction],
+                  created_at: new Date().toISOString(),
+                })
+                .eq("id", existing.id)
+
+              if (updateError) throw updateError
+
+              // Update local store
+              set((state) => ({
+                messages: state.messages.map((msg) =>
+                  msg.id === messageId
+                    ? {
+                      ...msg,
+                      reactions: (msg.reactions || []).map((r) =>
+                        r.user_id === userId
+                          ? {
+                            ...r,
+                            type: reaction,
+                            emoji: emojiMap[reaction],
+                            created_at: new Date().toISOString(),
+                          }
+                          : r
+                      ),
+                    }
+                    : msg
+                ),
+              }))
+            }
+          } else {
+            // 4. Insert new reaction
+            const { data, error: insertError } = await supabase
+              .from("reactions")
+              .insert({
+                user_id: userId,
+                message_id: messageId,
+                type: reaction,
+                emoji: emojiMap[reaction],
+                created_at: new Date().toISOString(),
+              })
+              .select()
+              .single()
+
+            if (insertError) throw insertError
+
+            // Add to local store
+            set((state) => ({
+              messages: state.messages.map((msg) =>
+                msg.id === messageId
+                  ? {
+                    ...msg,
+                    reactions: [
+                      ...(msg.reactions || []).filter((r) => r.user_id !== userId),
+                      {
+                        id: data.id,
+                        user_id: userId,
+                        type: reaction,
+                        emoji: emojiMap[reaction],
+                        created_at: data.created_at,
+                      },
+                    ],
+                  }
+                  : msg
+              ),
+            }))
+          }
         } catch (error) {
-          logger.error("Error reacting to message", error as Error, { component: "chat-store", messageId })
+          logger.error("Error reacting to message", error as Error, {
+            component: "chat-store",
+            messageId,
+          })
           throw error
         }
       },
