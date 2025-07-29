@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
         permissions: permissions,
         status: "pending_invitation",
       },
-      redirectTo: `${request.nextUrl.origin}/auth/set-password`,
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/set-password`,
     })
 
     if (error) throw error
