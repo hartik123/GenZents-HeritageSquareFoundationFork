@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
         permissions: permissions,
         status: "pending_invitation",
       },
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/set-password`,
+      redirectTo: `https://gen-zents-heritage-square-foundatio-tau.vercel.app/auth/set-password`,
     })
 
     if (error) throw error
