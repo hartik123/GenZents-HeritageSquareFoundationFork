@@ -118,32 +118,6 @@ class GoogleDriveService:
             logger.error(f"Failed to create folder {name}: {e}")
             raise
 
-    def upload_file(self, file_content: bytes, filename: str, parent_id: Optional[str] = None,
-                    mime_type: Optional[str] = None) -> Dict[str, Any]:
-        """Upload a file to Google Drive"""
-        try:
-            file_metadata = {'name': filename}
-            if parent_id:
-                file_metadata['parents'] = [parent_id]
-
-            media = MediaIoBaseUpload(
-                io.BytesIO(file_content),
-                mimetype=mime_type or 'application/octet-stream',
-                resumable=True
-            )
-
-            file = self.service.files().create(
-                body=file_metadata,
-                media_body=media,
-                fields='id,name,size,webViewLink,createdTime'
-            ).execute()
-
-            logger.info(f"Uploaded file: {filename} (ID: {file['id']})")
-            return self._format_file_info(file)
-        except HttpError as e:
-            logger.error(f"Failed to upload file {filename}: {e}")
-            raise
-
     def download_file(self, file_id: str) -> bytes:
         """Download file content"""
         try:
@@ -211,29 +185,17 @@ class GoogleDriveService:
             logger.error(f"Failed to rename file {file_id}: {e}")
             raise
 
-    def search_files(self, query: str,
-                     max_results: int = 50) -> List[Dict[str, Any]]:
-        """Search for files by name or content"""
-        try:
-            search_query = f"name contains '{query}' or fullText contains '{query}'"
-            return self.list_files(query=search_query, max_results=max_results)
-        except HttpError as e:
-            logger.error(f"Failed to search files with query '{query}': {e}")
-            raise
-
     def get_folder_structure(
             self, folder_id: Optional[str] = None, max_depth: int = 3) -> Dict[str, Any]:
         """Get hierarchical folder structure"""
         try:
             if not folder_id:
                 folder_id = 'root'
-
             folder_info = self.get_file_info(folder_id)
             structure = {
                 'info': folder_info,
                 'children': []
             }
-
             if max_depth > 0:
                 files = self.list_files(folder_id)
                 for file in files:
@@ -245,7 +207,6 @@ class GoogleDriveService:
                     else:
                         structure['children'].append(
                             {'info': file, 'children': []})
-
             return structure
         except HttpError as e:
             logger.error(
@@ -259,51 +220,6 @@ class GoogleDriveService:
             return permissions.get('permissions', [])
         except HttpError as e:
             logger.error(f"Failed to get permissions for file {file_id}: {e}")
-            raise
-
-    def organize_by_type(
-            self, source_folder_id: str) -> Dict[str, List[Dict[str, Any]]]:
-        """Organize files by type within a folder"""
-        try:
-            files = self.list_files(source_folder_id)
-            organized = {
-                'documents': [],
-                'images': [],
-                'videos': [],
-                'audio': [],
-                'spreadsheets': [],
-                'presentations': [],
-                'pdfs': [],
-                'folders': [],
-                'others': []
-            }
-
-            for file in files:
-                mime_type = file.get('mimeType', '')
-
-                if mime_type == 'application/vnd.google-apps.folder':
-                    organized['folders'].append(file)
-                elif 'document' in mime_type or 'text' in mime_type:
-                    organized['documents'].append(file)
-                elif 'image' in mime_type:
-                    organized['images'].append(file)
-                elif 'video' in mime_type:
-                    organized['videos'].append(file)
-                elif 'audio' in mime_type:
-                    organized['audio'].append(file)
-                elif 'spreadsheet' in mime_type:
-                    organized['spreadsheets'].append(file)
-                elif 'presentation' in mime_type:
-                    organized['presentations'].append(file)
-                elif 'pdf' in mime_type:
-                    organized['pdfs'].append(file)
-                else:
-                    organized['others'].append(file)
-
-            return organized
-        except HttpError as e:
-            logger.error(
-                f"Failed to organize files in folder {source_folder_id}: {e}")
             raise
 
     def get_storage_info(self) -> Dict[str, Any]:
