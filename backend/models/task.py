@@ -12,19 +12,8 @@ class TaskStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class TaskType(str, Enum):
-    """Task types for computation-heavy operations"""
-    ORGANIZE = "organize"
-    SEARCH = "search"
-    CLEANUP = "cleanup"
-    FOLDER_OPERATION = "folder_operation"
-    BACKUP = "backup"
-    ANALYSIS = "analysis"
-
-
 class TaskCreate(BaseModel):
     """Create task request - computation-heavy operations only"""
-    type: TaskType
     command: str = Field(..., min_length=1, max_length=500)
     parameters: Optional[Dict[str, Any]] = Field(default_factory=dict)
     chat_id: Optional[str] = None

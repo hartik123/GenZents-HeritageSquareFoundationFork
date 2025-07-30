@@ -3,16 +3,9 @@ from typing import Optional, Dict, Any, List
 
 
 class MessageCreate(BaseModel):
-    """Create message request for AI processing"""
-    content: str = Field(...,
-                         min_length=1,
-                         max_length=10000,
-                         description="Message content")
-    role: str = Field(
-        default="user",
-        pattern=r"^(user|assistant|system|function)$")
+    content: str = Field(..., min_length=1, max_length=10000, description="Message content")
+    role: str = Field(default="user", pattern=r"^(user|assistant|system|function)$")
     metadata: Optional[Dict[str, Any]] = None
-
     @field_validator('content')
     @classmethod
     def validate_content(cls, v):
@@ -22,31 +15,25 @@ class MessageCreate(BaseModel):
 
 
 class MessageUpdate(BaseModel):
-    """Update message - minimal fields for backend use"""
     content: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
 
 class MessageResponse(BaseModel):
-    """Message response from AI processing - aligned with frontend Message type"""
     model_config = ConfigDict(from_attributes=True)
-
     id: str
     chat_id: str
-    user_id: Optional[str] = None  # Match frontend optional field
-    role: str  # "user" | "assistant" | "system" | "function"
+    user_id: Optional[str] = None
+    role: str
     content: str
-    created_at: str  # ISO string format
+    created_at: str
     updated_at: Optional[str] = None
-    deleted: bool = False  # Match frontend Message type
+    deleted: bool = False
     metadata: Optional[Dict[str, Any]] = None
-    # Note: Frontend handles additional fields like status, reactions via
-    # direct Supabase
 
 
 class StreamingResponse(BaseModel):
-    """Streaming response for real-time AI responses"""
-    type: str  # "chunk" | "complete" | "error" | "message" | "done" | "command"
+    type: str
     data: Optional[Any] = None
     content: Optional[str] = None
     message: Optional[Dict[str, Any]] = None
