@@ -7,8 +7,8 @@ export async function POST(req: NextRequest) {
     if (!token) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
-    const backendUrl = process.env.BACKEND_URL || "http://localhost:8000/api/sync/drive"
-    const res = await fetch(backendUrl, {
+    const backendUrl = process.env.BACKEND_URL || "http://localhost:8000"
+    const res = await fetch(`${backendUrl}/api/sync/drive`, {
       method: "POST",
       headers: {
         "Authorization": token,

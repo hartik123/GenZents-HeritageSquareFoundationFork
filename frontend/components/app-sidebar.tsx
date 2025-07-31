@@ -43,7 +43,7 @@ export function AppSidebar() {
   const router = useRouter()
   const { toast } = useToast()
   const { chats, createChat, selectChat, deleteChat, loadChats, currentChatId, clearAll: clearChats } = useChatStore()
-  const { user, profile, signOut, isAdmin, hasPermission, loading } = useAuthStore()
+  const { user, profile, signOut, isAdmin, hasPermission, loading, session } = useAuthStore()
   const { clearAll: clearTasks } = useTaskStore()
 
   useEffect(() => {
@@ -186,7 +186,11 @@ export function AppSidebar() {
                       e.preventDefault()
                       toast({ title: "Syncing Drive..." })
                       try {
-                        const res = await fetch("/api/sync", { method: "POST" })
+                        const accessToken = session?.access_token || null
+                        const res = await fetch("/api/sync", {
+                          method: "POST",
+                          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+                        })
                         if (!res.ok) throw new Error("Sync failed")
                         const data = await res.json()
                         toast({ title: "Drive Synced", description: data.status || "Success" })

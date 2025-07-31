@@ -25,7 +25,6 @@ async def sync_drive(
 ):
     """Sync Google Drive with ChromaDB and Supabase file_metadata."""
     drive_service = GoogleDriveService()
-    agent = create_drive_agent(current_user.id, user_supabase)
     # 1. List all files in Drive
     all_drive_files = drive_service.list_files()
     drive_files_map = {f['id']: f for f in all_drive_files if f['mimeType'] != 'application/vnd.google-apps.folder'}

@@ -1,8 +1,7 @@
 from googleapiclient.errors import HttpError
 from collections import defaultdict
 import os
-from backend.storage.database import supabase
-from backend.scripts.chroma import search_documents
+from storage.database import supabase
 
 def get_file_metadata_table():
     """

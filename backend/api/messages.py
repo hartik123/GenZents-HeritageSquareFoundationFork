@@ -1,13 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from typing import List, Optional
 from storage.database import supabase, get_current_user, get_user_supabase_client
 from models.message import MessageCreate, MessageResponse, MessageUpdate
-from models.task import TaskResponse
 from models.user import User
 from utils.logger import logger
-from backend.scripts.context_manager import create_prompt
+from scripts.context_manager import create_prompt
 from utils.user_security import get_security_service
 import uuid
 import json

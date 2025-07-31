@@ -10,8 +10,8 @@ from utils.logger import logger
 
 from utils.user_security import get_security_service
 from storage.database import get_user_supabase_client
-from backend.scripts.chroma import search_documents
-from backend.services.additional_tools import (
+from scripts.chroma import search_documents
+from services.additional_tools import (
     get_file_metadata_table,
 )
 
@@ -196,6 +196,6 @@ class GoogleDriveAgent:
 
 def create_drive_agent(user_id: str = None, user_supabase_client=None, llm=None) -> GoogleDriveAgent:
     if llm is None:
-        from generative_ai import GENAI_MODEL
+        from .generative_ai import GENAI_MODEL
         llm = GENAI_MODEL
     return GoogleDriveAgent(user_id=user_id, user_supabase_client=user_supabase_client, llm=llm)
