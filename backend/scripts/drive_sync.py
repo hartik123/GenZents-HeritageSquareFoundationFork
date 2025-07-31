@@ -1,29 +1,9 @@
 import os
 import io
 import json
-from chromadb import PersistentClient
-from sentence_transformers import SentenceTransformer
-
 import PyPDF2
-from backend.scripts.google_drive import GoogleDriveService
+from backend.services.chroma import embed_pdf_chunks, remove_file as chroma_remove_file
 
-# --- Initialization ---
-DB_PATH = "./chroma_store"
-COLLECTION_NAME = "drive-docs"
-EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
-
-chroma_client = PersistentClient(path=DB_PATH)
-collection = chroma_client.get_or_create_collection(name=COLLECTION_NAME)
-embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
-
-def remove_file_from_chroma(file_id):
-    all_items = collection.get(include=["metadatas"])
-    ids_to_delete = [
-        id_ for id_, meta in zip(all_items["ids"], all_items["metadatas"])
-        if meta.get("file_id") == file_id
-    ]
-    if ids_to_delete:
-        collection.delete(ids=ids_to_delete)
 
 # --- Google Drive Utilities ---
 def download_pdf_text(drive_service, file_id):
@@ -49,32 +29,11 @@ def embed_and_store_pdf(drive_service, file):
     except Exception:
         size_mb = 0.0
 
-    existing = collection.get(include=["metadatas"])
-    existing_file_ids = {meta.get("file_id") for meta in existing["metadatas"] if meta.get("file_id")}
-    if file_id in existing_file_ids:
-        print(f"🔁 Skipping already embedded file: {file_name}")
-        return
-
+    # Check if already embedded by trying to embed; chroma.py should handle deduplication if needed
     try:
         text = download_pdf_text(drive_service, file_id)
-        chunks = [text[i:i+500] for i in range(0, len(text), 500)]
-        embeddings = embedding_model.encode(chunks).tolist()
-        for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-            metadata_header = f"[File: {file_name} | Modified: {modified_time} | Size: {size_mb} MB]\n"
-            chunk_with_metadata = metadata_header + chunk
-            collection.add(
-                documents=[chunk_with_metadata],
-                embeddings=[embedding],
-                ids=[f"{file_id}_{idx}"],
-                metadatas=[{
-                    "file_id": file_id,
-                    "file_name": file_name,
-                    "modified_time": modified_time,
-                    "size_mb": size_mb,
-                    "parent_folder": parent_folder_id
-                }]
-            )
-        print(f"✅ Embedded '{file_name}' ({len(chunks)} chunks) | Size: {size_mb} MB | Modified: {modified_time}")
+        embed_pdf_chunks(text, file_id, file_name, modified_time, size_mb, parent_folder_id)
+        print(f"✅ Embedded '{file_name}' | Size: {size_mb} MB | Modified: {modified_time}")
     except Exception as e:
         print(f"❌ Failed to embed '{file_name}': {e}")
 
@@ -97,7 +56,7 @@ def scan_folder_and_embed(drive_service, folder_name):
     folder_id = folders[0]['id']
     print(f"📁 Scanning folder '{folder_name}' recursively...")
     process_folder_recursively(drive_service, folder_id)
-    print("✅ Total chunks stored:", collection.count())
+    # print("✅ Total chunks stored:", collection.count())
 
 # --- Drive/Chroma Sync ---
 def sync_drive_with_chroma(service, root_folder_id):

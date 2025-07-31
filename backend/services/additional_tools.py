@@ -1,3 +1,9 @@
+from googleapiclient.errors import HttpError
+from collections import defaultdict
+import os
+from backend.storage.database import supabase
+from backend.services.chroma import search_documents
+
 def get_file_metadata_table():
     """
     Fetches all file metadata records from Supabase.
@@ -5,7 +11,6 @@ def get_file_metadata_table():
         List[dict]: List of file metadata records.
     """
     try:
-        from backend.storage.database import supabase
         if not supabase:
             print("Supabase client not initialized.")
             return []
@@ -19,39 +24,6 @@ def get_file_metadata_table():
         print(f"Error fetching file metadata: {e}")
         return []
 
-def search_drive_documents(query: str, top_k: int = 5) -> list:
-    """
-    Search embedded Google Drive documents using a natural language query.
-    Args:
-        query (str): The user's question or search phrase.
-        top_k (int): Number of top matching document chunks to return.
-    Returns:
-        List[dict]: Each dict contains 'text', 'file_name', 'file_id'.
-    """
-    try:
-        from sentence_transformers import SentenceTransformer
-        from chromadb import PersistentClient
-        embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-        chroma_client = PersistentClient(path="./chroma_store")
-        collection = chroma_client.get_or_create_collection(name="drive-docs")
-        query_embedding = embedding_model.encode([query]).tolist()[0]
-        results = collection.query(
-            query_embeddings=[query_embedding],
-            n_results=top_k,
-            include=["documents", "metadatas"]
-        )
-        matches = []
-        for doc, meta in zip(results.get("documents", [[]])[0], results.get("metadatas", [[]])[0]):
-            matches.append({
-                "text": doc,
-                "file_name": meta.get("file_name", "unknown"),
-                "file_id": meta.get("file_id", "unknown")
-            })
-        return matches
-    except Exception as e:
-        print(f"Error searching drive documents: {e}")
-        return []
-
 def create_standard_folder_structure(service, root_folder_id: str):
     """
     Creates a standard folder hierarchy under the given root folder.
@@ -62,7 +34,6 @@ def create_standard_folder_structure(service, root_folder_id: str):
     Returns:
         dict: Mapping of folder paths to their Google Drive IDs.
     """
-    from googleapiclient.errors import HttpError
     structure = {
         "Documents": ["Reports", "Notes"],
         "Media": ["Images", "Videos"],
@@ -110,8 +81,6 @@ def organize_existing_drive_files(service, root_folder_id, folder_map=None, appl
     Returns:
         dict: Status and structure summary.
     """
-    from collections import defaultdict
-    import os
     summary = defaultdict(list)
     name_tracker = defaultdict(int)
     def list_all_items(folder_id):

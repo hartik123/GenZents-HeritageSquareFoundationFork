@@ -7,8 +7,10 @@ from langchain.memory import ConversationBufferMemory
 from config import settings
 from scripts.google_drive import GoogleDriveService
 from utils.logger import logger
+
 from utils.user_security import get_security_service
 from storage.database import get_user_supabase_client
+from backend.services.chroma import search_documents
 
 
 class GoogleDriveAgent:
@@ -160,14 +162,14 @@ class GoogleDriveAgent:
                 description="Get Google Drive storage information. Input: {}"
             ),
             Tool(
-                name="OrganizeByType",
-                func=self._wrap_tool(self.drive_service.organize_by_type, "organize_by_type", track_type=True),
-                description="Organize files by type. Input: {'source_folder_id': str}"
-            ),
-            Tool(
                 name="GetFolderStructure",
                 func=self._wrap_tool(self.drive_service.get_folder_structure, "get_folder_structure"),
                 description="Get folder structure. Input: {'folder_id': str, 'max_depth': int}"
+            ),
+            Tool(
+                name="SearchDriveDocuments",
+                func=lambda input_str: search_documents(input_str),
+                description="Semantic search over embedded Google Drive documents. Input: query string. Returns top relevant document chunks."
             ),
         ]
         return initialize_agent(
