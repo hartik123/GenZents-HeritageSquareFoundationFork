@@ -20,6 +20,12 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   theme TEXT DEFAULT 'system' CHECK (theme IN ('light', 'dark', 'system')),
   language TEXT DEFAULT 'en',
   timezone TEXT DEFAULT 'UTC',
+
+  notifications JSONB DEFAULT '{"email":true,"push":false,"desktop":false,"sound":false}',
+  communication_style TEXT CHECK (communication_style IN ('professional', 'casual', 'friendly', 'balanced', 'technical')),
+  response_length TEXT CHECK (response_length IN ('concise', 'balanced', 'detailed', 'comprehensive')),
+  temperature NUMERIC,
+  system_prompt TEXT,
   
   -- Admin and permissions
   is_admin BOOLEAN DEFAULT FALSE,

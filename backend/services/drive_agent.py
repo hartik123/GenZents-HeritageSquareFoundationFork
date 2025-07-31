@@ -62,6 +62,20 @@ class GoogleDriveAgent:
                 "timestamp": datetime.utcnow().isoformat()
             }
             self.user_supabase.table("changes").insert(change_data).execute()
+            # Update file_metadata for folder changes
+            if change_type in ("create", "rename", "move", "organize", "update") and metadata:
+                # Insert or update folder metadata
+                self.user_supabase.table("file_metadata").upsert({
+                    "file_type": True,
+                    "file_name": metadata.get("file_name"),
+                    "file_path": metadata.get("file_path"),
+                    "summary": metadata.get("summary", ""),
+                    "tags": metadata.get("tags", []),
+                    "updated_at": datetime.utcnow().isoformat()
+                }).execute()
+            elif change_type == "delete" and metadata:
+                # Remove folder metadata
+                self.user_supabase.table("file_metadata").delete().eq("file_name", metadata.get("file_name")).eq("file_type", True).eq("file_path", metadata.get("file_path")).execute()
             logger.info(f"Tracked change: {change_type} on {resource_path}")
         except Exception as e:
             logger.error(f"Error tracking change: {e}")

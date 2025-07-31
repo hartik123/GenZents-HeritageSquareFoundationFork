@@ -12,6 +12,16 @@ export interface Database {
           theme: "light" | "dark" | "system"
           language: string
           timezone: string
+          notifications: {
+            email: boolean
+            push: boolean
+            desktop: boolean
+            sound: boolean
+          }
+          communication_style?: "professional" | "casual" | "friendly" | "balanced" | "technical"
+          response_length?: "concise" | "balanced" | "detailed" | "comprehensive"
+          temperature?: number
+          system_prompt?: string
           is_admin: boolean
           status: "active" | "paused" | "pending_invitation"
           permissions: string[]
@@ -35,6 +45,16 @@ export interface Database {
           theme?: "light" | "dark" | "system"
           language?: string
           timezone?: string
+          notifications?: {
+            email?: boolean
+            push?: boolean
+            desktop?: boolean
+            sound?: boolean
+          }
+          communication_style?: "professional" | "casual" | "friendly" | "balanced" | "technical"
+          response_length?: "concise" | "balanced" | "detailed" | "comprehensive"
+          temperature?: number
+          system_prompt?: string
           is_admin?: boolean
           status?: "active" | "paused" | "pending_invitation"
           permissions?: string[]
@@ -58,6 +78,16 @@ export interface Database {
           theme?: "light" | "dark" | "system"
           language?: string
           timezone?: string
+          notifications?: {
+            email?: boolean
+            push?: boolean
+            desktop?: boolean
+            sound?: boolean
+          }
+          communication_style?: "professional" | "casual" | "friendly" | "balanced" | "technical"
+          response_length?: "concise" | "balanced" | "detailed" | "comprehensive"
+          temperature?: number
+          system_prompt?: string
           is_admin?: boolean
           status?: "active" | "paused" | "pending_invitation"
           permissions?: string[]
