@@ -2,10 +2,9 @@ import os
 import io
 import json
 from typing import Dict, List, Optional, Any
-
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
+from googleapiclient.http import MediaIoBaseDownload
 from google.oauth2 import service_account
 from config import settings
 from utils.logger import logger
@@ -94,6 +93,16 @@ class GoogleDriveService:
         except HttpError as e:
             logger.error(f"Failed to list files: {e}")
             raise
+
+    def list_all_items(self, folder_id: Optional[str] = None) -> list:
+        """Recursively list all files and folders starting from folder_id (default root)."""
+        items = self.list_files(folder_id)
+        all_items = []
+        for item in items:
+            all_items.append(item)
+            if item['mimeType'] == 'application/vnd.google-apps.folder':
+                all_items.extend(self.list_all_items(item['id']))
+        return all_items
 
     def create_folder(
             self, name: str, parent_id: Optional[str] = None) -> Dict[str, Any]:

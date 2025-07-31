@@ -326,7 +326,7 @@ CREATE TABLE IF NOT EXISTS attachments (
 -- FILE METADATA TABLE
 -- =====================================================
 CREATE TABLE IF NOT EXISTS file_metadata (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   file_type BOOLEAN NOT NULL,
   file_name TEXT NOT NULL,
   file_path TEXT NOT NULL,

@@ -4,6 +4,7 @@ import uuid
 from langchain.agents import initialize_agent, AgentType
 from langchain.tools import Tool
 from langchain.memory import ConversationBufferMemory
+from langchain_google_genai import ChatGoogleGenerativeAI, HarmBlockThreshold, HarmCategory
 from config import settings
 from scripts.google_drive import GoogleDriveService
 from utils.logger import logger
@@ -141,6 +142,11 @@ class GoogleDriveAgent:
     def _create_agent(self):
         tools = [
             Tool(
+                name="ListAllItems",
+                func=self._wrap_tool(self.drive_service.list_all_items, "list_all_items"),
+                description="Recursively list all files and folders in Google Drive. Input: {'folder_id': str (optional)}. Returns a flat list of all items."
+            ),
+            Tool(
                 name="ListFiles",
                 func=self._wrap_tool(self.drive_service.list_files, "list_files"),
                 description="List files in Google Drive. Input: {'folder_id': str, 'query': str, 'max_results': int}"
@@ -213,8 +219,8 @@ class GoogleDriveAgent:
     def process_message(self, message: str) -> str:
         try:
             logger.info(f"Processing user message for user {self.user_id}: {message}")
-            response = self.agent.run(message)
-            return response
+            result = self.agent.invoke([('human', message)])
+            return result
         except Exception as e:
             logger.error(f"Error processing message: {e}")
             return f"I encountered an error: {str(e)}. Please try again or rephrase your request."
@@ -222,6 +228,19 @@ class GoogleDriveAgent:
 
 def create_drive_agent(user_id: str = None, user_supabase_client=None, llm=None) -> GoogleDriveAgent:
     if llm is None:
-        from .generative_ai import GENAI_MODEL
-        llm = GENAI_MODEL
+        # Use Gemini via LangChain wrapper, with config similar to generative_ai.py
+        llm = ChatGoogleGenerativeAI(
+            google_api_key=getattr(settings, "GEMINI_API_KEY", None),
+            model="gemini-2.0-flash",
+            temperature=0.7,
+            top_p=0.8,
+            top_k=40,
+            max_output_tokens=2048,
+            safety_settings={
+                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+            },
+        )
     return GoogleDriveAgent(user_id=user_id, user_supabase_client=user_supabase_client, llm=llm)

@@ -3,7 +3,7 @@ from utils.logger import logger
 async def create_prompt(user_supabase, user_id: str, chat_id: str, user_message: str) -> str:
     try:
         # Fetch user preferences
-        pref_resp = user_supabase.table("profiles").select("communication_style, response_length, expertise_level, system_prompt, temperature").eq("id", user_id).execute()
+        pref_resp = user_supabase.table("profiles").select("communication_style, response_length, system_prompt, temperature").eq("id", user_id).execute()
         preferences = pref_resp.data[0] if pref_resp.data else {}
         # Fetch chat context summary
         chat_resp = user_supabase.table("chats").select("context_summary").eq("id", chat_id).execute()
