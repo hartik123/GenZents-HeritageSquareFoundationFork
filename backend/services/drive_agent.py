@@ -13,6 +13,8 @@ from storage.database import get_user_supabase_client
 from scripts.chroma import search_documents
 from services.additional_tools import (
     get_file_metadata_table,
+    suggest_folder_structure_with_gemini,
+    organize_drive_by_gemini,
 )
 
 
@@ -173,6 +175,16 @@ class GoogleDriveAgent:
                 name="GetFileMetadataTable",
                 func=lambda _: get_file_metadata_table(),
                 description="Fetch all file metadata records from Supabase. Input: {}. Returns a list of file metadata records."
+            ),
+            Tool(
+                name="SuggestFolderStructureWithGemini",
+                func=lambda input_str: suggest_folder_structure_with_gemini(input_str if input_str else "Suggest a folder structure for my drive based on my files."),
+                description="Suggest a nested folders/files structure for the drive using Gemini, file metadata, and ChromaDB as a knowledge base. Input: user prompt string. Returns a consistent JSON structure."
+            ),
+            Tool(
+                name="OrganizeDriveByGeminiStructure",
+                func=lambda input_str, folder_id: organize_drive_by_gemini(self.drive_service.service, folder_id, input_str, self.user_supabase),
+                description="Organize Google Drive folders according to Gemini's suggested structure. Input: user prompt string, folder ID which needs to be organized. Only folders/subfolders are changed."
             ),
         ]
         return initialize_agent(

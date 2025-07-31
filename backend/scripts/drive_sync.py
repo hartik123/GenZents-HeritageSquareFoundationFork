@@ -56,7 +56,6 @@ def scan_folder_and_embed(drive_service, folder_name):
     folder_id = folders[0]['id']
     print(f"📁 Scanning folder '{folder_name}' recursively...")
     process_folder_recursively(drive_service, folder_id)
-    # print("✅ Total chunks stored:", collection.count())
 
 # --- Drive/Chroma Sync ---
 def sync_drive_with_chroma(service, root_folder_id):

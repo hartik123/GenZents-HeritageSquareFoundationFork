@@ -2,6 +2,10 @@ from googleapiclient.errors import HttpError
 from collections import defaultdict
 import os
 from storage.database import supabase
+import asyncio
+from services.generative_ai import generate_text
+from scripts.chroma import search_documents
+
 
 def get_file_metadata_table():
     """
@@ -23,153 +27,116 @@ def get_file_metadata_table():
         print(f"Error fetching file metadata: {e}")
         return []
 
-def create_standard_folder_structure(service, root_folder_id: str):
+def suggest_folder_structure_with_gemini(user_prompt: str = "Suggest a folder structure for my drive based on my files."):
     """
-    Creates a standard folder hierarchy under the given root folder.
-    Only creates missing folders. Returns a dict of folder paths to IDs.
+    Suggests a folder/files/nested structure for the drive using Gemini, file metadata, and ChromaDB as a knowledge base (not prompt context).
+    Args:
+        user_prompt (str): The user's prompt or requirements for the structure.
+    Returns:
+        dict: Consistent format with suggested structure and status.
+    """
+    file_metadata = get_file_metadata_table()
+    if not file_metadata:
+        return {"status": "error", "message": "No file metadata found.", "structure": None}
+    # Instead of passing ChromaDB context in prompt, we reference it as a knowledge base for Gemini (conceptual, as Gemini API does not support direct RAG yet)
+    # If Gemini API supports RAG, you would pass a retriever or knowledge base handle. For now, we just mention it in the prompt for best-effort.
+    context = "File Metadata (for reference):\n"
+    for file in file_metadata:
+        context += (
+            f"- file_name: {file.get('file_name')}"
+            f", file_type: {'folder' if file.get('file_type') else 'file'}"
+            f", file_path: {file.get('file_path')}"
+            f", summary: {file.get('summary', '')}"
+            f", tags: {', '.join(file.get('tags', []))}\n"
+        )
+    prompt = f"""
+{user_prompt}\n
+Here is a list of files and their metadata from my Google Drive. Suggest an efficient, organized folder structure (including nested folders if needed) that groups files by type, topic, or other logical categories.\n
+For each folder and subfolder, provide:\n- file_name (string)\n- file_type (boolean, true for folder, false for file)\n- file_path (string, full path from root)\n- summary (string, a short description of the folder's purpose and how things are organized in it)\n- tags (array of keywords)\n+Output the structure as a JSON array of objects, one for each folder/subfolder.\n+You have access to a knowledge base (ChromaDB) for additional context if needed.\n
+{context}\n
+Respond ONLY with the JSON array, no extra explanation.\n"""
+    suggestion = generate_text(prompt)
+    import json
+    structure = None
+    try:
+        structure = json.loads(suggestion)
+    except Exception:
+        structure = suggestion
+    return {"status": "success", "structure": structure}
+
+def organize_drive_by_gemini(service, root_folder_id, user_prompt: str, supabase_client):
+    """
+    Organizes Google Drive folders according to Gemini's suggested structure. Only folders/subfolders are created/updated. File names/content are not changed.
+    Updates Supabase file_metadata table for new folders and updates/deletes previous entries as needed.
     Args:
         service: Google Drive API service instance.
-        root_folder_id (str): The folder ID for the root.
+        root_folder_id: The root folder ID.
+        user_prompt: User's requirements for the structure.
+        supabase_client: Supabase client for metadata updates.
     Returns:
-        dict: Mapping of folder paths to their Google Drive IDs.
+        dict: Status and structure summary.
     """
-    structure = {
-        "Documents": ["Reports", "Notes"],
-        "Media": ["Images", "Videos"],
-        "Data": ["Spreadsheets", "Presentations"]
-    }
-    created_folders = {}
-    def get_or_create_folder(name, parent_id):
+    result = suggest_folder_structure_with_gemini(user_prompt)
+    if result["status"] != "success" or not result["structure"]:
+        return result
+    structure = result["structure"]
+    # structure is expected to be a list of folder objects as per schema
+    created = []
+    from datetime import datetime
+    for folder in structure:
+        if not folder.get("file_type", True):
+            continue  # Only create folders, not files
+        folder_name = folder.get("file_name")
+        folder_path = folder.get("file_path")
+        summary = folder.get("summary", "")
+        tags = folder.get("tags", [])
+        # Determine parent_id from file_path
+        parent_id = root_folder_id
+        if folder_path and "/" in folder_path:
+            parent_parts = folder_path.strip("/").split("/")[:-1]
+            curr_parent = root_folder_id
+            for part in parent_parts:
+                results = service.files().list(
+                    q=f"mimeType='application/vnd.google-apps.folder' and name='{part}' and '{curr_parent}' in parents and trashed=false",
+                    fields="files(id, name)"
+                ).execute()
+                folders = results.get("files", [])
+                if folders:
+                    curr_parent = folders[0]['id']
+                else:
+                    folder_obj = service.files().create(body={
+                        'name': part,
+                        'mimeType': 'application/vnd.google-apps.folder',
+                        'parents': [curr_parent]
+                    }, fields="id, name").execute()
+                    curr_parent = folder_obj['id']
+            parent_id = curr_parent
+        # Check if folder exists
         results = service.files().list(
-            q=f"mimeType='application/vnd.google-apps.folder' and name='{name}' and '{parent_id}' in parents and trashed=false",
-            spaces='drive',
+            q=f"mimeType='application/vnd.google-apps.folder' and name='{folder_name}' and '{parent_id}' in parents and trashed=false",
             fields="files(id, name)"
         ).execute()
         folders = results.get("files", [])
         if folders:
-            return folders[0]['id']
-        folder_metadata = {
-            'name': name,
-            'mimeType': 'application/vnd.google-apps.folder',
-            'parents': [parent_id]
-        }
-        folder = service.files().create(body=folder_metadata, fields="id, name").execute()
-        print(f"Created folder: {name} (ID: {folder['id']})")
-        return folder['id']
-    try:
-        for main_folder, subfolders in structure.items():
-            main_id = get_or_create_folder(main_folder, root_folder_id)
-            created_folders[f"{main_folder}"] = main_id
-            for sub in subfolders:
-                sub_id = get_or_create_folder(sub, main_id)
-                created_folders[f"{main_folder}/{sub}"] = sub_id
-        print("Standard folder structure is ready.")
-        return created_folders
-    except HttpError as e:
-        print(f"Failed to create structure: {e}")
-        return {}
-
-def organize_existing_drive_files(service, root_folder_id, folder_map=None, apply_changes=False):
-    """
-    Organizes files in Google Drive under the root folder into a standard structure.
-    Args:
-        service: Google Drive API service instance.
-        root_folder_id: The root folder ID.
-        folder_map: Optional mapping of categories to folder IDs.
-        apply_changes: If True, actually move files. If False, just preview.
-    Returns:
-        dict: Status and structure summary.
-    """
-    summary = defaultdict(list)
-    name_tracker = defaultdict(int)
-    def list_all_items(folder_id):
-        results = service.files().list(
-            q=f"'{folder_id}' in parents and trashed=false",
-            fields="files(id, name, mimeType, parents)"
-        ).execute()
-        items = results.get("files", [])
-        all_items = []
-        for item in items:
-            if item["mimeType"] == "application/vnd.google-apps.folder":
-                all_items.extend(list_all_items(item["id"]))
-            else:
-                all_items.append(item)
-        return all_items
-    def rename_if_duplicate(filename):
-        name, ext = os.path.splitext(filename)
-        name_tracker[filename] += 1
-        if name_tracker[filename] > 1:
-            return f"{name}({name_tracker[filename]}){ext}"
-        return filename
-    def suggest_category(item):
-        # Simple category suggestion based on file extension
-        ext = os.path.splitext(item["name"])[1].lower()
-        if ext in [".jpg", ".jpeg", ".png", ".gif"]:
-            return "Media/Images"
-        if ext in [".mp4", ".mov", ".avi"]:
-            return "Media/Videos"
-        if ext in [".pdf", ".docx", ".doc", ".txt"]:
-            return "Documents/Notes"
-        if ext in [".xlsx", ".csv"]:
-            return "Data/Spreadsheets"
-        if ext in [".pptx", ".ppt"]:
-            return "Data/Presentations"
-        return "Documents/Reports"
-    all_items = list_all_items(root_folder_id)
-    if not all_items:
-        print("No files found to organize.")
-        return {"status": "empty", "structure": {}}
-    already_organized = True
-    for item in all_items:
-        expected_category = suggest_category(item)
-        parents = item.get("parents", [])
-        # This check is simplistic; in real use, check actual folder names by ID
-        if not parents:
-            already_organized = False
-        clean_name = rename_if_duplicate(item["name"])
-        summary[expected_category].append(clean_name)
-    if already_organized:
-        print("Drive is already organized. No changes needed.")
-        return {"status": "organized", "structure": dict(summary)}
-    print("Proposed Folder Structure (Preview):")
-    for category, files in summary.items():
-        print(f"- {category}: {len(files)} file(s)")
-    if not apply_changes:
-        print("No changes were made.")
-        return {"status": "preview", "structure": dict(summary)}
-    for category, files in summary.items():
-        folder_parts = category.split("/")
-        parent_id = root_folder_id
-        for part in folder_parts:
-            results = service.files().list(
-                q=f"mimeType='application/vnd.google-apps.folder' and name='{part}' and '{parent_id}' in parents and trashed=false",
-                fields="files(id, name)"
-            ).execute()
-            folders = results.get("files", [])
-            if folders:
-                folder_id = folders[0]['id']
-            else:
-                folder = service.files().create(
-                    body={"name": part, "mimeType": "application/vnd.google-apps.folder", "parents": [parent_id]},
-                    fields="id, name"
-                ).execute()
-                folder_id = folder['id']
-            parent_id = folder_id
-        for file_name in files:
-            results = service.files().list(
-                q=f"name='{file_name}' and trashed=false",
-                fields="files(id, parents)"
-            ).execute()
-            matched_files = results.get("files", [])
-            if matched_files:
-                file_id = matched_files[0]['id']
-                old_parents = ",".join(matched_files[0].get("parents", []))
-                service.files().update(
-                    fileId=file_id,
-                    addParents=parent_id,
-                    removeParents=old_parents,
-                    fields="id, parents"
-                ).execute()
-                print(f"Moved '{file_name}' → {category}")
-    print("Drive has been reorganized based on the proposed structure.")
-    return {"status": "applied", "structure": dict(summary)}
+            folder_id = folders[0]['id']
+        else:
+            folder_obj = service.files().create(body={
+                'name': folder_name,
+                'mimeType': 'application/vnd.google-apps.folder',
+                'parents': [parent_id]
+            }, fields="id, name").execute()
+            folder_id = folder_obj['id']
+        # Remove previous entry if exists
+        supabase_client.table("file_metadata").delete().eq("file_name", folder_name).eq("file_type", True).eq("file_path", folder_path).execute()
+        # Insert new entry
+        supabase_client.table("file_metadata").insert({
+            "file_type": True,
+            "file_name": folder_name,
+            "file_path": folder_path,
+            "summary": summary,
+            "tags": tags,
+            "updated_at": datetime.utcnow().isoformat()
+        }).execute()
+        created.append({"file_name": folder_name, "id": folder_id, "file_path": folder_path, "summary": summary, "tags": tags})
+    return {"status": "applied", "structure": structure, "created_folders": created}
+    
