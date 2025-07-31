@@ -2,7 +2,7 @@ import os
 import io
 import json
 import PyPDF2
-from backend.services.chroma import embed_pdf_chunks, remove_file as chroma_remove_file
+from backend.scripts.chroma import embed_pdf_chunks, remove_file as chroma_remove_file
 
 
 # --- Google Drive Utilities ---

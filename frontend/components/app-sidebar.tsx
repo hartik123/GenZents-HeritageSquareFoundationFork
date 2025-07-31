@@ -30,14 +30,18 @@ import { MessageSquare, Plus, LogOut, MoreHorizontal, User, GitBranch, ChartNoAx
 import { useChatStore } from "@/lib/stores/chat-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useTaskStore } from "@/lib/stores/task-store"
+import { useToast } from "@/hooks/use-toast"
+
 
 const NAVIGATION_ITEMS = [
-  { title: "Tasks", url: "/tasks", icon: Activity, permission: "ai_chat" },
-  { title: "Version", url: "/version", icon: GitBranch, permission: "version_history" },
+  { title: "Tasks", url: "/tasks", icon: Activity, permission: "read" },
+  { title: "Version", url: "/version", icon: GitBranch, permission: "read" },
 ] as const
+
 
 export function AppSidebar() {
   const router = useRouter()
+  const { toast } = useToast()
   const { chats, createChat, selectChat, deleteChat, loadChats, currentChatId, clearAll: clearChats } = useChatStore()
   const { user, profile, signOut, isAdmin, hasPermission, loading } = useAuthStore()
   const { clearAll: clearTasks } = useTaskStore()
@@ -173,6 +177,29 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <a
+                    href="#sync"
+                    className="w-full text-left"
+                    onClick={async (e) => {
+                      e.preventDefault()
+                      toast({ title: "Syncing Drive..." })
+                      try {
+                        const res = await fetch("/api/sync", { method: "POST" })
+                        if (!res.ok) throw new Error("Sync failed")
+                        const data = await res.json()
+                        toast({ title: "Drive Synced", description: data.status || "Success" })
+                      } catch (err) {
+                        toast({ title: "Sync failed", description: (err as Error).message, variant: "destructive" })
+                      }
+                    }}
+                  >
+                    <ChartNoAxesCombined className="h-4 w-4" />
+                    <span>Sync Drive</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

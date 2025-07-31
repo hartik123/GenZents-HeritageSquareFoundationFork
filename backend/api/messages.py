@@ -60,8 +60,9 @@ async def create_message(
         user_supabase.table("messages").insert(user_message_data).execute()
         # Use new context_manager prompt
         prompt = await create_prompt(user_supabase, current_user.id, chat_id, message.content)
-        from services.generative_ai import generate_text
-        ai_response_text = generate_text(prompt=prompt)
+        from services.drive_agent import create_drive_agent
+        agent = create_drive_agent(current_user.id, user_supabase)
+        ai_response_text = await agent.process_message(prompt)
         estimated_tokens = (len(message.content) + len(ai_response_text)) // 4
         await security_service.update_user_usage(user_id=current_user.id, tokens_used=estimated_tokens, messages_count=1)
         ai_message_data = {

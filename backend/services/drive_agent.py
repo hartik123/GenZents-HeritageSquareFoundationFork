@@ -10,7 +10,10 @@ from utils.logger import logger
 
 from utils.user_security import get_security_service
 from storage.database import get_user_supabase_client
-from backend.services.chroma import search_documents
+from backend.scripts.chroma import search_documents
+from backend.services.additional_tools import (
+    get_file_metadata_table,
+)
 
 
 class GoogleDriveAgent:
@@ -20,7 +23,7 @@ class GoogleDriveAgent:
         self.user_supabase = user_supabase_client
         self.security_service = get_security_service(user_supabase_client) if user_supabase_client else None
         self.llm = llm
-        self.memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+        self.memory = ConversationBufferMemory(memory_key=f"chat_history_{self.user_id}", return_messages=True)
         self.agent = self._create_agent()
 
     def _permission_check(self, operation: str, resource_path: str = "") -> bool:
@@ -152,11 +155,6 @@ class GoogleDriveAgent:
                 description="Delete a file. Input: {'file_id': str}"
             ),
             Tool(
-                name="SearchFiles",
-                func=self._wrap_tool(self.drive_service.search_files, "search_files"),
-                description="Search for files. Input: {'query': str, 'max_results': int}"
-            ),
-            Tool(
                 name="GetStorageInfo",
                 func=self._wrap_tool(self.drive_service.get_storage_info, "get_storage_info"),
                 description="Get Google Drive storage information. Input: {}"
@@ -170,6 +168,11 @@ class GoogleDriveAgent:
                 name="SearchDriveDocuments",
                 func=lambda input_str: search_documents(input_str),
                 description="Semantic search over embedded Google Drive documents. Input: query string. Returns top relevant document chunks."
+            ),
+            Tool(
+                name="GetFileMetadataTable",
+                func=lambda _: get_file_metadata_table(),
+                description="Fetch all file metadata records from Supabase. Input: {}. Returns a list of file metadata records."
             ),
         ]
         return initialize_agent(
@@ -191,6 +194,8 @@ class GoogleDriveAgent:
             return f"I encountered an error: {str(e)}. Please try again or rephrase your request."
 
 
-
 def create_drive_agent(user_id: str = None, user_supabase_client=None, llm=None) -> GoogleDriveAgent:
+    if llm is None:
+        from generative_ai import GENAI_MODEL
+        llm = GENAI_MODEL
     return GoogleDriveAgent(user_id=user_id, user_supabase_client=user_supabase_client, llm=llm)

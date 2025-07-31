@@ -1,4 +1,5 @@
 from api import messages
+from api import sync
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -6,7 +7,7 @@ import uvicorn
 import asyncio
 from config import settings
 from utils.logger import logger
-from services.task_processor import task_processor
+from utils.task_processor import task_processor
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -66,7 +67,10 @@ async def root():
 
 # Include routers - computation-heavy operations only
 # Note: Chat CRUD operations moved to frontend API routes
-app.include_router(messages.router)  # AI processing and streaming
+# AI processing and streaming
+app.include_router(messages.router)
+# Drive/Chroma/Supabase sync endpoint
+app.include_router(sync.router)
 # Note: Drive operations available via services but no HTTP endpoints yet
 
 # Startup and shutdown events
