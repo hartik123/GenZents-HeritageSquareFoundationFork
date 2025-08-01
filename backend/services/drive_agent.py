@@ -219,7 +219,7 @@ class GoogleDriveAgent:
     def process_message(self, message: str) -> str:
         try:
             logger.info(f"Processing user message for user {self.user_id}: {message}")
-            result = self.agent.invoke([('human', message)])
+            result = self.agent.invoke(message)
             return result
         except Exception as e:
             logger.error(f"Error processing message: {e}")

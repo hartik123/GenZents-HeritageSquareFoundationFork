@@ -47,15 +47,6 @@ async def create_message(
         message_check = await security_service.check_user_can_send_message(current_user.id, message.content)
         if not message_check.allowed:
             raise HTTPException(status_code=403, detail=message_check.reason)
-        user_message_data = {
-            "id": str(uuid.uuid4()),
-            "chat_id": chat_id,
-            "role": "user",
-            "content": message.content,
-            "created_at": datetime.utcnow().isoformat(),
-            "metadata": {}
-        }
-        user_supabase.table("messages").insert(user_message_data).execute()
         # Use new context_manager prompt
         prompt = await create_prompt(user_supabase, current_user.id, chat_id, message.content)
         from services.drive_agent import create_drive_agent

@@ -1,10 +1,7 @@
-from googleapiclient.errors import HttpError
-from collections import defaultdict
-import os
 from storage.database import supabase
 import asyncio
 from services.generative_ai import generate_text
-from scripts.chroma import search_documents
+from utils.sanitize import remove_null_chars
 
 
 def get_file_metadata_table():
@@ -64,6 +61,7 @@ Respond ONLY with the JSON array, no extra explanation.\n"""
         structure = suggestion
     return {"status": "success", "structure": structure}
 
+# TODO: Check later
 def organize_drive_by_gemini(service, root_folder_id, user_prompt: str, supabase_client):
     """
     Organizes Google Drive folders according to Gemini's suggested structure. Only folders/subfolders are created/updated. File names/content are not changed.
@@ -128,15 +126,15 @@ def organize_drive_by_gemini(service, root_folder_id, user_prompt: str, supabase
             folder_id = folder_obj['id']
         # Remove previous entry if exists
         supabase_client.table("file_metadata").delete().eq("file_name", folder_name).eq("file_type", True).eq("file_path", folder_path).execute()
-        # Insert new entry
-        supabase_client.table("file_metadata").insert({
+        # Insert new entry with sanitization
+        supabase_client.table("file_metadata").insert(remove_null_chars({
             "file_type": True,
             "file_name": folder_name,
             "file_path": folder_path,
             "summary": summary,
             "tags": tags,
             "updated_at": datetime.utcnow().isoformat()
-        }).execute()
+        })).execute()
         created.append({"file_name": folder_name, "id": folder_id, "file_path": folder_path, "summary": summary, "tags": tags})
     return {"status": "applied", "structure": structure, "created_folders": created}
     

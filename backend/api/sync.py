@@ -1,3 +1,4 @@
+from utils.sanitize import remove_null_chars
 from fastapi import APIRouter, HTTPException, Depends, status
 from utils.logger import logger
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -5,7 +6,9 @@ from storage.database import get_current_user, get_user_supabase_client
 from scripts.google_drive import GoogleDriveService
 from scripts.chroma import embed_pdf_chunks, remove_file as chroma_remove_file, search_documents
 from datetime import datetime
+from services.generative_ai import generate_text
 import uuid
+import json
 
 router = APIRouter(prefix="/api/sync", tags=["sync"])
 security = HTTPBearer()
@@ -26,7 +29,6 @@ async def sync_drive(
     # 1. List all files in Drive
     # Recursively list all files and folders starting from root
     all_drive_items = drive_service.list_all_items()
-    logger.info(f"Drive items raw: {all_drive_items}")
     drive_items_map = {f['id']: f for f in all_drive_items}
     # 2. Get all file_metadata from Supabase
     supabase_files = user_supabase.table("file_metadata").select("*").execute().data or []
@@ -46,19 +48,37 @@ async def sync_drive(
         if not meta or (meta and drive_mtime and drive_mtime > (meta.get('updated_at') or '')):
             summary = meta['summary'] if meta and meta.get('summary') else None
             tags = meta['tags'] if meta and meta.get('tags') else []
+            chroma_tags = ', '.join(tags) if isinstance(tags, list) else (tags or '')
             text = None
-            if drive_item['mimeType'] == 'application/pdf':
-                from scripts.drive_sync import download_pdf_text
-                text = download_pdf_text(drive_service, item_id)
-                embed_pdf_chunks(text, item_id, drive_item['name'], drive_mtime, float(drive_item.get('size', 0)) / (1024*1024), drive_item.get('parents', [''])[0])
             if not summary or not tags:
-                search_results = search_documents(text[:2000] if text else drive_item['name'], top_k=1)
-                if search_results:
-                    summary = search_results[0].get('summary', '') or search_results[0].get('text', '')[:200]
-                    tags = search_results[0].get('tags', [])
-                else:
+                prompt = (
+                    f"Given the following file, generate a short summary describing its content and significance, and suggest 3-5 relevant tags. "
+                    f"Return the result as a JSON object with keys 'summary' (string, max 200 chars) and 'tags' (array of strings, 3-5 items).\n"
+                    f"File Name: {drive_item['name']}\n"
+                )
+                if text:
+                    prompt += f"File Content (truncated):\n{text[:2000]}"
+                ai_result = generate_text(prompt)
+                import json
+                try:
+                    parsed = json.loads(ai_result)
+                    summary = parsed.get('summary', f"No summary available for {drive_item['name']}")
+                    tags = parsed.get('tags', [])
+                except Exception:
                     summary = f"No summary available for {drive_item['name']}"
                     tags = []
+            if drive_item['mimeType'] == 'application/pdf':
+                text = drive_service.download_file(item_id)
+                embed_pdf_chunks(
+                    text,
+                    item_id,
+                    drive_item['name'],
+                    drive_mtime,
+                    float(drive_item.get('size', 0)) / (1024*1024),
+                    drive_item.get('parents', [''])[0],
+                    chroma_tags,
+                    summary,
+                )
             upsert_data = {
                 "id": item_id,
                 "file_type": True,
@@ -69,7 +89,7 @@ async def sync_drive(
                 "updated_at": drive_mtime or now
             }
             logger.info(f"Upserting file into Supabase: {upsert_data}")
-            upsert_result = user_supabase.table("file_metadata").upsert(upsert_data).execute()
+            user_supabase.table("file_metadata").upsert(remove_null_chars(upsert_data)).execute()
             changes.append({"type": "added" if not meta else "modified", "file_id": item_id, "file_name": drive_item['name']})
     # 3b. Process folders bottom-up (children before parents)
     # Sort folders by depth (deepest first)
@@ -92,7 +112,6 @@ async def sync_drive(
         meta = supabase_files_map.get(item_id)
         drive_mtime = folder.get('modifiedTime') or folder.get('modified_time')
         if not meta or (meta and drive_mtime and drive_mtime > (meta.get('updated_at') or '')):
-            from services.generative_ai import generate_text
             contained_files = [
                 f for f in all_drive_items
                 if f.get('parents') and len(f['parents']) > 0 and f['parents'][0] == item_id and f['mimeType'] != 'application/vnd.google-apps.folder'
@@ -104,12 +123,18 @@ async def sync_drive(
                     contained_summaries.append(f"- {f['name']}: {meta_f[0]['summary']}")
             folder_context = "\n".join(contained_summaries)
             prompt = (
-                f"Given the following folder and its files, generate a short summary describing the folder's purpose, structure, and significance. "
-                f"Also, suggest 3-5 relevant tags.\nFolder Name: {folder['name']}\nFiles and summaries:\n{folder_context}"
+                f"Given the following folder and its files, generate a short summary describing the folder's purpose, structure, and significance, and suggest 3-5 relevant tags. "
+                f"Return the result as a JSON object with keys 'summary' (string, max 200 chars) and 'tags' (array of strings, 3-5 items).\n"
+                f"Folder Name: {folder['name']}\nFiles and summaries:\n{folder_context}"
             )
             ai_result = generate_text(prompt)
-            summary = ai_result[:200] if ai_result else ""
-            tags = [t.strip() for t in ai_result.split() if len(t.strip()) > 2][:5]
+            try:
+                parsed = json.loads(ai_result)
+                summary = parsed.get('summary', "")
+                tags = parsed.get('tags', [])
+            except Exception:
+                summary = ""
+                tags = []
             upsert_data = {
                 "id": item_id,
                 "file_type": False,
@@ -119,13 +144,11 @@ async def sync_drive(
                 "tags": tags,
                 "updated_at": drive_mtime or now
             }
-            logger.info(f"Upserting folder into Supabase: {upsert_data}")
-            upsert_result = user_supabase.table("file_metadata").upsert(upsert_data).execute()
+            user_supabase.table("file_metadata").upsert(remove_null_chars(upsert_data)).execute()
             changes.append({"type": "added" if not meta else "modified", "file_id": item_id, "file_name": folder['name']})
     # 4. Remove deleted files from Chroma and Supabase
     for file_id, meta in supabase_files_map.items():
         if file_id not in drive_items_map:
-            logger.info(f"Deleting from Supabase/Chroma: {file_id} - {meta['file_name']}")
             chroma_remove_file(file_id)
             delete_result = user_supabase.table("file_metadata").delete().eq("id", file_id).execute()
             logger.info(f"Delete result: {delete_result}")

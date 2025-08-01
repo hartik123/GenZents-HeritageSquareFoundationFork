@@ -9,7 +9,6 @@ from google.oauth2 import service_account
 from config import settings
 from utils.logger import logger
 
-
 class GoogleDriveService:
     SCOPES = [
         'https://www.googleapis.com/auth/drive',
@@ -27,12 +26,10 @@ class GoogleDriveService:
         if not os.path.exists(self.credentials_path):
             raise FileNotFoundError(
                 f"Credentials file not found: {self.credentials_path}")
-
         try:
             # Load and validate the service account credentials
             with open(self.credentials_path, 'r') as f:
                 creds_info = json.load(f)
-
             # Verify it's a service account credentials file
             if creds_info.get('type') != 'service_account':
                 raise ValueError(
@@ -40,14 +37,11 @@ class GoogleDriveService:
                         creds_info.get('type')}'. """
                     "Please use a service account credentials file for backend applications."
                 )
-
             logger.info("Using service account authentication")
             credentials = service_account.Credentials.from_service_account_file(
                 self.credentials_path, scopes=self.SCOPES)
-
             self.service = build('drive', 'v3', credentials=credentials)
             logger.info("Google Drive service initialized successfully")
-
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in credentials file: {e}")
         except Exception as e:
@@ -62,7 +56,11 @@ class GoogleDriveService:
             default_fields = 'id,name,mimeType,size,createdTime,modifiedTime,parents,webViewLink,webContentLink,owners,permissions'
             fields = fields or default_fields
 
-            file_info = self.service.files().get(fileId=file_id, fields=fields).execute()
+            file_info = self.service.files().get(
+                fileId=file_id,
+                fields=fields,
+                supportsAllDrives=True
+            ).execute()
             return self._format_file_info(file_info)
         except HttpError as e:
             logger.error(f"Failed to get file info for {file_id}: {e}")
@@ -85,7 +83,9 @@ class GoogleDriveService:
                 q=query_string,
                 pageSize=max_results,
                 orderBy=order_by,
-                fields="nextPageToken, files(id,name,mimeType,size,createdTime,modifiedTime,parents,webViewLink)"
+                fields="nextPageToken, files(id,name,mimeType,size,createdTime,modifiedTime,parents,webViewLink)",
+                supportsAllDrives=True,
+                includeItemsFromAllDrives=True
             ).execute()
 
             files = results.get('files', [])
@@ -162,14 +162,19 @@ class GoogleDriveService:
         """Move a file to a different folder"""
         try:
             if not old_parent_id:
-                file_info = self.service.files().get(fileId=file_id, fields='parents').execute()
+                file_info = self.service.files().get(
+                    fileId=file_id,
+                    fields='parents',
+                    supportsAllDrives=True,
+                ).execute()
                 old_parent_id = file_info.get('parents', [None])[0]
 
             file = self.service.files().update(
                 fileId=file_id,
                 addParents=new_parent_id,
                 removeParents=old_parent_id,
-                fields='id,name,parents'
+                fields='id,name,parents',
+                supportsAllDrives=True,
             ).execute()
 
             logger.info(
@@ -185,7 +190,8 @@ class GoogleDriveService:
             file = self.service.files().update(
                 fileId=file_id,
                 body={'name': new_name},
-                fields='id,name,modifiedTime'
+                fields='id,name,modifiedTime',
+                supportsAllDrives=True,
             ).execute()
 
             logger.info(f"Renamed file (ID: {file_id}) to: {new_name}")
