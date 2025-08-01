@@ -13,6 +13,7 @@ google-auth-oauthlib==1.2.2
 autopep8==2.3.2
 chromadb==1.0.15
 langchain==0.3.27
+langchain-community==0.3.27
 langchain-google-genai==2.1.8
 sentence-transformers==5.0.0
 PyPDF2==3.0.1
