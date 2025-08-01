@@ -43,16 +43,18 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   inviteUser: async (email: string, fullName: string, permissions: UserPermission[]) => {
     try {
       set({ loading: true })
-      const res = await supabase.auth.admin.inviteUserByEmail(email, {
-        data: {
-          email,
-          full_name: fullName,
-          permissions,
-          status: "pending_invitation" as UserStatus,
-          is_admin: false,
-        },
-        redirectTo: `${window.location.origin}/auth/set-password`,
-      })
+      const res = await fetch("/api/invite-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        email, 
+        fullName, 
+        status: "pending_invitation" as UserStatus,
+        permissions,
+      is_admin: false
+     }),
+    })
+    
       await get().fetchUsers()
       set({ loading: false })
       return { success: true }
