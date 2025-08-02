@@ -18,6 +18,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { VersionDetails } from "./version-details"
+import { useToast } from "@/hooks/use-toast"
 
 interface VersionManagerProps {
   versions: Version[]
@@ -30,8 +31,9 @@ export function VersionManager({ versions }: VersionManagerProps) {
   const [loading, setLoading] = useState(false)
   const [rollbackTarget, setRollbackTarget] = useState<Version | null>(null)
   const [isRollingBack, setIsRollingBack] = useState(false)
+  const { toast } = useToast()
 
-    useEffect(() => {
+  useEffect(() => {
     setAllVersions(versions ?? [])
   }, [versions])
 
@@ -47,13 +49,14 @@ export function VersionManager({ versions }: VersionManagerProps) {
   }
 
   const handleConfirmRollback = async () => {
-    if (!rollbackTarget) return
-    setIsRollingBack(true)
-    setAllVersions((prev) => {
-      const idx = prev.findIndex((v) => v.id === rollbackTarget.id)
-      if (idx === -1) return prev
-      return prev.slice(0, idx + 1)
-    })
+    toast({title: "Upcoming feature"})
+    // if (!rollbackTarget) return
+    // setIsRollingBack(true)
+    // setAllVersions((prev) => {
+    //   const idx = prev.findIndex((v) => v.id === rollbackTarget.id)
+    //   if (idx === -1) return prev
+    //   return prev.slice(0, idx + 1)
+    // })
     setSelectedVersion(null)
     setIsRollingBack(false)
     setRollbackTarget(null)
