@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 DB_PATH = "./chroma_store"
 COLLECTION_NAME = "drive-docs"
-EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+EMBEDDING_MODEL_NAME = "paraphrase-MiniLM-L3-v2"
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
 BATCH_SIZE = 10
