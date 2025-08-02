@@ -41,6 +41,7 @@ Building ArchyxAI was a true Software Development experience from the initial ph
 - **Google Gemini 2.0 Integration**: Tuned prompt engineering for heritage use cases. Handled token/window limits, multi-turn chats, and API rate limits.
 - **File Processing System**: Built secure pipeline with virus scans, OCR for scanned PDFs, metadata extraction, and intelligent document categorization.
 - **Semantic Search**: Used ChromaDB for fast and accurate vector-based search. Implemented chunking, embedding storage, and scoring logic.
+- **Langchain Orchestration**: Used Langchain to manage document retrieval, tool routing, and agent workflows. Enabled modular chaining of tools like summarization, embedding, and Drive operations using Langchain’s agent and tool abstraction.
 
 ### Phase 4: Power Features & Infrastructure (Days 40–50)
 - **Async Task Processing**: Designed and implemented background task queues for long-running file operations and AI processing.
