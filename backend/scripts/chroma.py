@@ -2,47 +2,38 @@ import os
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 import logging
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from chromadb import PersistentClient
-from sentence_transformers import SentenceTransformer
-from langchain_core.embeddings import Embeddings
 from langchain_chroma import Chroma
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from config import Settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+settings = Settings()
+
 DB_PATH = "./chroma_store"
 COLLECTION_NAME = "drive-docs"
-EMBEDDING_MODEL_NAME = "paraphrase-MiniLM-L3-v2"
+EMBEDDING_MODEL_NAME = "models/gemini-embedding-001"
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
 BATCH_SIZE = 10
 
-class SentenceTransformerEmbeddings(Embeddings):
-    """LangChain-compatible embeddings wrapper."""
-    def __init__(self, model_name: str = EMBEDDING_MODEL_NAME):
-        self.model = SentenceTransformer(model_name, device='cpu')
-        logger.info(f"Loaded embedding model: {model_name}")
-    
-    def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        if not texts:
-            return []
-        vectors = self.model.encode(texts, show_progress_bar=False, convert_to_numpy=True)
-        return [vector.tolist() for vector in vectors]
-    
-    def embed_query(self, query: str) -> List[float]:
-        vector = self.model.encode([query], convert_to_numpy=True)[0]
-        return vector.tolist()
-
 class ChromaDocumentStore:
     """Main class for managing documents in ChromaDB."""
     def __init__(self):
+        if not settings.GEMINI_API_KEY:
+            raise ValueError("GEMINI_API_KEY not configured")
+        
         os.makedirs(DB_PATH, exist_ok=True)
         self.chroma_client = PersistentClient(path=DB_PATH)
         self.collection = self.chroma_client.get_or_create_collection(name=COLLECTION_NAME)
-        self.embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME, device='cpu')
-        self.embedding_model_lc = SentenceTransformerEmbeddings(EMBEDDING_MODEL_NAME)
+        self.embedding_model_lc = GoogleGenerativeAIEmbeddings(
+            model=EMBEDDING_MODEL_NAME,
+            google_api_key=settings.GEMINI_API_KEY
+        )
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=CHUNK_SIZE,
             chunk_overlap=CHUNK_OVERLAP,
@@ -53,7 +44,7 @@ class ChromaDocumentStore:
             embedding_function=self.embedding_model_lc,
             persist_directory=DB_PATH
         )
-        logger.info("ChromaDB initialized")
+        logger.info("ChromaDB initialized with Google AI embeddings")
     
     def _chunk_text(self, text: str) -> List[str]:
         """Split text using RecursiveCharacterTextSplitter for better semantic preservation."""
@@ -81,8 +72,8 @@ class ChromaDocumentStore:
                 total_batches = (len(chunks) + BATCH_SIZE - 1) // BATCH_SIZE
                 logger.info(f"Processing batch {batch_num}/{total_batches}")
                 
-                embeddings = self.embedding_model.encode(batch_chunks, convert_to_numpy=True)
                 documents = [header + chunk for chunk in batch_chunks]
+                embeddings = self.embedding_model_lc.embed_documents(batch_chunks)
                 ids = [f"{file_id}_{batch_start + i}" for i in range(len(batch_chunks))]
                 metadatas = [{
                     "file_id": file_id,
@@ -97,7 +88,7 @@ class ChromaDocumentStore:
                 
                 self.collection.add(
                     documents=documents,
-                    embeddings=[emb.tolist() for emb in embeddings],
+                    embeddings=embeddings,
                     ids=ids,
                     metadatas=metadatas
                 )
@@ -128,9 +119,9 @@ class ChromaDocumentStore:
     def search_documents(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """Search documents using semantic similarity."""
         try:
-            query_embedding = self.embedding_model.encode([query], convert_to_numpy=True)[0]
+            query_embedding = self.embedding_model_lc.embed_query(query)
             results = self.collection.query(
-                query_embeddings=[query_embedding.tolist()],
+                query_embeddings=[query_embedding],
                 n_results=top_k,
                 include=["documents", "metadatas", "distances"]
             )
@@ -180,7 +171,10 @@ def search_documents(query, top_k=5):
     return get_store().search_documents(query, top_k)
 
 # For LangChain RAG
-embedding_model_lc = SentenceTransformerEmbeddings(EMBEDDING_MODEL_NAME)
+embedding_model_lc = GoogleGenerativeAIEmbeddings(
+    model=EMBEDDING_MODEL_NAME,
+    google_api_key=settings.GEMINI_API_KEY
+)
 vectorstore = Chroma(
     collection_name=COLLECTION_NAME,
     embedding_function=embedding_model_lc,
