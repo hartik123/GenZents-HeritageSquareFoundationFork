@@ -23,81 +23,95 @@ export function CommandSuggestions({
 }: CommandSuggestionsProps) {
   const [user, setUser] = React.useState<User | null>(null)
   const [userCommands, setUserCommands] = React.useState<Command[]>([])
+  const [fileMetadata, setFileMetaData] = React.useState<Command[]>([])
   const [suggestions, setSuggestions] = React.useState<Command[]>([])
   const [selectedIndex, setSelectedIndex] = React.useState(0)
   const [position, setPosition] = React.useState({ top: 0, left: 0 })
   const dropdownRef = React.useRef<HTMLDivElement>(null)
 
+  async function fetchUserCommands() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) return
+
+    const { data, error } = await supabase
+      .from("commands")
+      .select("*")
+      .or(`user_id.is.null,user_id.eq.${user.id}`)
+
+    if (error) {
+      console.error('Error fetching user commands:', error)
+      return
+    }
+
+    // Map the fetched data to the Command type shape expected
+    const commands = data?.map((cmd: any) => ({
+      id: cmd.id,
+      name: cmd.name,
+      description: cmd.description,
+      pattern: new RegExp(cmd.pattern), // if stored as string
+      instruction: cmd.instruction,
+      enabled: cmd.enabled,
+      type: cmd.type,
+    })) || []
+
+    setUserCommands(commands)
+  }
+
+  async function fetchUserFileMetaData() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) return
+    const { data, error } = await supabase
+      .from("file_metadata")
+      .select("*")
+
+    if (error) {
+      console.error('Error fetching file metadata:', error)
+      return
+    }
+    // Map the fetched data to the Command type shape expected
+    const allFileMetaData = data?.map((fileMetadata: any) => ({
+      id: fileMetadata.id,
+      name: fileMetadata.file_name,
+      description: fileMetadata.summary,
+      pattern: fileMetadata.file_path, // if stored as string
+      instruction: fileMetadata.file_path,
+      enabled: fileMetadata.file_type,
+      type: "user" as const,
+    })) || []
+    setFileMetaData((prev) => {
+      const all = [...prev, ...allFileMetaData]
+      const uniqueMap = new Map<string, Command>()
+      for (const cmd of all) {
+        uniqueMap.set(cmd.id, cmd) // Last write wins
+      }
+      console.log(uniqueMap)
+      return Array.from(uniqueMap.values())
+    })
+  }
+
   React.useEffect(() => {
-    async function fetchUserCommands() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) return
-
-      const { data, error } = await supabase
-        .from("commands")
-        .select("*")
-        .or(`user_id.is.null,user_id.eq.${user.id}`)
-
-      if (error) {
-        console.error('Error fetching user commands:', error)
-        return
-      }
-
-      // Map the fetched data to the Command type shape expected
-      const commands = data?.map((cmd: any) => ({
-        id: cmd.id,
-        name: cmd.name,
-        description: cmd.description,
-        pattern: new RegExp(cmd.pattern), // if stored as string
-        instruction: cmd.instruction,
-        enabled: cmd.enabled,
-        type: cmd.type,
-      })) || []
-
-      setUserCommands(commands)
-    }
-
-    async function fetchUserFileMetaData() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) return
-
-      const { data, error } = await supabase
-        .from("file_metadata")
-        .select("*")
-
-      if (error) {
-        console.error('Error fetching file metadata:', error)
-        return
-      }
-
-      // Map the fetched data to the Command type shape expected
-      const allFileMetaData = data?.map((fileMetadata: any) => ({
-        id: fileMetadata.id,
-        name: fileMetadata.file_name,
-        description: fileMetadata.summary,
-        pattern: fileMetadata.file_path, // if stored as string
-        instruction: fileMetadata.file_path,
-        enabled: fileMetadata.file_type,
-        type: "user" as const,
-      })) || []
-
-      setUserCommands((prev) => [...prev, ...allFileMetaData])
-    }
 
     fetchUserCommands()
     fetchUserFileMetaData()
+    const interval = setInterval(() => {
+      fetchUserFileMetaData()
+    }, 10 * 60 * 1000)
+
+    return () => {
+      clearInterval(interval)
+    }
   }, [])
 
   // Combine default + user commands
   const allCommands = React.useMemo(() => {
-    return [...userCommands]
-  }, [userCommands])
+    return [...userCommands, ...fileMetadata]
+  }, [userCommands, fileMetadata])
 
   // getSuggestions uses allCommands
   const getSuggestions = (input: string) => {
