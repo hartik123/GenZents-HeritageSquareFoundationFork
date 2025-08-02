@@ -11,7 +11,7 @@
 - **Hackathon Details**: [2025 Summer Opportunity Hack](https://www.ohack.dev/hack/2025_summer)
 - **Team Slack Channel**: [#genzents](https://opportunity-hack.slack.com/app_redirect?channel=genzents)
 - **DevPost Submission**: [Archyx AI on DevPost](https://devpost.com/submit-to/25595-opportunity-hack-summer-2025-volunteer-internship-hackathon/manage/submissions/743154-archyx-ai/project_details/edit)
-- **Demo Video**: [Watch Our Demo](#) <!-- Add demo video link -->
+- **Demo Video**: [Watch Our Demo](https://youtu.be/8onJQ87hVlE)
 
 ## Creator
 - **Irtifaur Rahman**
