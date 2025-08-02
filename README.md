@@ -21,7 +21,7 @@
 - **[Aakash Khepar](https://github.com/ak-asu)** 
 - **[Hartik Mukesh Suhagiya](https://github.com/hartik123)** 
 - **[Manas Dani](https://github.com/manasdani)** 
-- **[Vuong Nguyen](https://github.com/vuongnguyen)** 
+- **[Vuong Nguyen](https://github.com/vuong-ng)** 
 - **[Waleed Alfar](https://github.com/waleedalfar)** 
 
 ## Problem Statement
@@ -77,9 +77,9 @@ Archyx AI transforms heritage archive management by providing an intelligent, co
 ### Frontend Architecture
 - **Framework**: Next.js 14 with App Router for server-side rendering and routing
 - **Language**: TypeScript for type-safe development and better maintainability
-- **Styling**: Tailwind CSS with Shadcn/ui component library for consistent design
+- **Styling**: Tailwind CSS with Radix/ui component library for consistent design
 - **State Management**: Zustand with persistence for lightweight, scalable state
-- **UI Components**: Shadcn/ui with Lucide React icons for professional interface
+- **UI Components**: Radix/ui with Lucide React icons for professional interface
 
 ### Backend Services
 - **Framework**: FastAPI (Python) with async support for high performance , LangChain – used to orchestrate LLM-powered agents and tools for document retrieval, interaction, and automation.
@@ -94,7 +94,7 @@ Archyx AI transforms heritage archive management by providing an intelligent, co
 - **Authentication**: Supabase Auth with JWT tokens and refresh mechanisms
 - **Storage**: Supabase Storage with virus scanning and file validation
 - **Security**: Row Level Security (RLS) policies and comprehensive access control
-- **Hosting**: Vercel (Frontend) + Railway (Backend) for scalable deployment
+- **Hosting**: Vercel (Frontend) + Render (Backend) for scalable deployment
 - **Monitoring**: Built-in analytics and comprehensive error tracking
 
 ## Project Structure
@@ -147,10 +147,8 @@ cp .env.example .env.local
 # Edit .env.local with your Supabase and API keys
 
 # Run development server
-pnpm dev
+pnpm run dev
 ```
-
-Visit `http://localhost:3000` to see the frontend application.
 
 ### Backend Setup
 
@@ -176,32 +174,18 @@ cp .env.example .env
 # Edit .env with your Supabase and API keys
 
 # Run development server
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+python main.py
 ```
-
-Visit `http://localhost:8000/docs` to see the API documentation.
 
 ### Database Setup
 
 ```bash
+# Run the database clean up script in Supabase SQL editor
+# File: frontend/scripts/cleanup.sql
 # Run the database setup script in Supabase SQL editor
 # File: frontend/scripts/setup-database.sql
-```
-
-### Environment Variables
-
-**Frontend (.env.local)**
-```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-**Backend (.env)**
-```env
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-GOOGLE_API_KEY=your_google_ai_api_key
+# Run the database setup admin in Supabase SQL editor
+# File: frontend/scripts/add-admin.sql
 ```
 
 ## Features in Detail
@@ -210,7 +194,6 @@ GOOGLE_API_KEY=your_google_ai_api_key
 - **Natural Language Queries**: Ask questions about entire document collections using everyday language
 - **Real-time Streaming**: Get immediate feedback with progressive response generation
 - **Context Awareness**: Maintains conversation history and understands follow-up questions
-- **Smart Citations**: Automatic source citations with direct links to referenced documents
 - **Command Processing**: Execute complex operations using natural language commands like "/organize", "/search", "/backup"
 
 ### 📁 Intelligent Document Management
@@ -224,7 +207,6 @@ GOOGLE_API_KEY=your_google_ai_api_key
 - **Vector Semantic Search**: Find relevant content using meaning and context, not just keywords
 - **Traditional Text Search**: Full-text search with highlighting and context snippets
 - **Filtered Search**: Search by date ranges, document types, categories, and custom tags
-- **Cross-Document Analysis**: Identify patterns and relationships across multiple documents
 - **Historical Terminology**: Specialized handling of archaic language and variant spellings
 
 ### ⚡ Performance & Background Processing
