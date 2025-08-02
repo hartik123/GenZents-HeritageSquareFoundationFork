@@ -20,20 +20,16 @@ export class SecureStorage {
     return `${STORAGE_KEY_PREFIX}${key}`
   }
 
-  static async setItem(
-    key: string, 
-    value: any, 
-    options: SecureStorageOptions = {}
-  ): Promise<void> {
+  static async setItem(key: string, value: any, options: SecureStorageOptions = {}): Promise<void> {
     try {
       const { encrypt = false, expiryHours } = options
       const timestamp = Date.now()
-      
+
       const item: StorageItem = {
         value: encrypt ? await encryptMessage(JSON.stringify(value), DEFAULT_ENCRYPTION_KEY) : value,
         encrypted: encrypt,
         timestamp,
-        expiry: expiryHours ? timestamp + (expiryHours * 60 * 60 * 1000) : undefined
+        expiry: expiryHours ? timestamp + expiryHours * 60 * 60 * 1000 : undefined,
       }
 
       localStorage.setItem(this.getKey(key), JSON.stringify(item))
@@ -48,7 +44,7 @@ export class SecureStorage {
       if (!stored) return null
 
       const item: StorageItem = JSON.parse(stored)
-      
+
       // Check expiry
       if (item.expiry && Date.now() > item.expiry) {
         this.removeItem(key)
@@ -73,7 +69,7 @@ export class SecureStorage {
 
   static clear(): void {
     const keys = Object.keys(localStorage)
-    keys.forEach(key => {
+    keys.forEach((key) => {
       if (key.startsWith(STORAGE_KEY_PREFIX)) {
         localStorage.removeItem(key)
       }
@@ -83,7 +79,7 @@ export class SecureStorage {
   static async clearExpired(): Promise<void> {
     const keys = Object.keys(localStorage)
     const now = Date.now()
-    
+
     for (const key of keys) {
       if (key.startsWith(STORAGE_KEY_PREFIX)) {
         try {
@@ -104,6 +100,6 @@ export class SecureStorage {
 }
 
 // Auto-cleanup expired items on page load
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   SecureStorage.clearExpired()
 }

@@ -1,10 +1,13 @@
-from api import chats, messages
+from api import messages
+from api import sync
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import uvicorn
+import asyncio
 from config import settings
 from utils.logger import logger
+from utils.task_processor import task_processor
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -16,13 +19,17 @@ app = FastAPI(
 # Security middleware - restrict hosts in production
 if not settings.DEBUG:
     app.add_middleware(
-        TrustedHostMiddleware, 
-        allowed_hosts=["localhost", "127.0.0.1", "*.herokuapp.com", "*.vercel.app"]
+        TrustedHostMiddleware,
+        allowed_hosts=[
+            "localhost",
+            "127.0.0.1",
+            "*.herokuapp.com",
+            "*.vercel.app"]
     )
 
 # CORS middleware
 allowed_origins = [
-    settings.FRONTEND_URL, 
+    settings.FRONTEND_URL,
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
@@ -44,6 +51,8 @@ app.add_middleware(
 )
 
 # Add preflight handler for CORS
+
+
 @app.options("/{full_path:path}")
 async def options_handler(full_path: str):
     return {"detail": "OK"}
@@ -56,9 +65,27 @@ async def root():
     logger.info("Health check endpoint accessed")
     return {"message": "Archyx AI API is running"}
 
-# Include routers
-app.include_router(chats.router)
+# Include routers - computation-heavy operations only
+# Note: Chat CRUD operations moved to frontend API routes
+# AI processing and streaming
 app.include_router(messages.router)
+# Drive/Chroma/Supabase sync endpoint
+app.include_router(sync.router)
+# Note: Drive operations available via services but no HTTP endpoints yet
+
+# Startup and shutdown events
+
+
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Starting task processor...")
+    # await task_processor.start()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("Stopping task processor...")
+    # await task_processor.stop()
 
 if __name__ == "__main__":
     logger.info(f"Starting Archyx AI API on {settings.HOST}:{settings.PORT}")

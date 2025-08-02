@@ -32,23 +32,6 @@ export interface SystemHealth {
   storage: number
 }
 
-// Keyboard shortcuts types
-export interface ShortcutCategory {
-  id: string
-  name: string
-  shortcuts: KeyboardShortcut[]
-}
-
-export interface KeyboardShortcut {
-  id: string
-  name: string
-  description: string
-  keys: string[]
-  action: string
-  category: string
-  customizable: boolean
-}
-
 // Auth component types
 export interface AuthGuardProps {
   children: React.ReactNode

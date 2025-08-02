@@ -1,20 +1,24 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useAuthStore } from "@/lib/stores/auth-store"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { Suspense } from 'react'
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Eye, EyeOff, Lock } from "lucide-react"
+import { useAuthStore } from "@/lib/stores/auth-store"
+import { createClient } from "@/lib/supabase/client"
 
-export default function SetPasswordPage() {
+function SetPasswordContent() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const { setPassword, loading } = useAuthStore()
-
+  const supabase = createClientComponentClient()
+  const [loading, setLoading] = useState(false)
+  const [accessToken, setAccessToken] = useState("")
+  const [refreshToken, setRefreshToken] = useState("")
   const [password, setPasswordValue] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState("")
@@ -22,13 +26,29 @@ export default function SetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  const token = searchParams.get("token")
-
   useEffect(() => {
-    if (!token) {
-      setError("Invalid or missing invitation token")
+    setLoading(prev => !prev)
+    const hash = window.location.hash.substring(1)
+    const params = new URLSearchParams(hash)
+
+    const token = params.get("access_token")
+    const refresh = params.get("refresh_token")
+
+    if (token && refresh) {
+      supabase.auth
+        .setSession({ access_token: token, refresh_token: refresh })
+        .then(({ error }) => {
+          setLoading(prev => !prev)
+          if (error) setError("Session setup failed: " + error.message)
+          else {
+            setAccessToken(token)
+            setRefreshToken(refresh)
+          }
+        })
+    } else {
+      setError("Missing token in URL")
     }
-  }, [token])
+  }, [])
 
   const validatePassword = (password: string) => {
     if (password.length < 8) {
@@ -54,35 +74,45 @@ export default function SetPasswordPage() {
     setError("")
     setSuccess("")
 
-    if (!token) {
-      setError("Invalid or missing invitation token")
-      return
-    }
-
     if (!password || !confirmPassword) {
       setError("Please fill in all fields")
       return
     }
-
     const passwordError = validatePassword(password)
     if (passwordError) {
       setError(passwordError)
       return
     }
-
     if (password !== confirmPassword) {
       setError("Passwords do not match")
       return
     }
 
-    const result = await setPassword(password, token)
-    if (result.error) {
-      setError(result.error)
+    const { error } = await supabase.auth.updateUser({ password })
+
+    if (error) {
+      setError("Failed to update password: " + error.message)
     } else {
-      setSuccess("Password set successfully! Redirecting to sign in...")
-      setTimeout(() => {
-        router.push("/auth")
-      }, 2000)
+      const user = createClient().auth.getUser()
+      const userId = (await user).data.user?.id
+      if (userId) {
+        const { error: updateError } = await createClient()
+          .from("profiles")
+          .update({ status: "active" })
+          .eq("id", userId)
+
+        if (updateError) {
+          setError("Failed to update status: " + updateError.message)
+          return
+        }
+        setSuccess("Password set successfully! Redirecting to sign in...")
+        setTimeout(() => {
+          router.push("/auth")
+        }, 2000)
+      }
+      else{
+        setError("Failed to update the status")
+      }
     }
   }
 
@@ -100,13 +130,11 @@ export default function SetPasswordPage() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-
             {success && (
               <Alert>
                 <AlertDescription>{success}</AlertDescription>
               </Alert>
             )}
-
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
@@ -129,7 +157,6 @@ export default function SetPasswordPage() {
                 </button>
               </div>
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
               <div className="relative">
@@ -152,7 +179,6 @@ export default function SetPasswordPage() {
                 </button>
               </div>
             </div>
-
             <div className="text-sm text-muted-foreground space-y-1">
               <p>Password requirements:</p>
               <ul className="text-xs space-y-1 ml-4">
@@ -163,8 +189,7 @@ export default function SetPasswordPage() {
                 <li>• One special character (@$!%*?&)</li>
               </ul>
             </div>
-
-            <Button type="submit" disabled={loading || !token} className="w-full">
+            <Button type="submit" disabled={loading} className="w-full">
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Set Password
             </Button>
@@ -172,5 +197,14 @@ export default function SetPasswordPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+
+export default function SetPasswordPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SetPasswordContent />
+    </Suspense>
   )
 }

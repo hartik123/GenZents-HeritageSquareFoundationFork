@@ -2,12 +2,59 @@
 
 import { AuthGuard } from "@/components/auth/auth-guard"
 import { AdminUserManagement } from "@/components/admin/user-management"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuthStore } from "@/lib/stores/auth-store"
-import { Shield, Users, Settings, Activity } from "lucide-react"
+import { Users, Activity } from "lucide-react"
+import { supabase } from "@/lib/supabase/client"
+import type { User } from "@supabase/supabase-js"
+import { useEffect, useState } from "react"
 
 export default function AdminPage() {
   const { profile } = useAuthStore()
+  const [userCount, setUserCount] = useState(0)
+  const [chatCount, setChatCount] = useState(0)
+  const [messagesCount, setMessagesCount] = useState(0)
+  const [user, setUser] = useState<User | null>(null)
+
+  const countUsers =async () =>{
+      const { count: userCount, error: chatError } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true }) // only count
+
+      if (!chatError) setUserCount(userCount || 0)
+  }
+
+  const countChats =async () =>{
+      const { count: chatCount, error: chatError } = await supabase
+        .from("chats")
+        .select("*", { count: "exact", head: true }) // only count
+
+      if (!chatError) setChatCount(chatCount || 0)
+  }
+const countMessages =async () =>{
+      const { count: messagesCount, error: chatError } = await supabase
+        .from("messages")
+        .select("*", { count: "exact", head: true }) // only count
+
+      if (!chatError) setMessagesCount(messagesCount || 0)
+  }
+
+  useEffect(() => {
+    const getUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    getUser()
+  }, [])
+
+  useEffect(()=>{
+    countUsers()
+    countChats()
+    countMessages()
+
+  }, [user])
 
   return (
     <AuthGuard requireAdmin={true}>
@@ -25,41 +72,41 @@ export default function AdminPage() {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">0</div>
+                <div className="text-2xl font-bold">{userCount}</div>
                 <p className="text-xs text-muted-foreground">Active users</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+                <CardTitle className="text-sm font-medium">Total API Calls</CardTitle>
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">0</div>
-                <p className="text-xs text-muted-foreground">Current sessions</p>
+                <p className="text-xs text-muted-foreground">Total GEMINI API calls made</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Security Status</CardTitle>
-                <Shield className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Total Chats</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">Secure</div>
-                <p className="text-xs text-muted-foreground">All systems operational</p>
+                <div className="text-2xl font-bold">{chatCount}</div>
+                <p className="text-xs text-muted-foreground">Total Number of Chats</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">System Health</CardTitle>
-                <Settings className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Total Messages</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">100%</div>
-                <p className="text-xs text-muted-foreground">Uptime this month</p>
+                <div className="text-2xl font-bold">{messagesCount}</div>
+                <p className="text-xs text-muted-foreground">Total Number of Messages</p>
               </CardContent>
             </Card>
           </div>

@@ -1,32 +1,19 @@
 import { create } from "zustand"
 import { createClient } from "@/lib/supabase/client"
 import { logger } from "@/lib/utils/logger"
-import type { Chat } from "@/lib/types/chat"
-import type { Version, VersionDiff } from "@/lib/types/version"
-
-// Remove duplicate interfaces as they now come from centralized types
+import type { Change, Chat, Version } from "@/lib/types"
 
 interface VersionState {
   versions: Version[]
   currentVersion: Version | null
-  branches: string[]
   loading: boolean
 
-  // Version management
   loadVersions: (chatId: string) => Promise<void>
-  createVersion: (chatId: string, description?: string, tags?: string[]) => Promise<void>
+  createVersion: (chatId: string, description?: string) => Promise<void>
   rollbackToVersion: (versionId: string) => Promise<void>
   deleteVersion: (versionId: string) => Promise<void>
-
-  // Branching
-  createBranch: (versionId: string, branchName: string) => Promise<void>
-  mergeBranch: (sourceBranch: string, targetBranch: string) => Promise<void>
-
-  // Comparison
-  compareVersions: (version1Id: string, version2Id: string) => Promise<VersionDiff[]>
-  getVersionDiff: (versionId: string) => Promise<VersionDiff[]>
-
-  // Export/Import
+  compareVersions: (version1Id: string, version2Id: string) => Promise<Change[]>
+  getVersionDiff: (versionId: string) => Promise<Change[]>
   exportVersion: (versionId: string) => Promise<string>
   importVersion: (data: string) => Promise<void>
 }
@@ -34,7 +21,6 @@ interface VersionState {
 export const useVersionStore = create<VersionState>((set, get) => ({
   versions: [],
   currentVersion: null,
-  branches: ["main"],
   loading: false,
 
   loadVersions: async (chatId: string) => {
@@ -57,25 +43,14 @@ export const useVersionStore = create<VersionState>((set, get) => ({
     }
   },
 
-  createVersion: async (chatId: string, description?: string, tags: string[] = []) => {
+  createVersion: async (chatId: string, description?: string) => {
     try {
       const supabase = createClient()
 
-      // Get current chat data
-      const { data: chat, error: chatError } = await supabase
-        .from("chats")
-        .select(
-          `
-          *,
-          messages (*)
-        `
-        )
-        .eq("id", chatId)
-        .single()
+      const { data: chat, error: chatError } = await supabase.from("chats").select("*").eq("id", chatId).single()
 
       if (chatError) throw chatError
 
-      // Get current version number
       const { data: lastVersion } = await supabase
         .from("chat_versions")
         .select("version")
@@ -84,19 +59,20 @@ export const useVersionStore = create<VersionState>((set, get) => ({
         .limit(1)
         .single()
 
-      const nextVersion = (lastVersion?.version || 0) + 1
+      const nextVersion = (parseInt(lastVersion?.version || "0") + 1).toString()
 
-      // Create new version
       const { data: version, error } = await supabase
         .from("chat_versions")
         .insert({
           chat_id: chatId,
           version: nextVersion,
           title: `Version ${nextVersion}`,
-          description,
+          description: description || `Version ${nextVersion}`,
           data: chat,
-          tags,
-          branch: "main",
+          user_id: chat.user_id,
+          timestamp: new Date(),
+          status: "current",
+          created_at: new Date().toISOString(),
         })
         .select()
         .single()
@@ -107,49 +83,49 @@ export const useVersionStore = create<VersionState>((set, get) => ({
         versions: [version, ...state.versions],
       }))
     } catch (error) {
-      logger.error("Error creating version", error as Error, { component: "version-store", chatId, name })
+      logger.error("Error creating version", error as Error, { component: "version-store", chatId })
       throw error
     }
   },
 
   rollbackToVersion: async (versionId: string) => {
     try {
+      // TODO: Implement rollback logic
       const supabase = createClient()
-
-      // Get version data
-      const { data: version, error: versionError } = await supabase
-        .from("chat_versions")
+      // Get all versions sorted by created_at ascending
+      const { data: allVersions, error: allVersionsError } = await supabase
+        .from("versions")
         .select("*")
-        .eq("id", versionId)
-        .single()
+        .order("created_at", { ascending: true })
+      if (allVersionsError) throw allVersionsError
 
-      if (versionError) throw versionError
+      // Find the rollback version and its index
+      const rollbackIdx = allVersions.findIndex((v: any) => v.id === versionId)
+      if (rollbackIdx === -1) throw new Error("Version not found")
 
-      const chatData = version.data as Chat
+      // Delete all versions after the rollback version
+      const laterVersionIds = allVersions.slice(rollbackIdx + 1).map((v: any) => v.id)
+      if (laterVersionIds.length > 0) {
+        const { error: deleteError } = await supabase.from("chat_versions").delete().in("id", laterVersionIds)
+        if (deleteError) throw deleteError
+      }
 
-      // Update chat with version data
+      // Restore chat data from the rollback version
+      const rollbackVersion = allVersions[rollbackIdx]
+      const chatData = rollbackVersion.data as Chat
       const { error: updateError } = await supabase
         .from("chats")
         .update({
           title: chatData.title,
-          model: chatData.model,
-          system_prompt: chatData.system_prompt,
-          tags: chatData.tags,
-          updated_at: new Date().toISOString(),
+          metadata: chatData.metadata,
+          context_summary: chatData.context_summary,
+          status: chatData.status,
         })
         .eq("id", chatData.id)
-
       if (updateError) throw updateError
 
-      // Replace messages
-      await supabase.from("messages").delete().eq("chat_id", chatData.id)
-
-      if (chatData.messages && chatData.messages.length > 0) {
-        await supabase.from("messages").insert(chatData.messages)
-      }
-
-      // Create a new version for the rollback
-      await get().createVersion(chatData.id, `Rolled back to version ${version.version}`, ["rollback"])
+      // Reload versions
+      await get().loadVersions(chatData.id)
     } catch (error) {
       logger.error("Error rolling back to version", error as Error, { component: "version-store", versionId })
       throw error
@@ -159,7 +135,6 @@ export const useVersionStore = create<VersionState>((set, get) => ({
   deleteVersion: async (versionId: string) => {
     try {
       const supabase = createClient()
-
       const { error } = await supabase.from("chat_versions").delete().eq("id", versionId)
 
       if (error) throw error
@@ -169,51 +144,6 @@ export const useVersionStore = create<VersionState>((set, get) => ({
       }))
     } catch (error) {
       logger.error("Error deleting version", error as Error, { component: "version-store", versionId })
-      throw error
-    }
-  },
-
-  createBranch: async (versionId: string, branchName: string) => {
-    try {
-      const supabase = createClient()
-
-      // Get version data
-      const { data: version, error } = await supabase.from("chat_versions").select("*").eq("id", versionId).single()
-
-      if (error) throw error
-
-      // Create new version with branch
-      const { error: createError } = await supabase.from("chat_versions").insert({
-        ...version,
-        id: undefined,
-        branch: branchName,
-        parent_version: versionId,
-        created_at: new Date().toISOString(),
-      })
-
-      if (createError) throw createError
-
-      set((state) => ({
-        branches: [...state.branches, branchName],
-      }))
-    } catch (error) {
-      logger.error("Error creating branch", error as Error, { component: "version-store", versionId, branchName })
-      throw error
-    }
-  },
-
-  mergeBranch: async (sourceBranch: string, targetBranch: string) => {
-    try {
-      // Placeholder for branch merging logic
-      logger.info(`Merging ${sourceBranch} into ${targetBranch}`, { component: "version-store" })
-
-      // In a real implementation, this would:
-      // 1. Compare the branches
-      // 2. Resolve conflicts
-      // 3. Create a merge commit
-      // 4. Update the target branch
-    } catch (error) {
-      logger.error("Error merging branch", error as Error, { component: "version-store", sourceBranch, targetBranch })
       throw error
     }
   },
@@ -229,35 +159,37 @@ export const useVersionStore = create<VersionState>((set, get) => ({
 
       if (!version1 || !version2) throw new Error("Versions not found")
 
-      // Simple diff implementation (would be more sophisticated in production)
-      const diffs: VersionDiff[] = []
-
+      const changes: Change[] = []
       const data1 = version1.data as Chat
       const data2 = version2.data as Chat
 
       if (data1.title !== data2.title) {
-        diffs.push({
+        changes.push({
+          id: `title-${Date.now()}`,
+          version_id: version2Id,
           type: "modified",
-          path: "title",
-          oldValue: data1.title,
+          originalPath: "title",
+          originalValue: data1.title,
           newValue: data2.title,
+          description: "Title changed",
+          timestamp: new Date(),
         })
       }
 
-      // Compare messages
-      const messages1 = data1.messages || []
-      const messages2 = data2.messages || []
-
-      if (messages1.length !== messages2.length) {
-        diffs.push({
-          type: messages1.length > messages2.length ? "deleted" : "added",
-          path: "messages",
-          oldValue: messages1.length,
-          newValue: messages2.length,
+      if (JSON.stringify(data1.metadata) !== JSON.stringify(data2.metadata)) {
+        changes.push({
+          id: `metadata-${Date.now()}`,
+          version_id: version2Id,
+          type: "modified",
+          originalPath: "metadata",
+          originalValue: data1.metadata,
+          newValue: data2.metadata,
+          description: "Metadata updated",
+          timestamp: new Date(),
         })
       }
 
-      return diffs
+      return changes
     } catch (error) {
       logger.error("Error comparing versions", error as Error, { component: "version-store", version1Id, version2Id })
       return []
@@ -266,10 +198,15 @@ export const useVersionStore = create<VersionState>((set, get) => ({
 
   getVersionDiff: async (versionId: string) => {
     try {
-      const version = get().versions.find((v) => v.id === versionId)
-      if (!version || !version.parentVersion) return []
+      const versions = get().versions
+      const versionIndex = versions.findIndex((v) => v.id === versionId)
 
-      return await get().compareVersions(version.parentVersion, versionId)
+      if (versionIndex === -1 || versionIndex === versions.length - 1) return []
+
+      const currentVersion = versions[versionIndex]
+      const previousVersion = versions[versionIndex + 1]
+
+      return await get().compareVersions(previousVersion.id, currentVersion.id)
     } catch (error) {
       logger.error("Error getting version diff", error as Error, { component: "version-store", versionId })
       return []
@@ -290,7 +227,7 @@ export const useVersionStore = create<VersionState>((set, get) => ({
 
   importVersion: async (data: string) => {
     try {
-      const version = JSON.parse(data)
+      const version = JSON.parse(data) as Version
       const supabase = createClient()
 
       const { error } = await supabase.from("chat_versions").insert({
@@ -301,7 +238,7 @@ export const useVersionStore = create<VersionState>((set, get) => ({
 
       if (error) throw error
 
-      await get().loadVersions(version.chatId)
+      await get().loadVersions(version.id)
     } catch (error) {
       logger.error("Error importing version", error as Error, { component: "version-store" })
       throw error

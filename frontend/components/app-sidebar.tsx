@@ -26,14 +26,26 @@ import {
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { MessageSquare, Plus, LogOut, MoreHorizontal, User, Wrench, GitBranch, FolderOpen, Shield } from "lucide-react"
+import { MessageSquare, Plus, LogOut, MoreHorizontal, User, GitBranch, ChartNoAxesCombined, Shield, Activity } from "lucide-react"
 import { useChatStore } from "@/lib/stores/chat-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { useTaskStore } from "@/lib/stores/task-store"
+import { useToast } from "@/hooks/use-toast"
+
+
+const NAVIGATION_ITEMS = [
+  { title: "Tasks", url: "/tasks", icon: Activity, permission: "read" },
+  { title: "Version", url: "/version", icon: GitBranch, permission: "read" },
+] as const
+
 
 export function AppSidebar() {
   const router = useRouter()
-  const { chats, createChat, selectChat, deleteChat, loadChats, currentChatId } = useChatStore()
-  const { user, profile, signOut, isAdmin, hasPermission } = useAuthStore()
+  const { toast } = useToast()
+  const { chats, createChat, selectChat, deleteChat, loadChats, currentChatId, clearAll: clearChats } = useChatStore()
+  const { user, profile, signOut, isAdmin, hasPermission, loading, session } = useAuthStore()
+  const { clearAll: clearTasks } = useTaskStore()
+
   useEffect(() => {
     loadChats()
   }, [loadChats])
@@ -56,15 +68,35 @@ export function AppSidebar() {
   }
 
   const handleSignOut = async () => {
-    await signOut()
-    router.push("/auth")
+    try {
+      // Clear all user-specific data
+      clearChats()
+      clearTasks()
+
+      await signOut()
+
+      // Use router.replace for better UX
+      router.replace("/auth")
+
+      // Fallback to window.location if router fails
+      setTimeout(() => {
+        if (window.location.pathname !== "/auth") {
+          window.location.href = "/auth"
+        }
+      }, 100)
+    } catch (error) {
+      console.error("Sign out failed:", error)
+      // Still redirect to auth even if sign out fails
+      router.replace("/auth")
+      setTimeout(() => {
+        if (window.location.pathname !== "/auth") {
+          window.location.href = "/auth"
+        }
+      }, 100)
+    }
   }
 
-  const navigationItems = [
-    { title: "Tools", url: "/tools", icon: Wrench, permission: "tools_access" },
-    { title: "Context", url: "/context", icon: FolderOpen, permission: "context_management" },
-    { title: "Version", url: "/version", icon: GitBranch, permission: "version_history" },
-  ].filter((item) => hasPermission(item.permission as any))
+  const navigationItems = NAVIGATION_ITEMS.filter((item) => hasPermission(item.permission as any))
 
   return (
     <Sidebar>
@@ -95,11 +127,8 @@ export function AppSidebar() {
             <SidebarMenu>
               {chats.map((chat) => (
                 <SidebarMenuItem key={chat.id}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={currentChatId === chat.id}
-                  >
-                    <a 
+                  <SidebarMenuButton asChild isActive={currentChatId === chat.id}>
+                    <a
                       href={`/chat/${chat.id}`}
                       className="w-full text-left"
                       onClick={(e) => {
@@ -134,7 +163,7 @@ export function AppSidebar() {
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <a 
+                    <a
                       href={item.url}
                       className="w-full text-left"
                       onClick={(e) => {
@@ -148,6 +177,33 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <a
+                    href="#sync"
+                    className="w-full text-left"
+                    onClick={async (e) => {
+                      e.preventDefault()
+                      toast({ title: "Syncing Drive..." })
+                      try {
+                        const accessToken = session?.access_token || null
+                        const res = await fetch("/api/sync", {
+                          method: "POST",
+                          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+                        })
+                        if (!res.ok) throw new Error("Sync failed")
+                        const data = await res.json()
+                        toast({ title: "Drive Synced", description: data.status || "Success" })
+                      } catch (err) {
+                        toast({ title: "Sync failed", description: (err as Error).message, variant: "destructive" })
+                      }
+                    }}
+                  >
+                    <ChartNoAxesCombined className="h-4 w-4" />
+                    <span>Sync Drive</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -187,9 +243,9 @@ export function AppSidebar() {
                   </>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
+                <DropdownMenuItem onClick={handleSignOut} disabled={loading}>
                   <LogOut className="h-4 w-4 mr-2" />
-                  Sign Out
+                  {loading ? "Signing out..." : "Sign Out"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
