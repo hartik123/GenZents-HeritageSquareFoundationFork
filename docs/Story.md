@@ -26,38 +26,38 @@ Building ArchyxAI was a true Software Development experience from the initial ph
 
 **Vector Databases and Semantic Search**: Understanding how ChromaDB works for semantic search was particularly challenging. We learned about embeddings, vector similarity, and how to structure data for optimal search performance. This knowledge became crucial for helping users find relevant documents based on meaning rather than just keywords.
 
-### Heritage Domain Knowledge
-
-**Document Management Best Practices**: We studied how heritage organizations actually work, learning about archival principles, metadata standards, and the importance of preserving document integrity. This influenced our version control system and audit logging features.
-
-**User Experience for Non-Technical Users**: Designing for volunteers of varying technical skill levels taught us about progressive disclosure, intuitive navigation, and the importance of providing multiple ways to accomplish the same task.
-
 ## How We Built It
 
-### Phase 1: Foundation and Planning (Days 1-10)  
-Designed core architecture with Next.js 14, FastAPI, Supabase, and ChromaDB. Created a normalized database schema handling chats, messages, reactions, and file metadata.
+### Phase 1: Planning & Architecture (Days 1–10)
+- **System Architecture**: Designed end-to-end flow across front-end, back-end, database, and AI layers. Chose Next.js 14 (Full Stack), FastAPI (Endpoints), Supabase (Auth + DB), and ChromaDB (Vector Search).
+- **Schema Design**: Created normalized tables for chats (1:N messages), message reactions (M:N), and Google Drive file metadata (path, name, size, timestamps).
 
-### Phase 2: Core Chat Interface (Days 10-20)  
-Implemented real-time streaming via WebSockets. Built a rich message system with markdown, reactions, and sharing. Managed state with Zustand for persistence and smooth UX.
+### Phase 2: Core Chat Features (Days 10–20)
+- **Real-time Communication**: Integrated WebSocket protocol to stream both user prompts and AI responses seamlessly.
+- **Message Engine**: Developed markdown-based rendering, like/dislike reactions, and message sharing within threads.
+- **Persistent State Management**: Used Zustand to manage local state across tabs and sessions, with optimistic UI updates for speed.
 
-### Phase 3: AI Integration and Document Processing (Days 20-40)  
-Integrated Google Gemini 2.0 with prompt engineering, OCR, multi-turn context, and error handling. Developed a secure file pipeline with virus scanning, metadata extraction, and tagging. Implemented semantic search using ChromaDB with document chunking and optimized queries.
+### Phase 3: AI & Document Pipeline (Days 20–40)
+- **Google Gemini 2.0 Integration**: Tuned prompt engineering for heritage use cases. Handled token/window limits, multi-turn chats, and API rate limits.
+- **File Processing System**: Built secure pipeline with virus scans, OCR for scanned PDFs, metadata extraction, and intelligent document categorization.
+- **Semantic Search**: Used ChromaDB for fast and accurate vector-based search. Implemented chunking, embedding storage, and scoring logic.
 
-### Phase 4: Advanced Features (Days 40-50)  
-Built asynchronous background task system and git-like version control with full change tracking and rollback. Developed admin dashboard for user roles, monitoring, and analytics.
+### Phase 4: Power Features & Infrastructure (Days 40–50)
+- **Async Task Processing**: Designed and implemented background task queues for long-running file operations and AI processing.
+- **Versioning System**: Built Git-like version control for files — allowing full change tracking, diff viewing, and rollback.
+- **Admin Dashboard**: Created a system monitor and user manager with real-time analytics and role-based access control.
 
-### Phase 5: Integration and Polish (Days 50-60)  
-Completed Google Drive sync with OAuth 2.0, bi-directional sync, and large file handling. Added security layers including JWT auth, row-level security, and input validation.
+### Phase 5: Integration & Security (Days 50–60)
+- **Google Drive Sync**: Integrated bi-directional sync with Drive using OAuth 2.0. Optimized for large file collections and update tracking.
+- **Security Implementation**: Applied JWT with refresh tokens, RLS in Supabase, and comprehensive input sanitization across endpoints.
 
 ## The Challenges We Faced
 
 | **Category**              | **Challenge**                                                                 | **Solution**                                                                 |
 |---------------------------|-------------------------------------------------------------------------------|------------------------------------------------------------------------------|
 | **Real-time Streaming**   | Connection drops, sync issues, memory leaks during AI streaming              | Built robust connection manager with auto-reconnect and fallback            |
-| **Large File Handling**   | UI freezing during large PDF processing (100MB+)                             | Used background tasks with real-time progress updates                        |
 | **Semantic Search Speed** | Slow embedding and query response times                                      | Applied chunking, caching, and optimized embeddings                          |
 | **Heritage Language**     | Archaic terms confused AI, risking historical inaccuracy                     | Custom prompts and context management preserved meaning                      |
-| **Non-Technical Users**   | Needed simple, accessible UI for volunteers of all skill levels              | Designed intuitive interfaces, clear guidance, and tested with users         |
 | **Google Drive API**      | OAuth, rate limits, permission management challenges                         | Built a resilient API wrapper with error handling and retry logic            |
 
 ## Key Learnings and Takeaways
@@ -66,33 +66,20 @@ Completed Google Drive sync with OAuth 2.0, bi-directional sync, and large file 
 
 - **User Experience is Everything**: Designing with real users in mind helped us build an intuitive, accessible platform that truly solves their problems.
 
-- **Build Fast, Learn Faster**: Iterative development, open communication, and shared ownership allowed us to move quickly and stay aligned as a team.
+- **Communication, and Ownership is a Key**: Iterative development, open communication, and shared ownership allowed us to move quickly and stay aligned as a team.
 
 ## What's Next?
 
 Building Archyx AI has been just the beginning of our journey. We see tremendous potential for expanding this platform:
 
-### Immediate Enhancements
-- **Mobile Applications**: Native iOS and Android apps for field research
-- **Enhanced AI Capabilities**: Custom models trained specifically on heritage content
-- **Multi-language Support**: Translation and analysis of historical documents in multiple languages
-- **Advanced Analytics**: Insights into collection usage and research patterns
-
-### Long-term Vision
-- **Heritage Network**: Connect multiple heritage organizations in a collaborative platform
-- **Machine Learning Pipeline**: Automated pattern recognition in historical documents
-- **Augmented Reality**: AR features for physical archive management
-- **Blockchain Integration**: Document authenticity verification and provenance tracking
-
-### Community Impact
-We hope Archyx AI will serve as a model for how technology can be thoughtfully applied to preserve and democratize access to historical knowledge. Our goal is to contribute back to the heritage technology community and help other organizations benefit from similar solutions.
+- **Heritage-Specific AI**: Fine-tuned models and multilingual support  
+- **Shared Heritage Network**: A collaborative platform for multiple organizations  
 
 ## Acknowledgments
 
 This project wouldn't have been possible without:
 - **Heritage Square Foundation**: For trusting us with their important work and providing real-world context
 - **2025 Summer Opportunity Hack**: For creating an environment where students can make meaningful impact
-- **Open Source Community**: For the incredible tools and libraries that enabled rapid development
 - **Our Mentors and Advisors**: For guidance on both technical and domain-specific challenges
 
 Building Archyx AI has been one of the most rewarding experiences of our academic careers. It combined technical challenge with real-world impact, pushing us to grow as developers while contributing to something meaningful. We're excited to see how heritage organizations can use these tools to preserve and share their invaluable collections with the world.
