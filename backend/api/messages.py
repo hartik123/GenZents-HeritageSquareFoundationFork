@@ -57,6 +57,7 @@ async def create_message(
         ai_message_data = {
             "id": str(uuid.uuid4()),
             "chat_id": chat_id,
+            "user_id": current_user.id,
             "role": "assistant",
             "content": ai_response_text,
             "context_summary": ai_response_text,
