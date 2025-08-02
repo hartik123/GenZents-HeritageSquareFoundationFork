@@ -55,7 +55,6 @@ class GoogleDriveService:
         try:
             default_fields = 'id,name,mimeType,size,createdTime,modifiedTime,parents,webViewLink,webContentLink,owners,permissions'
             fields = fields or default_fields
-
             file_info = self.service.files().get(
                 fileId=file_id,
                 fields=fields,
@@ -76,9 +75,7 @@ class GoogleDriveService:
             if query:
                 q.append(query)
             q.append("trashed=false")
-
             query_string = " and ".join(q)
-
             results = self.service.files().list(
                 q=query_string,
                 pageSize=max_results,
@@ -87,7 +84,6 @@ class GoogleDriveService:
                 supportsAllDrives=True,
                 includeItemsFromAllDrives=True
             ).execute()
-
             files = results.get('files', [])
             return [self._format_file_info(file) for file in files]
         except HttpError as e:
@@ -112,15 +108,12 @@ class GoogleDriveService:
                 'name': name,
                 'mimeType': 'application/vnd.google-apps.folder'
             }
-
             if parent_id:
                 folder_metadata['parents'] = [parent_id]
-
             folder = self.service.files().create(
                 body=folder_metadata,
                 fields='id,name,parents,webViewLink,createdTime'
             ).execute()
-
             logger.info(f"Created folder: {name} (ID: {folder['id']})")
             return self._format_file_info(folder)
         except HttpError as e:
@@ -133,11 +126,9 @@ class GoogleDriveService:
             request = self.service.files().get_media(fileId=file_id)
             file_content = io.BytesIO()
             downloader = MediaIoBaseDownload(file_content, request)
-
             done = False
             while not done:
                 status, done = downloader.next_chunk()
-
             file_content.seek(0)
             content = file_content.read()
             logger.info(
@@ -168,7 +159,6 @@ class GoogleDriveService:
                     supportsAllDrives=True,
                 ).execute()
                 old_parent_id = file_info.get('parents', [None])[0]
-
             file = self.service.files().update(
                 fileId=file_id,
                 addParents=new_parent_id,
@@ -176,7 +166,6 @@ class GoogleDriveService:
                 fields='id,name,parents',
                 supportsAllDrives=True,
             ).execute()
-
             logger.info(
                 f"Moved file (ID: {file_id}) to folder (ID: {new_parent_id})")
             return self._format_file_info(file)
@@ -193,7 +182,6 @@ class GoogleDriveService:
                 fields='id,name,modifiedTime',
                 supportsAllDrives=True,
             ).execute()
-
             logger.info(f"Renamed file (ID: {file_id}) to: {new_name}")
             return self._format_file_info(file)
         except HttpError as e:
@@ -241,14 +229,11 @@ class GoogleDriveService:
         """Get Google Drive storage information"""
         try:
             about = self.service.about().get(fields='storageQuota,user').execute()
-
             storage_quota = about.get('storageQuota', {})
             user_info = about.get('user', {})
-
             total = int(storage_quota.get('limit', 0))
             used = int(storage_quota.get('usage', 0))
             available = total - used if total > 0 else 0
-
             return {
                 'user': {
                     'email': user_info.get('emailAddress'),
@@ -282,7 +267,6 @@ class GoogleDriveService:
             'parents': file_info.get('parents', []),
             'isFolder': file_info.get('mimeType') == 'application/vnd.google-apps.folder'
         }
-
         if file_info.get('owners'):
             formatted['owners'] = [
                 {
@@ -291,7 +275,6 @@ class GoogleDriveService:
                 }
                 for owner in file_info['owners']
             ]
-
         return {k: v for k, v in formatted.items() if v is not None}
 
 

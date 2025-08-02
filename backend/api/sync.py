@@ -4,11 +4,11 @@ from utils.logger import logger
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from storage.database import get_current_user, get_user_supabase_client
 from scripts.google_drive import GoogleDriveService
-from scripts.chroma import embed_pdf_chunks, remove_file as chroma_remove_file, search_documents
+from scripts.chroma import embed_pdf_chunks, remove_file as chroma_remove_file
 from datetime import datetime
 from services.generative_ai import generate_text
+from utils.sanitize import extract_json_from_string
 import uuid
-import json
 
 router = APIRouter(prefix="/api/sync", tags=["sync"])
 security = HTTPBearer()
@@ -30,12 +30,24 @@ async def sync_drive(
     # Recursively list all files and folders starting from root
     all_drive_items = drive_service.list_all_items()
     drive_items_map = {f['id']: f for f in all_drive_items}
+    # Build full path for each item
+    def build_full_path(item_id):
+        parts = []
+        current = drive_items_map.get(item_id)
+        while current:
+            parts.insert(0, current['name'])
+            parents = current.get('parents', [])
+            if not parents or parents[0] == 'root':
+                break
+            current = drive_items_map.get(parents[0])
+        return '/' + '/'.join(parts)
     # 2. Get all file_metadata from Supabase
     supabase_files = user_supabase.table("file_metadata").select("*").execute().data or []
     logger.info(f"Supabase file_metadata rows: {len(supabase_files)}")
     supabase_files_map = {f['id']: f for f in supabase_files}
     changes = []
     now = datetime.utcnow().isoformat()
+    gemini_cache = {}
     # 3. Bottom-up sync: process files first, then folders
     logger.info("Starting bottom-up sync...")
     # 3a. Process files (non-folders)
@@ -45,26 +57,46 @@ async def sync_drive(
         logger.info(f"Processing file item_id: {item_id}, name: {drive_item.get('name')}")
         meta = supabase_files_map.get(item_id)
         drive_mtime = drive_item.get('modifiedTime') or drive_item.get('modified_time')
-        if not meta or (meta and drive_mtime and drive_mtime > (meta.get('updated_at') or '')):
+        file_path = build_full_path(item_id)
+        changed = False
+        if not meta:
+            changed = True
+        else:
+            meta_parent = meta.get('file_path', '').rsplit('/', 1)[0] if meta.get('file_path') else ''
+            drive_parent = file_path.rsplit('/', 1)[0]
+            if (
+                meta.get('file_name') != drive_item['name'] or
+                meta_parent != drive_parent or
+                (meta.get('updated_at') or '') != (drive_mtime or '') or
+                str(meta.get('tags', '')) != str(meta.get('tags', '')) or
+                meta.get('summary', '') != meta.get('summary', '') or
+                meta.get('file_path', '') != file_path or
+                (meta.get('size', None) != drive_item.get('size', None))
+            ):
+                changed = True
+        if changed:
             summary = meta['summary'] if meta and meta.get('summary') else None
             tags = meta['tags'] if meta and meta.get('tags') else []
             chroma_tags = ', '.join(tags) if isinstance(tags, list) else (tags or '')
             text = None
+            cache_key = f"file:{item_id}"
+            parsed = gemini_cache.get(cache_key)
             if not summary or not tags:
-                prompt = (
-                    f"Given the following file, generate a short summary describing its content and significance, and suggest 3-5 relevant tags. "
-                    f"Return the result as a JSON object with keys 'summary' (string, max 200 chars) and 'tags' (array of strings, 3-5 items).\n"
-                    f"File Name: {drive_item['name']}\n"
-                )
-                if text:
-                    prompt += f"File Content (truncated):\n{text[:2000]}"
-                ai_result = generate_text(prompt)
-                import json
-                try:
-                    parsed = json.loads(ai_result)
+                if parsed is None:
+                    prompt = (
+                        f"Given the following file, generate a short summary describing its content and significance, and suggest 3-5 relevant tags. "
+                        f"Return the result as a JSON object with keys 'summary' (string, max 200 chars) and 'tags' (array of strings, 3-5 items).\n"
+                        f"File Name: {drive_item['name']}\n"
+                    )
+                    if text:
+                        prompt += f"File Content (truncated):\n{text[:2000]}"
+                    ai_result = generate_text(prompt)
+                    parsed = extract_json_from_string(ai_result)
+                    gemini_cache[cache_key] = parsed or {}
+                if parsed:
                     summary = parsed.get('summary', f"No summary available for {drive_item['name']}")
                     tags = parsed.get('tags', [])
-                except Exception:
+                else:
                     summary = f"No summary available for {drive_item['name']}"
                     tags = []
             if drive_item['mimeType'] == 'application/pdf':
@@ -83,10 +115,10 @@ async def sync_drive(
                 "id": item_id,
                 "file_type": True,
                 "file_name": drive_item['name'],
-                "file_path": f"drive://{item_id}",
+                "file_path": file_path,
                 "summary": summary,
                 "tags": tags,
-                "updated_at": drive_mtime or now
+                "updated_at": drive_mtime or now,
             }
             logger.info(f"Upserting file into Supabase: {upsert_data}")
             user_supabase.table("file_metadata").upsert(remove_null_chars(upsert_data)).execute()
@@ -111,35 +143,61 @@ async def sync_drive(
         logger.info(f"Processing folder item_id: {item_id}, name: {folder.get('name')}")
         meta = supabase_files_map.get(item_id)
         drive_mtime = folder.get('modifiedTime') or folder.get('modified_time')
-        if not meta or (meta and drive_mtime and drive_mtime > (meta.get('updated_at') or '')):
+        folder_path = build_full_path(item_id)
+        changed = False
+        if not meta:
+            changed = True
+        else:
+            meta_parent = meta.get('file_path', '').rsplit('/', 1)[0] if meta.get('file_path') else ''
+            drive_parent = folder_path.rsplit('/', 1)[0]
+            if (
+                meta.get('file_name') != folder['name'] or
+                meta_parent != drive_parent or
+                (meta.get('updated_at') or '') != (drive_mtime or '') or
+                meta.get('file_path', '') != folder_path
+            ):
+                changed = True
+        if changed:
             contained_files = [
                 f for f in all_drive_items
                 if f.get('parents') and len(f['parents']) > 0 and f['parents'][0] == item_id and f['mimeType'] != 'application/vnd.google-apps.folder'
             ]
             contained_summaries = []
             for f in contained_files:
-                meta_f = user_supabase.table("file_metadata").select("summary, tags").eq("id", f['id']).execute().data
-                if meta_f and isinstance(meta_f, list) and meta_f[0].get('summary'):
-                    contained_summaries.append(f"- {f['name']}: {meta_f[0]['summary']}")
+                meta_f = supabase_files_map.get(f['id'])
+                summary_val = None
+                if meta_f and meta_f.get('summary'):
+                    summary_val = meta_f['summary']
+                else:
+                    cache_key_f = f"file:{f['id']}"
+                    parsed_f = gemini_cache.get(cache_key_f)
+                    if parsed_f and parsed_f.get('summary'):
+                        summary_val = parsed_f['summary']
+                if summary_val:
+                    contained_summaries.append(f"- {f['name']}: {summary_val}")
             folder_context = "\n".join(contained_summaries)
-            prompt = (
-                f"Given the following folder and its files, generate a short summary describing the folder's purpose, structure, and significance, and suggest 3-5 relevant tags. "
-                f"Return the result as a JSON object with keys 'summary' (string, max 200 chars) and 'tags' (array of strings, 3-5 items).\n"
-                f"Folder Name: {folder['name']}\nFiles and summaries:\n{folder_context}"
-            )
-            ai_result = generate_text(prompt)
-            try:
-                parsed = json.loads(ai_result)
+            cache_key = f"folder:{item_id}"
+            parsed = gemini_cache.get(cache_key)
+            if parsed is None:
+                prompt = (
+                    f"Given the following folder and its files, generate a short summary describing the folder's purpose, structure, and significance, and suggest 3-5 relevant tags. "
+                    f"Return the result as a JSON object with keys 'summary' (string, max 200 chars) and 'tags' (array of strings, 3-5 items).\n"
+                    f"Folder Name: {folder['name']}\nFiles and summaries:\n{folder_context}"
+                )
+                ai_result = generate_text(prompt)
+                parsed = extract_json_from_string(ai_result)
+                gemini_cache[cache_key] = parsed or {}
+            if parsed:
                 summary = parsed.get('summary', "")
                 tags = parsed.get('tags', [])
-            except Exception:
+            else:
                 summary = ""
                 tags = []
             upsert_data = {
                 "id": item_id,
                 "file_type": False,
                 "file_name": folder['name'],
-                "file_path": f"drive://{item_id}",
+                "file_path": folder_path,
                 "summary": summary,
                 "tags": tags,
                 "updated_at": drive_mtime or now

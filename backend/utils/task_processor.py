@@ -172,8 +172,6 @@ class TaskProcessor:
             constraints = await security_service.get_user_constraints(user_id)
             command = task_data.get("command", "")
 
-            # Command permission checks removed as per user request
-
             # Just run a generic handler (customize as needed)
             # For now, just return a dummy result
             return {"result": f"Processed command: {command}", "status": "completed"}

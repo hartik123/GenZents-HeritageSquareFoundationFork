@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from datetime import datetime
 import uuid
 import json
@@ -6,15 +6,13 @@ from langchain.agents import create_react_agent, AgentExecutor
 from langchain.tools import Tool
 from langchain.memory import ConversationBufferMemory
 from langchain_google_genai import ChatGoogleGenerativeAI, HarmBlockThreshold, HarmCategory
-from langchain import hub
-from langchain.schema import BaseMessage
 from config import settings
 from scripts.google_drive import GoogleDriveService
 from utils.logger import logger
 from utils.user_security import get_security_service
-from storage.database import get_user_supabase_client
 from langchain.chains import RetrievalQA
 from scripts.chroma import vectorstore
+import asyncio
 from services.additional_tools import (
     get_file_metadata_table,
     suggest_folder_structure_with_gemini,
@@ -315,15 +313,12 @@ Previous conversation history:
 
 New input: {input}
 {agent_scratchpad}"""
-        
         prompt = PromptTemplate(
             template=template,
             input_variables=["input", "chat_history", "agent_scratchpad", "tools", "tool_names"]
         )
-
         # Create the agent
         agent = create_react_agent(self.llm, tools, prompt)
-        
         # Create the agent executor with better error handling
         agent_executor = AgentExecutor(
             agent=agent,
@@ -335,14 +330,12 @@ New input: {input}
             early_stopping_method="generate",
             return_intermediate_steps=False
         )
-        
         return agent_executor
 
     def process_message(self, message: str) -> str:
         """Process user message using the modern invoke method"""
         try:
             logger.info(f"Processing user message for user {self.user_id}: {message}")
-            
             # Get chat history as a simple string to avoid format issues
             chat_history = ""
             if hasattr(self.memory, 'chat_memory') and hasattr(self.memory.chat_memory, 'messages'):
@@ -351,19 +344,16 @@ New input: {input}
                     if hasattr(msg, 'content'):
                         role = "Human" if msg.__class__.__name__ == "HumanMessage" else "Assistant"
                         chat_history += f"{role}: {msg.content}\n"
-            
             # Use the modern invoke method instead of run
             result = self.agent_executor.invoke({
                 "input": message,
                 "chat_history": chat_history
-            })
-            
+            })            
             # Extract the output from the result - handle different response formats
             if isinstance(result, dict):
                 output = result.get("output", result.get("result", str(result)))
             else:
-                output = str(result)
-            
+                output = str(result)            
             # Clean up any JSON formatting that might be in the output
             if isinstance(output, str) and output.startswith('{"response":'):
                 try:
@@ -371,17 +361,14 @@ New input: {input}
                     parsed = json.loads(output)
                     output = parsed.get("response", output)
                 except:
-                    pass
-            
-            return output
-            
+                    pass            
+            return output            
         except Exception as e:
             logger.error(f"Error processing message: {e}")
             return f"I encountered an error: {str(e)}. Please try again or rephrase your request."
 
     async def aprocess_message(self, message: str) -> str:
         """Async wrapper for process_message"""
-        import asyncio
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self.process_message, message)
 
