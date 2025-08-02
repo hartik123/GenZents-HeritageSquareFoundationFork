@@ -97,27 +97,39 @@ class GoogleDriveService:
         """Search for files by name or file id"""
         file = None
         try:
-            if not file_id:
+            # Treat empty dicts, empty strings, and None as no file_id/file_name provided
+            invalid_id = file_id is None or file_id == '' or file_id == {} or (isinstance(file_id, dict) and not file_id)
+            invalid_name = file_name is None or file_name == '' or file_name == {} or (isinstance(file_name, dict) and not file_name)
+            if invalid_id and invalid_name:
+                default_folder_id = self.get_default_folder_id()
+                file = self.service.files().get(
+                    fileId=default_folder_id,
+                    fields="id, name, mimeType, size, createdTime, modifiedTime, parents, webViewLink, webContentLink, owners",
+                    supportsAllDrives=True
+                ).execute()
+                return self._format_file_info(file)
+            if invalid_id:
                 logger.info("searching for file")
                 search_query = f"name contains '{file_name}' or fullText contains '{file_name}'"
                 results = self.service.files().list(
                     q=search_query,
                     pageSize=max_results,
-                    fields="files(id, name, mimeType, size, createdTime, modifiedTime, parents, webViewLink, webContentLink, owners)",  # Added parents twice
+                    fields="files(id, name, mimeType, size, createdTime, modifiedTime, parents, webViewLink, webContentLink, owners)",
                     orderBy="modifiedTime desc",
                     supportsAllDrives=True,
                     includeItemsFromAllDrives=True 
-                    ).execute()
+                ).execute()
                 files = results.get("files",[])
                 if not files: 
                     return None
                 file=files[0]
                 return self._format_file_info(file)
-            elif file_id:
+            else:
                 file = self.service.files().get(
-                fileId=file_id,
-                fields="id, name, mimeType, size, createdTime, modifiedTime, parents, webViewLink, webContentLink, owners",
-                supportsAllDrives=True).execute()
+                    fileId=file_id,
+                    fields="id, name, mimeType, size, createdTime, modifiedTime, parents, webViewLink, webContentLink, owners",
+                    supportsAllDrives=True
+                ).execute()
                 return self._format_file_info(file)
             logger.info(f"File: {file.get('name')} - Parents: {file.get('parents', 'NO PARENTS')}")
         except HttpError as e:
