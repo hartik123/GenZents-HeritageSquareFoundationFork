@@ -7,8 +7,53 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
 from google.oauth2 import service_account
-from config import settings
-from utils.logger import logger
+# from config import settings
+import logging
+import sys
+from datetime import datetime
+from typing import Optional
+
+
+class Logger:
+    _instance: Optional['Logger'] = None
+    _logger: Optional[logging.Logger] = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        if self._logger is None:
+            self._setup_logger()
+
+    def _setup_logger(self):
+        self._logger = logging.getLogger("archyx_ai_backend")
+        self._logger.setLevel(logging.INFO)
+
+        if not self._logger.handlers:
+            handler = logging.StreamHandler(sys.stdout)
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+            handler.setFormatter(formatter)
+            self._logger.addHandler(handler)
+
+    def info(self, message: str, **kwargs):
+        self._logger.info(message, **kwargs)
+
+    def error(self, message: str, **kwargs):
+        self._logger.error(message, **kwargs)
+
+    def warning(self, message: str, **kwargs):
+        self._logger.warning(message, **kwargs)
+
+    def debug(self, message: str, **kwargs):
+        self._logger.debug(message, **kwargs)
+
+
+logger = Logger()
+
 
 class GoogleDriveService:
     SCOPES = [
@@ -18,7 +63,7 @@ class GoogleDriveService:
     ]
 
     def __init__(self, credentials_path: Optional[str] = None):
-        self.credentials_path = credentials_path or settings.GOOGLE_CREDENTIALS_PATH
+        self.credentials_path = credentials_path or "credentials.json"  # Update with your credentials path
         self.service = None
         self._authenticate()
 
@@ -213,19 +258,17 @@ class GoogleDriveService:
         try:
             if not parent_ids:
                 parent_ids = []
-                for parent in parent_names:
-                    parent_id = self.search_folder_by_name(parent)
-                    if parent_id:
-                        parent_ids.append(parent_id)
-
+                if parent_names:
+                    for parent in parent_names:
+                        parent_id = self.search_folder_by_name(parent)
+                        if parent_id:
+                            parent_ids.append(parent_id)
             folder_metadata = {
                 'name': folder_name,
                 'mimeType': 'application/vnd.google-apps.folder'
             }
-
             if parent_ids:
                 folder_metadata['parents'] = parent_ids
-
             folder = self.service.files().create(
                 body=folder_metadata,
                 fields='id,name,parents,webViewLink,createdTime'
@@ -234,14 +277,12 @@ class GoogleDriveService:
             permission = {
                 'type': 'user',
                 'role': 'writer',  
-                'emailAddress': 'nguyenxuanvuong107003@gmail.com',
+                'emailAddress': 'drive-api-sa@kinetic-object-467721-p4.iam.gserviceaccount.com',
             }
-            
             self.service.permissions().create(
                 fileId=folder['id'],
                 body=permission,
                 sendNotificationEmail=True).execute()
-
             logger.info(f"Created folder: {folder_name} (ID: {folder['id']})")
             return self._format_file_info(folder)
         except HttpError as e:
@@ -358,8 +399,10 @@ class GoogleDriveService:
             self, folder_id: Optional[str] = None, max_depth: int = 3) -> Dict[str, Any]:
         """Get hierarchical folder structure"""
         try:
+            print(f"Getting folder structure for ID: {folder_id} with max depth {max_depth}, {not folder_id}")
             if not folder_id:
                 folder_id = self.get_default_folder_id()
+            print(f"Using folder ID: {folder_id}")
             folder_info = self.get_file_info(folder_id)
             structure = {
                 'info': folder_info,
@@ -448,3 +491,9 @@ def create_drive_service(
         credentials_path: Optional[str] = None) -> GoogleDriveService:
     """Factory function to create a Google Drive service instance"""
     return GoogleDriveService(credentials_path)
+
+# if __name__ == "__main__":
+#     # Example usage
+#     drive_service = create_drive_service()
+#     folder_structure = drive_service.get_folder_structure()
+#     print(folder_structure)

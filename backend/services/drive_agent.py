@@ -57,7 +57,7 @@ class GoogleDriveAgent:
             )
         return llm
 
-    def _track_change(self, change_type: str, old_path: str = None, new_path: str = None, metadata: Dict[str, Any] = None) -> None:
+    def _track_change(self, id: str, change_type: str, old_path: str = None, new_path: str = None, metadata: Dict[str, Any] = None) -> None:
         """Track changes to Google Drive"""
         if not self.user_supabase or not self.user_id:
             return
@@ -77,6 +77,7 @@ class GoogleDriveAgent:
             if change_type in ("added", "modified") and metadata:
                 # Insert or update folder metadata
                 self.user_supabase.table("file_metadata").upsert({
+                    "id": id,
                     "file_type": True,
                     "file_name": metadata.get("file_name"),
                     "file_path": metadata.get("file_path"),
@@ -145,18 +146,20 @@ class GoogleDriveAgent:
                 if change_type and operation in ["create_folder", "move_file", "delete_file", "rename_file"]:
                     if operation == "create_folder":
                         self._track_change(
+                            id=args.get("folder_id", str(uuid.uuid4())),
                             change_type="added",
-                            old_path=args.get("name", ""),
-                            new_path=args.get("name", ""),
+                            old_path=args.get("folder_name", ""),
+                            new_path=args.get("folder_name", ""),
                             metadata={
-                                "file_name": args.get("name", ""),
-                                "file_path": args.get("parent_id", self.drive_service.get_default_folder_id()),
-                                "summary": f"Created folder: {args.get('name', '')}",
+                                "file_name": args.get("folder_name", ""),
+                                "file_path": args.get("parent_ids", [self.drive_service.get_default_folder_id()])[0] if args.get("parent_ids") else self.drive_service.get_default_folder_id(),
+                                "summary": f"Created folder: {args.get('folder_name', '')}",
                                 "tags": ["folder", "created"]
                             }
                         )
                     elif operation == "move_file":
                         self._track_change(
+                            id=args.get("file_id", str(uuid.uuid4())),
                             change_type="modified",
                             old_path=args.get("file_id", ""),
                             new_path=args.get("new_parent_id", ""),
@@ -169,6 +172,7 @@ class GoogleDriveAgent:
                         )
                     elif operation == "delete_file":
                         self._track_change(
+                            id=args.get("file_id", str(uuid.uuid4())),
                             change_type="deleted",
                             old_path=args.get("file_id", ""),
                             new_path=None,
@@ -181,6 +185,7 @@ class GoogleDriveAgent:
                         )
                     elif operation == "rename_file":
                         self._track_change(
+                            id=args.get("file_id", str(uuid.uuid4())),
                             change_type="modified",
                             old_path=args.get("file_id", ""),
                             new_path=args.get("new_name", ""),
@@ -222,47 +227,50 @@ class GoogleDriveAgent:
             Tool(
                 name="ListAllItems",
                 func=self.drive_service.list_files_recursively,
-                description="Recursively list all files and folders in Google Drive or given folder. Input: JSON with 'folder_id' (optional). Returns a flat list of all items."
+                description="Recursively list all files and folders starting from folder_id (None = all accessible files/folders). Input: JSON with 'folder_id' (optional). Returns a flat list of all items."
             ),
             Tool(
                 name="ListFilesInFolder",
                 func=self.drive_service.list_files_in_folder,
-                description="List files in Google Drive folder without going into subfolders. Input: JSON with 'folder_id', 'query', 'max_results'"
+                description="List files in Google Drive folder without going into subfolders. Input: JSON with 'folder_id' (optional), 'folder_name' (optional). If neither provided, lists all accessible files."
             ),
             Tool(
                 name="GetFileInfo",
                 func=self.drive_service.get_file_info,
-                description="Get detailed information about a file. Input: JSON with 'file_id'"
+                description="Search for files by name or file id. Input: JSON with 'file_id' (optional) or 'file_name' (optional), 'max_results' (optional, default 50). If neither provided, returns default shared folder info."
             ),
             Tool(
                 name="CreateFolder",
                 func=self._wrap_drive_tool(self.drive_service.create_folder, "create_folder", "added"),
-                description="Create a new folder. Input: JSON with 'name' and 'parent_id'. Requires 'write' permission."
+                description="Create a new folder. Input: JSON with 'folder_name' (required), 'parent_ids' (optional list), 'parent_names' (optional list). Requires 'write' permission."
             ),
             Tool(
                 name="MoveFile",
                 func=self._wrap_drive_tool(self.drive_service.move_file, "move_file", "modified"),
-                description="Move a file. Input: JSON with 'file_id' and 'new_parent_id'. Requires 'write' permission."
+                description="Move a file to a different folder. Input: JSON with 'new_parent_id' (required), 'file_id' (optional), 'file_name' (optional), 'old_parent_id' (optional). Requires 'write' permission."
             ),
             Tool(
                 name="RenameFile",
                 func=self._wrap_drive_tool(self.drive_service.rename_file, "rename_file", "modified"),
-                description="Rename a file or folder. Input: JSON with 'file_id' and 'new_name'. Requires 'write' permission."
+                description="Rename a file or folder. Input: JSON with 'new_name' (required), 'file_id' (optional), 'file_name' (optional). Requires 'write' permission."
             ),
             Tool(
                 name="DeleteFile",
                 func=self._wrap_drive_tool(self.drive_service.delete_file, "delete_file", "deleted"),
-                description="Delete a file. Input: JSON with 'file_id'. Requires 'write' permission."
+                description="Delete a file (move to trash). Input: JSON with 'file_id' (required). Requires 'write' permission."
             ),
             Tool(
                 name="GetStorageInfo",
                 func=self.drive_service.get_storage_info,
-                description="Get Google Drive storage information. Input: empty JSON {}"
+                description="Get Google Drive storage information including user details and storage quota. No input required."
             ),
             Tool(
                 name="GetFolderStructure",
-                func=self.drive_service.get_folder_structure,
-                description="Get folder structure. Input: JSON with 'folder_id' and 'max_depth'"
+                func=lambda inp: self.drive_service.get_folder_structure(
+                    folder_id=self._parse_tool_input(inp).get("folder_id") if inp else None,
+                    max_depth=self._parse_tool_input(inp).get("max_depth", 3) if inp else 3
+                ),
+                description="Get folder structure. Input: 'folder_id' (optional, defaults to top-level shared folder if not provided) and 'max_depth' (optional, default 3). Returns hierarchical structure of the folder and its children."
             ),
             Tool(
                 name="DocRetriever",
@@ -277,7 +285,7 @@ class GoogleDriveAgent:
             Tool(
                 name="GetDefaultFolderId",
                 func=self.drive_service.get_default_folder_id,
-                description="Get the default folder ID for service account operations."
+                description="Get the default folder ID for service account operations (shared with the service account). No input required."
             ),
             Tool(
                 name="SuggestFolderStructure",
@@ -328,8 +336,7 @@ New input: {input}
             memory=self.memory,
             verbose=True,
             handle_parsing_errors="Check your output and make sure it conforms to the expected format. Use the Action/Action Input format without any JSON wrapping.",
-            max_iterations=5,
-            early_stopping_method="generate",
+            max_iterations=100,
             return_intermediate_steps=False
         )
         return agent_executor
@@ -340,7 +347,7 @@ New input: {input}
             logger.info(f"Processing user message for user {self.user_id}: {message}")
             chat_history = ""
             if hasattr(self.memory, 'chat_memory') and hasattr(self.memory.chat_memory, 'messages'):
-                history_messages = self.memory.chat_memory.messages[-10:]
+                history_messages = self.memory.chat_memory.messages[-5:]
                 for msg in history_messages:
                     if hasattr(msg, 'content'):
                         role = "Human" if msg.__class__.__name__ == "HumanMessage" else "Assistant"
