@@ -15,6 +15,10 @@ chromadb==1.0.15
 langchain==0.3.27
 langchain-chroma==0.2.5
 langchain-community==0.3.27
-langchain-google-genai==2.1.8
+langchain-google-genai==2.0.10
 sentence-transformers==5.0.0
 PyPDF2==3.0.1
+numpy<2
+protobuf<5,>=3.20.3
+tensorflow-macos==2.16.2
+tf-keras==2.16.0

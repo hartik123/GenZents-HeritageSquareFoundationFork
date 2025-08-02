@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Search, Plus, History } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -26,10 +26,14 @@ interface VersionManagerProps {
 export function VersionManager({ versions }: VersionManagerProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedVersion, setSelectedVersion] = useState<Version | null>(null)
-  const [allVersions, setAllVersions] = useState<Version[]>(versions)
+  const [allVersions, setAllVersions] = useState<Version[]>(versions ?? [])
   const [loading, setLoading] = useState(false)
   const [rollbackTarget, setRollbackTarget] = useState<Version | null>(null)
   const [isRollingBack, setIsRollingBack] = useState(false)
+
+    useEffect(() => {
+    setAllVersions(versions ?? [])
+  }, [versions])
 
   // Sort by most recent (created_at desc)
   const sortedVersions = [...allVersions].sort(
@@ -96,6 +100,38 @@ export function VersionManager({ versions }: VersionManagerProps) {
     )
   }
 
+  function renderVersions(copyOfVersions: Version[]) {
+    console.log(copyOfVersions)
+    console.log(versions)
+    if (copyOfVersions.length === 0) return (
+      <div className="flex flex-col items-center">
+        <History className="h-16 w-16 mx-auto text-muted-foreground/50" />
+        <div className="space-y-2 text-center">
+          <h3 className="text-lg font-semibold">No Versions Found</h3>
+          <p className="text-muted-foreground text-sm">
+            No versions have been created yet. Create your first version to track changes and enable rollback functionality.
+          </p>
+        </div>
+      </div>
+    )
+
+    return (
+      <ul className="space-y-4">
+        {copyOfVersions.map((v) => (
+          <li key={v.id} className="border p-4 rounded shadow-sm">
+            <h3 className="font-semibold text-lg">{v.title || "Untitled Version"}</h3>
+            <p className="text-sm text-muted-foreground mb-1">{v.description || "No description"}</p>
+            <p className="text-xs text-gray-500">
+              Version: {v.version} | User: {v.user_id} |{" "}
+              {new Date(v.timestamp || v.created_at).toLocaleString()}
+            </p>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b space-y-4">
@@ -139,14 +175,7 @@ export function VersionManager({ versions }: VersionManagerProps) {
           ) : (
             <div className="flex-1 flex items-center justify-center p-8">
               <div className="text-center space-y-4 max-w-md">
-                <History className="h-16 w-16 mx-auto text-muted-foreground/50" />
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold">No Versions Found</h3>
-                  <p className="text-muted-foreground text-sm">
-                    No versions have been created yet. Create your first version to track changes and enable rollback
-                    functionality.
-                  </p>
-                </div>
+                {renderVersions(allVersions)}
               </div>
             </div>
           )}
