@@ -12,6 +12,7 @@
 - **Team Slack Channel**: [#genzents](https://opportunity-hack.slack.com/app_redirect?channel=genzents)
 - **DevPost Submission**: [Archyx AI on DevPost](https://devpost.com/submit-to/25595-opportunity-hack-summer-2025-volunteer-internship-hackathon/manage/submissions/743154-archyx-ai/project_details/edit)
 - **Demo Video**: [Watch Our Demo](https://youtu.be/8onJQ87hVlE)
+- **Detailed Demo Video**: [DETAILED AI Powered Document Organizer Tool DEMO](https://www.youtube.com/watch?v=YvkvGeDqV2k)
 
 ## Creator
 - **Irtifaur Rahman**
