@@ -10,6 +10,7 @@ from utils.user_security import get_security_service
 import uuid
 import json
 from datetime import datetime
+from services.drive_agent import create_drive_agent
 
 router = APIRouter(prefix="/api/messages", tags=["messages"])
 security = HTTPBearer()
@@ -37,21 +38,20 @@ async def create_message(
 ):
     try:
         start_time = datetime.utcnow()
-        chat_response = user_supabase.table("chats").select("id").eq("id", chat_id).eq("user_id", current_user.id).execute()
+        chat_response = user_supabase.table("chats").select("id, metadata").eq("id", chat_id).eq("user_id", current_user.id).execute()
         if not chat_response.data:
             raise HTTPException(status_code=404, detail="Chat not found")
         if message.role != 'user':
             raise HTTPException(status_code=400, detail="Only user messages can be created through this endpoint.")
         security_service = get_security_service(user_supabase)
-        user_constraints = await security_service.get_user_constraints(current_user.id)
+        # user_constraints = await security_service.get_user_constraints(current_user.id)
         message_check = await security_service.check_user_can_send_message(current_user.id, message.content)
         if not message_check.allowed:
             raise HTTPException(status_code=403, detail=message_check.reason)
         # Use new context_manager prompt
         prompt = await create_prompt(user_supabase, current_user.id, chat_id, message.content)
-        from services.drive_agent import create_drive_agent
         agent = create_drive_agent(current_user.id, user_supabase)
-        ai_response_text = await agent.process_message(prompt)
+        ai_response_text = await agent.aprocess_message(prompt)
         estimated_tokens = (len(message.content) + len(ai_response_text)) // 4
         await security_service.update_user_usage(user_id=current_user.id, tokens_used=estimated_tokens, messages_count=1)
         ai_message_data = {
@@ -59,8 +59,8 @@ async def create_message(
             "chat_id": chat_id,
             "user_id": current_user.id,
             "role": "assistant",
-            "content": ai_response_text,
-            "context_summary": ai_response_text,
+            "tokens": estimated_tokens,
+            "content": ai_response_text['ai_response'],
             "created_at": datetime.utcnow().isoformat(),
             "metadata": {
                 "model": "gemini-2.0-flash",
@@ -75,7 +75,7 @@ async def create_message(
         total_original_messages = chat_response.data[0]["metadata"].get("totalMessages", 0)
         user_supabase.table("chats").update(
             {"updated_at": datetime.utcnow().isoformat(),
-             "context_summary": ai_message_data["context_summary"],
+             "context_summary": ai_response_text["context_summary"],
              "metadata": {
                 "totalMessages": total_original_messages + 2,
                 "totalTokens": (chat_response.data[0]["metadata"].get("totalTokens") if chat_response.data[0].get("metadata") else 0) + estimated_tokens,
@@ -87,8 +87,6 @@ async def create_message(
           ).eq("id", chat_id).execute()
         logger.info(f"AI message saved: {ai_message_data['id']}")
         return response.data[0]
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error creating message in chat {chat_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Message creation failed")
@@ -106,8 +104,6 @@ async def create_message_stream(
         logger.info(
             f"""Creating streaming message for chat {chat_id} by user {
                 current_user.id}""")
-
-        # ...existing code...
 
         # Verify user has access to this chat and get chat details
         chat_response = user_supabase.table("chats").select(

@@ -342,7 +342,13 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
             <div>
               <h3 className="text-lg font-medium mb-4">Privacy & Data</h3>
               <div className="space-y-4">
-                {/* API Keys removed */}
+                <div className="max-w-xl mb-4">
+                  <Label className="font-medium mb-2 block">Google Drive Integration</Label>
+                  <div className="text-sm text-muted-foreground bg-muted/50 rounded p-3">
+                    To use your own Google Drive, share your desired folder with
+                    <div className="font-semibold text-foreground">drive-api-sa@kinetic-object-467721-p4.iam.gserviceaccount.com</div>
+                  </div>
+                </div>
 
                 <Separator />
 

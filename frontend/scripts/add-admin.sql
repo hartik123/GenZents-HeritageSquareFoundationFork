@@ -94,7 +94,7 @@ BEGIN
     'You are the system administrator.',
     TRUE,
     'active',
-    ARRAY['ai_chat', 'file_organization', 'version_history', 'context_management', 'tools_access', 'admin_access'],
+    ARRAY['read', 'write'],
     0,
     0,
     0,

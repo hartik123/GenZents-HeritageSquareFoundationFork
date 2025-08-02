@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
         "Authorization": token,
         "Content-Type": "application/json"
       },
+      signal: AbortSignal.timeout(3000000) // 5 minutes timeout (300 seconds * 10 = 3000 seconds)
     })
     const data = await res.json()
     return NextResponse.json(data, { status: res.status })

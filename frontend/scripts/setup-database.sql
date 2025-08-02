@@ -22,15 +22,15 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   timezone TEXT DEFAULT 'UTC',
 
   notifications JSONB DEFAULT '{"email":true,"push":false,"desktop":false,"sound":false}',
-  communication_style TEXT CHECK (communication_style IN ('professional', 'casual', 'friendly', 'balanced', 'technical')),
-  response_length TEXT CHECK (response_length IN ('concise', 'balanced', 'detailed', 'comprehensive')),
-  temperature NUMERIC,
+  communication_style TEXT DEFAULT 'balanced' CHECK (communication_style IN ('professional', 'casual', 'friendly', 'balanced', 'technical')),
+  response_length TEXT DEFAULT 'balanced' CHECK (response_length IN ('concise', 'balanced', 'detailed', 'comprehensive')),
+  temperature NUMERIC DEFAULT 0.7,
   system_prompt TEXT,
   
   -- Admin and permissions
   is_admin BOOLEAN DEFAULT FALSE,
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'paused', 'pending_invitation')),
-  permissions TEXT[] DEFAULT '{}',
+  permissions TEXT[] DEFAULT ARRAY['read'] CHECK (permissions <@ ARRAY['read', 'write']),
   invitation_token TEXT,
   invitation_expires_at TIMESTAMPTZ,
   
@@ -283,14 +283,11 @@ ALTER TABLE changes ENABLE ROW LEVEL SECURITY;
 
 -- Insert default system commands
 INSERT INTO commands (id, name, description, pattern, instruction, enabled, type) VALUES
-  ('00000000-0000-0000-0000-000000000001', 'organize', 'Organize files and folders in the current directory', '^/organize(?:\s+(.+))?$', 'organize', true, 'system'),
-  ('00000000-0000-0000-0000-000000000002', 'folder', 'Create or navigate to a specific folder', '^/folder:(\S+)(?:\s+(.+))?$', 'folder', true, 'system'),
-  ('00000000-0000-0000-0000-000000000003', 'search', 'Search for files, folders, or content', '^/search(?:\s+(.+))?$', 'search', true, 'system'),
-  ('00000000-0000-0000-0000-000000000004', 'cleanup', 'Clean up temporary files and optimize storage', '^/cleanup$', 'cleanup', true, 'system')
+  ('00000000-0000-0000-0000-000000000001', 'organize', 'Intelligently organize and structure files and folders in the current directory using AI-powered categorization and naming conventions', '^/organize(?:\s+(.+))?$', 'Intelligently organize and structure files and folders in the current directory using AI-powered categorization and naming conventions', true, 'system'),
+  ('00000000-0000-0000-0000-000000000002', 'summarize', 'Generate comprehensive summaries of file contents or create/navigate to specific folders with intelligent content analysis', '^/summarize:(\S+)(?:\s+(.+))?$', 'Generate comprehensive summaries of file contents or create/navigate to specific folders with intelligent content analysis', true, 'system'),
+  ('00000000-0000-0000-0000-000000000003', 'search', 'Perform advanced semantic search across files, folders, and content using natural language queries and pattern matching', '^/search(?:\s+(.+))?$', 'Perform advanced semantic search across files, folders, and content using natural language queries and pattern matching', true, 'system'),
+  ('00000000-0000-0000-0000-000000000004', 'classify', 'Automatically classify and tag files and folders based on content analysis, file types, and contextual metadata', '^/classify(?:\s+(.+))?$', 'Automatically classify and tag files and folders based on content analysis, file types, and contextual metadata', true, 'system')
 ON CONFLICT (id) DO NOTHING;
-
-
-
 
 CREATE TABLE IF NOT EXISTS attachments (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -887,7 +884,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_content_search ON messages USING GIN(to_
 
 -- Add check constraint for permissions
 ALTER TABLE profiles ADD CONSTRAINT check_permissions 
-  CHECK (permissions <@ ARRAY['ai_chat', 'file_organization', 'version_history', 'context_management', 'tools_access', 'admin_access']);
+  CHECK (permissions <@ ARRAY['read', 'write']);
 
 -- =====================================================
 -- GRANT PERMISSIONS

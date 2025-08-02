@@ -5,6 +5,7 @@ import json
 from langchain.agents import create_react_agent, AgentExecutor
 from langchain.tools import Tool
 from langchain.memory import ConversationBufferMemory
+from langchain.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI, HarmBlockThreshold, HarmCategory
 from config import settings
 from scripts.google_drive import GoogleDriveService
@@ -15,9 +16,10 @@ from scripts.chroma import vectorstore
 import asyncio
 from services.additional_tools import (
     get_file_metadata_table,
-    suggest_folder_structure_with_gemini,
+    suggest_folder_structure,
     organize_drive_by_gemini,
 )
+from utils.sanitize import extract_json_from_string
 
 
 class GoogleDriveAgent:
@@ -33,6 +35,8 @@ class GoogleDriveAgent:
             output_key="output"
         )
         self.agent_executor = self._create_agent()
+        self.permissions = user_supabase_client.table("profiles").select("permissions").eq("id", self.user_id).limit(1).execute().data[0].get("permissions", []) if user_supabase_client else []
+        self.version_id = None
 
     def _init_llm(self, llm):
         """Initialize the LLM if not provided"""
@@ -53,46 +57,24 @@ class GoogleDriveAgent:
             )
         return llm
 
-    def _permission_check(self, operation: str, resource_path: str = "") -> bool:
-        """Check if user has permission to perform operation"""
-        if not self.user_supabase or not self.user_id:
-            logger.warning(f"No supabase client or user_id provided for permission check")
-            return True  # Allow operations if no auth system is set up
-        try:
-            # Fetch user profile from Supabase - note: using 'permissions' (plural)
-            profile_resp = self.user_supabase.table("profiles").select("permissions").eq("id", self.user_id).limit(1).execute()
-            if not profile_resp.data or not profile_resp.data[0].get("permissions"):
-                logger.warning(f"No permissions found for user {self.user_id}")
-                return False
-            permission = profile_resp.data[0]["permissions"]
-            # Define which operations require write
-            write_ops = {"read", "write"}
-            if operation in write_ops:
-                return permission == "write"
-            # All other operations allowed for read or write
-            return permission in ("read", "write")
-        except Exception as e:
-            logger.error(f"Error checking permissions for user {self.user_id}: {e}")
-            return False
-
-    def _track_change(self, change_type: str, resource_path: str, old_path: str = None, new_path: str = None, metadata: Dict[str, Any] = None) -> None:
+    def _track_change(self, change_type: str, old_path: str = None, new_path: str = None, metadata: Dict[str, Any] = None) -> None:
         """Track changes to Google Drive"""
         if not self.user_supabase or not self.user_id:
             return
         try:
-            version_id = self._get_or_create_version(resource_path, f"{change_type.title()} operation")
+            version_id = self._get_or_create_version(f"{change_type.title()} operation")
             change_data = {
                 "version_id": version_id,
-                "type": self._map_change_type(change_type),
-                "original_path": old_path or resource_path,
+                "type": change_type,
+                "original_path": old_path,
                 "new_path": new_path,
-                "description": f"{change_type} operation on {resource_path}",
+                "description": f"{change_type} operation on {old_path}",
                 "user_id": self.user_id,
                 "timestamp": datetime.utcnow().isoformat()
             }
             self.user_supabase.table("changes").insert(change_data).execute()
             # Update file_metadata for folder changes
-            if change_type in ("create", "rename", "move", "organize", "update") and metadata:
+            if change_type in ("added", "modified") and metadata:
                 # Insert or update folder metadata
                 self.user_supabase.table("file_metadata").upsert({
                     "file_type": True,
@@ -102,44 +84,29 @@ class GoogleDriveAgent:
                     "tags": metadata.get("tags", []),
                     "updated_at": datetime.utcnow().isoformat()
                 }).execute()
-            elif change_type == "delete" and metadata:
+            elif change_type == "deleted" and metadata:
                 # Remove folder metadata
                 self.user_supabase.table("file_metadata").delete().eq("file_name", metadata.get("file_name")).eq("file_type", True).eq("file_path", metadata.get("file_path")).execute()
-            logger.info(f"Tracked change: {change_type} on {resource_path}")
         except Exception as e:
             logger.error(f"Error tracking change: {e}")
 
-    def _map_change_type(self, change_type: str) -> str:
-        """Map change types to standard format"""
-        mapping = {
-            "create": "added",
-            "update": "modified",
-            "delete": "deleted",
-            "move": "modified",
-            "rename": "modified",
-            "organize": "modified"
-        }
-        return mapping.get(change_type, "modified")
-
-    def _get_or_create_version(self, resource_path: str, description: str) -> str:
-        """Get or create version entry"""
+    def _get_or_create_version(self, description: str) -> str:
+        """Create a new version if version_id is None, otherwise return the current version id"""
         try:
-            existing_response = self.user_supabase.table("versions").select("id").eq(
-                "user_id", self.user_id
-            ).eq("status", "current").limit(1).execute()
-            if existing_response.data:
-                return existing_response.data[0]["id"]
+            if self.version_id:
+                return self.version_id
             version_data = {
                 "version": f"v{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
-                "title": f"Drive Changes",
+                "title": "Drive Changes",
                 "description": description,
                 "user_id": self.user_id,
+                "created_at": datetime.utcnow().isoformat(),
                 "timestamp": datetime.utcnow().isoformat(),
-                "status": "current",
-                "data": {"resource_path": resource_path, "change_type": description}
+                "data": {}
             }
             version_response = self.user_supabase.table("versions").insert(version_data).execute()
-            return version_response.data[0]["id"]
+            self.version_id = version_response.data[0]["id"]
+            return self.version_id
         except Exception as e:
             logger.error(f"Error creating version entry: {e}")
             return str(uuid.uuid4())
@@ -148,10 +115,8 @@ class GoogleDriveAgent:
         """Safely parse tool input"""
         if not input_str:
             return {}
-        
         # Handle string inputs that are already JSON-like
         input_str = input_str.strip()
-        
         # If it looks like a dict string, try to parse it
         if input_str.startswith('{') and input_str.endswith('}'):
             try:
@@ -162,40 +127,75 @@ class GoogleDriveAgent:
                     return eval(input_str)
                 except:
                     return {}
-        
         # Handle simple string inputs
         return {"query": input_str}
 
-    def _wrap_tool(self, func, operation, track_type=None):
-        """Wrap tool functions with permission checks and change tracking"""
-        def tool_func(input_str):
+    def _wrap_drive_tool(self, func, operation: str, change_type: str = None):
+        """Wrap drive tools with permission checks and change tracking"""
+        def wrapped_func(input_str):
             try:
                 args = self._parse_tool_input(input_str)
-                resource_path = args.get("file_id") or args.get("folder_id") or args.get("source_folder_id") or args.get("name") or ""
-                
-                if not self._permission_check(operation, resource_path):
-                    return json.dumps({"error": f"Permission denied for operation: {operation}"})
-                
+                # Check write permission for operations that modify drive
+                if operation in ["create_folder", "move_file", "delete_file", "rename_file"]:
+                    if not ("write" in self.permissions):
+                        return json.dumps({"error": f"Permission denied: 'write' permission required for {operation}"})
+                # Execute the original function
                 result = func(**args)
-                
-                # Track changes if needed
-                if track_type:
-                    if operation == "move_file":
-                        self._track_change("move", args.get("file_id", ""), old_path=args.get("file_id"), new_path=args.get("new_parent_id"))
-                    elif operation == "rename_file":
-                        self._track_change("rename", args.get("file_id", ""), old_path=args.get("file_id"), new_path=args.get("new_name"))
+                # Track changes for specified operations
+                if change_type and operation in ["create_folder", "move_file", "delete_file", "rename_file"]:
+                    if operation == "create_folder":
+                        self._track_change(
+                            change_type="added",
+                            old_path=args.get("name", ""),
+                            new_path=args.get("name", ""),
+                            metadata={
+                                "file_name": args.get("name", ""),
+                                "file_path": args.get("parent_id", self.drive_service.get_default_folder_id()),
+                                "summary": f"Created folder: {args.get('name', '')}",
+                                "tags": ["folder", "created"]
+                            }
+                        )
+                    elif operation == "move_file":
+                        self._track_change(
+                            change_type="modified",
+                            old_path=args.get("file_id", ""),
+                            new_path=args.get("new_parent_id", ""),
+                            metadata={
+                                "file_name": args.get("file_id", ""),
+                                "file_path": args.get("new_parent_id", ""),
+                                "summary": f"Moved file {args.get('file_id', '')} to {args.get('new_parent_id', '')}",
+                                "tags": ["file", "moved"]
+                            }
+                        )
                     elif operation == "delete_file":
-                        self._track_change("delete", args.get("file_id", ""))
-                    elif operation == "create_folder":
-                        self._track_change("create", args.get("name", ""))
-                    elif operation == "organize_by_type":
-                        self._track_change("organize", args.get("source_folder_id", ""))
-                
+                        self._track_change(
+                            change_type="deleted",
+                            old_path=args.get("file_id", ""),
+                            new_path=None,
+                            metadata={
+                                "file_name": args.get("file_id", ""),
+                                "file_path": "",
+                                "summary": f"Deleted file: {args.get('file_id', '')}",
+                                "tags": ["file", "deleted"]
+                            }
+                        )
+                    elif operation == "rename_file":
+                        self._track_change(
+                            change_type="modified",
+                            old_path=args.get("file_id", ""),
+                            new_path=args.get("new_name", ""),
+                            metadata={
+                                "file_name": args.get("new_name", ""),
+                                "file_path": args.get("file_id", ""),
+                                "summary": f"Renamed file {args.get('file_id', '')} to {args.get('new_name', '')}",
+                                "tags": ["file", "renamed"]
+                            }
+                        )
                 return json.dumps(result) if isinstance(result, (dict, list)) else str(result)
             except Exception as e:
                 logger.error(f"Error in tool {operation}: {e}")
                 return json.dumps({"error": str(e)})
-        return tool_func
+        return wrapped_func
 
     def _create_agent(self):
         """Create the agent with modern LangChain patterns"""
@@ -215,53 +215,53 @@ class GoogleDriveAgent:
             """Handle organize drive tool with proper input parsing"""
             args = self._parse_tool_input(input_str)
             prompt = args.get("prompt", input_str)
-            folder_id = args.get("folder_id", "root")
+            folder_id = args.get("folder_id", self.drive_service.get_default_folder_id())
             return organize_drive_by_gemini(self.drive_service.service, folder_id, prompt, self.user_supabase)
 
         tools = [
             Tool(
                 name="ListAllItems",
-                func=self._wrap_tool(self.drive_service.list_all_items, "list_all_items"),
-                description="Recursively list all files and folders in Google Drive. Input: JSON with 'folder_id' (optional). Returns a flat list of all items."
+                func=self.drive_service.list_files_recursively,
+                description="Recursively list all files and folders in Google Drive or given folder. Input: JSON with 'folder_id' (optional). Returns a flat list of all items."
             ),
             Tool(
-                name="ListFiles",
-                func=self._wrap_tool(self.drive_service.list_files, "list_files"),
-                description="List files in Google Drive. Input: JSON with 'folder_id', 'query', 'max_results'"
+                name="ListFilesInFolder",
+                func=self.drive_service.list_files_in_folder,
+                description="List files in Google Drive folder without going into subfolders. Input: JSON with 'folder_id', 'query', 'max_results'"
             ),
             Tool(
                 name="GetFileInfo",
-                func=self._wrap_tool(self.drive_service.get_file_info, "get_file_info"),
+                func=self.drive_service.get_file_info,
                 description="Get detailed information about a file. Input: JSON with 'file_id'"
             ),
             Tool(
                 name="CreateFolder",
-                func=self._wrap_tool(self.drive_service.create_folder, "create_folder", track_type=True),
-                description="Create a new folder. Input: JSON with 'name' and 'parent_id'"
+                func=self._wrap_drive_tool(self.drive_service.create_folder, "create_folder", "added"),
+                description="Create a new folder. Input: JSON with 'name' and 'parent_id'. Requires 'write' permission."
             ),
             Tool(
                 name="MoveFile",
-                func=self._wrap_tool(self.drive_service.move_file, "move_file", track_type=True),
-                description="Move a file. Input: JSON with 'file_id' and 'new_parent_id'"
+                func=self._wrap_drive_tool(self.drive_service.move_file, "move_file", "modified"),
+                description="Move a file. Input: JSON with 'file_id' and 'new_parent_id'. Requires 'write' permission."
             ),
             Tool(
                 name="RenameFile",
-                func=self._wrap_tool(self.drive_service.rename_file, "rename_file", track_type=True),
-                description="Rename a file or folder. Input: JSON with 'file_id' and 'new_name'"
+                func=self._wrap_drive_tool(self.drive_service.rename_file, "rename_file", "modified"),
+                description="Rename a file or folder. Input: JSON with 'file_id' and 'new_name'. Requires 'write' permission."
             ),
             Tool(
                 name="DeleteFile",
-                func=self._wrap_tool(self.drive_service.delete_file, "delete_file", track_type=True),
-                description="Delete a file. Input: JSON with 'file_id'"
+                func=self._wrap_drive_tool(self.drive_service.delete_file, "delete_file", "deleted"),
+                description="Delete a file. Input: JSON with 'file_id'. Requires 'write' permission."
             ),
             Tool(
                 name="GetStorageInfo",
-                func=self._wrap_tool(self.drive_service.get_storage_info, "get_storage_info"),
+                func=self.drive_service.get_storage_info,
                 description="Get Google Drive storage information. Input: empty JSON {}"
             ),
             Tool(
                 name="GetFolderStructure",
-                func=self._wrap_tool(self.drive_service.get_folder_structure, "get_folder_structure"),
+                func=self.drive_service.get_folder_structure,
                 description="Get folder structure. Input: JSON with 'folder_id' and 'max_depth'"
             ),
             Tool(
@@ -272,23 +272,25 @@ class GoogleDriveAgent:
             Tool(
                 name="GetFileMetadataTable",
                 func=lambda _: json.dumps(get_file_metadata_table()),
-                description="Fetch all file metadata records from Supabase. Input: empty string. Returns JSON list of file metadata records."
+                description="Fetch all files/folder information or metadata records from Supabase. This information can be used to classify or organize files or get insights/overview of the files/folders in the drive. Input: empty string. Returns JSON list of file metadata records."
             ),
             Tool(
-                name="SuggestFolderStructureWithGemini",
-                func=lambda input_str: suggest_folder_structure_with_gemini(input_str if input_str else "Suggest a folder structure for my drive based on my files."),
-                description="Suggest a nested folders/files structure for the drive using Gemini. Input: user prompt string. Returns a consistent JSON structure."
+                name="GetDefaultFolderId",
+                func=self.drive_service.get_default_folder_id,
+                description="Get the default folder ID for service account operations."
             ),
             Tool(
-                name="OrganizeDriveByGeminiStructure",
-                func=organize_drive_tool,
-                description="Organize Google Drive folders according to Gemini's suggested structure. Input: JSON with 'prompt' and 'folder_id' (defaults to 'root'). Only folders/subfolders are changed."
+                name="SuggestFolderStructure",
+                func=lambda input_str: suggest_folder_structure(input_str if input_str else "Suggest a folder structure for my drive based on my files."),
+                description="Classify or Suggest a nested folders/files structure for the drive based on all files metadata information. Input: user prompt string. Returns a consistent JSON structure."
             ),
+            # Tool(
+            #     name="OrganizeDriveByGeminiStructure",
+            #     func=organize_drive_tool,
+            #     description="Organize Google Drive folders according to Gemini's suggested structure. Input: JSON with 'prompt' and 'folder_id' (defaults to shared folder). Only folders/subfolders are changed."
+            # ),
         ]
-
-        # Create a custom prompt that works better
-        from langchain.prompts import PromptTemplate
-        template = """You are a helpful Google Drive management assistant. You have access to various tools to help users manage their Google Drive files and folders.
+        template = """You are a helpful Google Drive management assistant. You have access to various tools to help users manage, classify and organize their Google Drive files and folders.
 
 TOOLS:
 ------
@@ -332,42 +334,54 @@ New input: {input}
         )
         return agent_executor
 
-    def process_message(self, message: str) -> str:
-        """Process user message using the modern invoke method"""
+    def process_message(self, message: str) -> dict:
+        """Process user message using the modern invoke method and return JSON output with context_summary and ai_response generated by the agent/LLM"""
         try:
             logger.info(f"Processing user message for user {self.user_id}: {message}")
-            # Get chat history as a simple string to avoid format issues
             chat_history = ""
             if hasattr(self.memory, 'chat_memory') and hasattr(self.memory.chat_memory, 'messages'):
-                history_messages = self.memory.chat_memory.messages[-10:]  # Last 10 messages
+                history_messages = self.memory.chat_memory.messages[-10:]
                 for msg in history_messages:
                     if hasattr(msg, 'content'):
                         role = "Human" if msg.__class__.__name__ == "HumanMessage" else "Assistant"
                         chat_history += f"{role}: {msg.content}\n"
-            # Use the modern invoke method instead of run
             result = self.agent_executor.invoke({
                 "input": message,
                 "chat_history": chat_history
-            })            
-            # Extract the output from the result - handle different response formats
+            })
+            context_summary = ""
+            ai_response = ""
+            # Try to extract context_summary and ai_response from result
             if isinstance(result, dict):
-                output = result.get("output", result.get("result", str(result)))
+                # If agent returns keys directly
+                context_summary = result.get("context_summary", "")
+                ai_response = result.get("ai_response", result.get("output", result.get("result", str(result))))
             else:
-                output = str(result)            
-            # Clean up any JSON formatting that might be in the output
-            if isinstance(output, str) and output.startswith('{"response":'):
+                output = extract_json_from_string(result)
+                # Try to parse output as JSON
                 try:
-                    import json
                     parsed = json.loads(output)
-                    output = parsed.get("response", output)
-                except:
-                    pass            
-            return output            
+                    context_summary = parsed.get("context_summary", "")
+                    ai_response = parsed.get("ai_response", parsed.get("response", output))
+                except Exception:
+                    ai_response = output
+            # Fallback: if context_summary is empty, use chat_history
+            if not context_summary:
+                context_summary = chat_history.strip()
+            response_json = {
+                "context_summary": context_summary,
+                "ai_response": ai_response
+            }
+            return response_json
         except Exception as e:
             logger.error(f"Error processing message: {e}")
-            return f"I encountered an error: {str(e)}. Please try again or rephrase your request."
+            response_json = {
+                "context_summary": "",
+                "ai_response": f"I encountered an error: {str(e)}. Please try again or rephrase your request."
+            }
+            return response_json
 
-    async def aprocess_message(self, message: str) -> str:
+    async def aprocess_message(self, message: str) -> dict:
         """Async wrapper for process_message"""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self.process_message, message)

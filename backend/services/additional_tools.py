@@ -1,5 +1,5 @@
 from storage.database import supabase
-import asyncio
+import json
 from services.generative_ai import generate_text
 from utils.sanitize import remove_null_chars
 
@@ -24,7 +24,7 @@ def get_file_metadata_table():
         print(f"Error fetching file metadata: {e}")
         return []
 
-def suggest_folder_structure_with_gemini(user_prompt: str = "Suggest a folder structure for my drive based on my files."):
+def suggest_folder_structure(user_prompt: str = "Suggest a folder structure for my drive based on my files."):
     """
     Suggests a folder/files/nested structure for the drive using Gemini, file metadata, and ChromaDB as a knowledge base (not prompt context).
     Args:
@@ -53,7 +53,6 @@ For each folder and subfolder, provide:\n- file_name (string)\n- file_type (bool
 {context}\n
 Respond ONLY with the JSON array, no extra explanation.\n"""
     suggestion = generate_text(prompt)
-    import json
     structure = None
     try:
         structure = json.loads(suggestion)
@@ -68,13 +67,13 @@ def organize_drive_by_gemini(service, root_folder_id, user_prompt: str, supabase
     Updates Supabase file_metadata table for new folders and updates/deletes previous entries as needed.
     Args:
         service: Google Drive API service instance.
-        root_folder_id: The root folder ID.
+        root_folder_id: The root folder ID (should be a shared folder accessible to the service account).
         user_prompt: User's requirements for the structure.
         supabase_client: Supabase client for metadata updates.
     Returns:
         dict: Status and structure summary.
     """
-    result = suggest_folder_structure_with_gemini(user_prompt)
+    result = suggest_folder_structure(user_prompt)
     if result["status"] != "success" or not result["structure"]:
         return result
     structure = result["structure"]

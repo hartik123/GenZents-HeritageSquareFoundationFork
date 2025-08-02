@@ -4,7 +4,7 @@ from utils.logger import logger
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from storage.database import get_current_user, get_user_supabase_client
 from scripts.google_drive import GoogleDriveService
-from scripts.chroma import embed_pdf_chunks, remove_file as chroma_remove_file
+from scripts.chroma import embed_chunks, remove_file as chroma_remove_file
 from datetime import datetime
 from services.generative_ai import generate_text
 from utils.sanitize import extract_json_from_string
@@ -28,7 +28,7 @@ async def sync_drive(
     drive_service = GoogleDriveService()
     # 1. List all files in Drive
     # Recursively list all files and folders starting from root
-    all_drive_items = drive_service.list_all_items()
+    all_drive_items = drive_service.list_files_recursively()
     drive_items_map = {f['id']: f for f in all_drive_items}
     # Build full path for each item
     def build_full_path(item_id):
@@ -99,18 +99,17 @@ async def sync_drive(
                 else:
                     summary = f"No summary available for {drive_item['name']}"
                     tags = []
-            if drive_item['mimeType'] == 'application/pdf':
-                text = drive_service.download_file(item_id)
-                embed_pdf_chunks(
-                    text,
-                    item_id,
-                    drive_item['name'],
-                    drive_mtime,
-                    float(drive_item.get('size', 0)) / (1024*1024),
-                    drive_item.get('parents', [''])[0],
-                    chroma_tags,
-                    summary,
-                )
+            text = drive_service.download_and_get_file_content(item_id, drive_item['mimeType'])
+            embed_chunks(
+                text,
+                item_id,
+                drive_item['name'],
+                drive_mtime,
+                float(drive_item.get('size', 0)) / (1024*1024),
+                drive_item.get('parents', [''])[0],
+                chroma_tags,
+                summary,
+            )
             upsert_data = {
                 "id": item_id,
                 "file_type": True,

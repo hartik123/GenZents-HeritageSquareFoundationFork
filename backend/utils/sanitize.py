@@ -20,6 +20,7 @@ def extract_json_from_string(ai_result):
         return json.loads(s)
     except Exception:
         return None
+
 def remove_null_chars(data):
     if isinstance(data, str):
         return data.replace('\u0000', '')

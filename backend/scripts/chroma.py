@@ -170,7 +170,7 @@ def get_store():
     return _store
 
 # Legacy functions
-def embed_pdf_chunks(text, file_id, file_name, modified_time, size_mb, parent_folder_id, tags="", summary=""):
+def embed_chunks(text, file_id, file_name, modified_time, size_mb, parent_folder_id, tags="", summary=""):
     return get_store().embed_document(text, file_id, file_name, modified_time, size_mb, parent_folder_id, tags, summary)
 
 def remove_file(file_id):
