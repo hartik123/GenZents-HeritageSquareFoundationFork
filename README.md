@@ -10,16 +10,18 @@
 - **Nonprofit Partner**: [Heritage Square Foundation](https://ohack.dev/nonprofit/QFPGmii2GmDPYrv5tjHA)
 - **Hackathon Details**: [2025 Summer Opportunity Hack](https://www.ohack.dev/hack/2025_summer)
 - **Team Slack Channel**: [#genzents](https://opportunity-hack.slack.com/app_redirect?channel=genzents)
-- **DevPost Submission**: [Archyx AI on DevPost](#) <!-- Add DevPost link when available -->
+- **DevPost Submission**: [Archyx AI on DevPost](https://devpost.com/submit-to/25595-opportunity-hack-summer-2025-volunteer-internship-hackathon/manage/submissions/743154-archyx-ai/project_details/edit)
 - **Demo Video**: [Watch Our Demo](#) <!-- Add demo video link -->
 
+## Creator
+- **Irtifaur Rahman**
+
 ## Team "GenZents"
-- **[Irtifaur Rahman](https://github.com/irtifaur)** - Team Lead & Full-Stack Developer *(Creator)*
-- **[Aakash Khepar](https://github.com/ak-asu)** - Frontend Developer & UI/UX Designer
-- **[Hartik Mukesh Suhagiya](https://github.com/hartik123)** - Backend Developer & AI Integration
-- **[Manas Dani](https://github.com/manasdani)** - Database Architect & DevOps
-- **[Vuong Nguyen](https://github.com/vuongnguyen)** - Full-Stack Developer & Testing
-- **[Waleed Alfar](https://github.com/waleedalfar)** - Backend Developer & Security
+- **[Aakash Khepar](https://github.com/ak-asu)** 
+- **[Hartik Mukesh Suhagiya](https://github.com/hartik123)** 
+- **[Manas Dani](https://github.com/manasdani)** 
+- **[Vuong Nguyen](https://github.com/vuongnguyen)** 
+- **[Waleed Alfar](https://github.com/waleedalfar)** 
 
 ## Problem Statement
 
@@ -63,14 +65,11 @@ Archyx AI transforms heritage archive management by providing an intelligent, co
 - Shared chat sessions enabling collaborative research
 - Personal organization with bookmarks and custom collections
 - User invitation system with admin-controlled permissions
-- Comprehensive activity tracking and audit trails
 
 **🔒 Enterprise-Grade Security**
 - JWT authentication with Supabase integration and automatic refresh
 - Row Level Security (RLS) policies ensuring data protection
 - Comprehensive input validation and sanitization
-- File virus scanning and security validation
-- Complete audit logging for compliance and monitoring
 
 ## Tech Stack
 
@@ -80,10 +79,9 @@ Archyx AI transforms heritage archive management by providing an intelligent, co
 - **Styling**: Tailwind CSS with Shadcn/ui component library for consistent design
 - **State Management**: Zustand with persistence for lightweight, scalable state
 - **UI Components**: Shadcn/ui with Lucide React icons for professional interface
-- **Real-time**: Supabase real-time subscriptions for live collaboration
 
 ### Backend Services
-- **Framework**: FastAPI (Python) with async support for high performance
+- **Framework**: FastAPI (Python) with async support for high performance , LangChain – used to orchestrate LLM-powered agents and tools for document retrieval, interaction, and automation.
 - **AI Integration**: Google Generative AI (Gemini 2.0 Flash) for intelligent responses
 - **Vector Database**: ChromaDB for semantic search and document embeddings
 - **Background Processing**: Async task queue system for large file operations
@@ -258,12 +256,6 @@ GOOGLE_API_KEY=your_google_ai_api_key
 
 ## Impact & Metrics
 
-### For Heritage Square Foundation
-- **70% reduction** in document discovery time
-- **90% improvement** in user satisfaction
-- **100% accessibility** across devices and skill levels
-- **Zero training required** thanks to familiar chat interface
-
 ### Broader Heritage Community
 - Scalable solution for organizations of any size
 - Open-source components for community benefit
@@ -293,8 +285,6 @@ GOOGLE_API_KEY=your_google_ai_api_key
 - File operations and document processing
 - Advanced search and analytics
 
-Visit `http://localhost:8000/docs` for interactive API documentation.
-
 ## Contributing
 
 We welcome contributions from the community! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on:
@@ -304,31 +294,6 @@ We welcome contributions from the community! Please see our [Contributing Guidel
 - Issue reporting and feature requests
 - Development environment setup
 
-## Testing
-
-```bash
-# Frontend testing
-cd frontend
-pnpm test
-
-# Backend testing
-cd backend
-pytest
-```
-
-## Deployment
-
-### Frontend (Vercel)
-```bash
-# Deploy to Vercel
-vercel --prod
-```
-
-### Backend (Railway)
-```bash
-# Deploy to Railway
-railway deploy
-```
 
 ## License
 
@@ -349,13 +314,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Mobile Applications** for field research and accessibility
 - **Advanced AI Features** including custom heritage-trained models
 - **Integration Ecosystem** with existing archival management systems
-
-## Demo & Resources
-
-- 🎥 **Demo Video**: [Watch our 4-minute demo](#) <!-- Add YouTube link -->
-- 📊 **DevPost**: [View our DevPost submission](#) <!-- Add DevPost link -->
-- 🚀 **Live Demo**: [Try Archyx AI](#) <!-- Add live demo link -->
-- 📚 **Documentation**: [Read full documentation](docs/)
 
 ---
 
