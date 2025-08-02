@@ -13,16 +13,14 @@ This is the backend API server supporting the frontend application. It handles c
 - **FastAPI**: Modern, fast web framework for building APIs
 - **Supabase**: Backend-as-a-Service for database and authentication
 - **Pydantic**: Data validation using Python type annotations
-- **OpenAI**: GPT models integration
-- **Anthropic**: Claude models integration
+- **GEMINI**: GPT models integration
 
 ## Setup
 
 ### Prerequisites
 - Python 3.8 or higher
 - Supabase account and project
-- OpenAI API key (optional)
-- Anthropic API key (optional)
+- GEMINI API key
 
 ### Installation
 
@@ -73,13 +71,6 @@ SUPABASE_ANON_KEY=your_supabase_anon_key_here
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-## API Documentation
-
-Once the server is running, you can access:
-- **API Documentation**: http://localhost:8000/docs (Swagger UI)
-- **Alternative Docs**: http://localhost:8000/redoc (ReDoc)
-- **Health Check**: http://localhost:8000/health
-
 ## API Endpoints
 
 ### Authentication
@@ -103,8 +94,6 @@ All endpoints require Bearer token authentication via Supabase JWT.
 - `POST /api/tasks/process-command` - Process complex commands as background tasks
 
 ### Drive Agent API
-**Prefix:** `/api/drive`
-
 File system operations, Google Drive integration, and document processing (endpoints in development)
 
 ## Backend vs Frontend API Architecture
