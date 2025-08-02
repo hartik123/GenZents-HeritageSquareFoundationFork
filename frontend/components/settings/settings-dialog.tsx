@@ -346,7 +346,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
                   <Label className="font-medium mb-2 block">Google Drive Integration</Label>
                   <div className="text-sm text-muted-foreground bg-muted/50 rounded p-3">
                     To use your own Google Drive, share your desired folder with
-                    <div className="font-semibold text-foreground">drive-api-sa@kinetic-object-467721-p4.iam.gserviceaccount.com</div>
+                    <div className="font-semibold text-foreground">genzents-file-organizer@genzents-gemini.iam.gserviceaccount.com</div>
                   </div>
                 </div>
 
