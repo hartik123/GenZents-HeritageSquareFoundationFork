@@ -92,7 +92,7 @@ class UserSecurityService:
 
     async def check_user_can_send_message(
             self, user_id: str, message_content: str) -> SecurityCheck:
-        """Check if user can send a message based on constraints"""
+        """Check if user can send a message based on constraints (task-creating command checks removed)"""
         try:
             constraints = await self.get_user_constraints(user_id)
 
@@ -100,7 +100,7 @@ class UserSecurityService:
             if constraints.status != "active":
                 return SecurityCheck(
                     allowed=False,
-                    reason=f"""Account status is {constraints.status}. Please contact support."""
+                    reason=f"Account status is {constraints.status}. Please contact support."
                 )
 
             # Check daily message limit
@@ -108,7 +108,7 @@ class UserSecurityService:
             if today_messages >= constraints.max_messages_per_day:
                 return SecurityCheck(
                     allowed=False,
-                    reason=f"""Daily message limit reached ({constraints.max_messages_per_day}). Try again tomorrow.""",
+                    reason=f"Daily message limit reached ({constraints.max_messages_per_day}). Try again tomorrow.",
                     remaining_quota={"messages": 0}
                 )
 
@@ -119,7 +119,7 @@ class UserSecurityService:
             if constraints.tokens_used + estimated_tokens > constraints.max_tokens:
                 return SecurityCheck(
                     allowed=False,
-                    reason=f"""Token limit exceeded. Used: {constraints.tokens_used}, Limit: {constraints.max_tokens}""",
+                    reason=f"Token limit exceeded. Used: {constraints.tokens_used}, Limit: {constraints.max_tokens}",
                     remaining_quota={
                         "tokens": max(
                             0,
@@ -145,73 +145,7 @@ class UserSecurityService:
                 reason="Security check failed. Please try again."
             )
 
-    async def check_command_permissions(
-            self, user_id: str, command: str) -> SecurityCheck:
-        """Check if user has permission to execute a specific command"""
-        try:
-            constraints = await self.get_user_constraints(user_id)
-
-            # Admin can execute any command
-            if constraints.is_admin:
-                return SecurityCheck(allowed=True, reason="Admin access")
-
-            # Map commands to required permissions
-            command_permissions = {
-                "/organize": "file_organization",
-                "/search": "file_organization",
-                "/cleanup": "file_organization",
-                "/folder": "file_organization",
-                "/backup": "file_organization",
-                "/version": "version_history",
-                "/context": "context_management",
-                "/tools": "tools_access"
-            }
-
-            command_key = command.split()[0].lower()  # Get the base command
-            required_permission = command_permissions.get(command_key)
-
-            if not required_permission:
-                # Unknown command, check if user has general tool access
-                if "tools_access" in constraints.permissions:
-                    return SecurityCheck(
-                        allowed=True, reason="General tool access")
-                else:
-                    return SecurityCheck(
-                        allowed=False,
-                        reason=f"Unknown command: {command_key}",
-                        suggestions=["Use /help to see available commands"]
-                    )
-
-            # Check if user has the required permission
-            if required_permission not in constraints.permissions:
-                return SecurityCheck(
-                    allowed=False,
-                    reason=f"Permission '{required_permission}' required for command '{command_key}'",
-                    suggestions=["Contact admin to request permission"]
-                )
-
-            # Check daily task limit for task-creating commands
-            if command_key in ["/organize", "/search", "/cleanup", "/backup"]:
-                today_tasks = await self._get_today_usage_count(user_id, "tasks")
-                if today_tasks >= constraints.max_tasks_per_day:
-                    return SecurityCheck(
-                        allowed=False,
-                        reason=f"""Daily task limit reached ({constraints.max_tasks_per_day}). Try again tomorrow.""",
-                        remaining_quota={"tasks": 0}
-                    )
-
-            return SecurityCheck(
-                allowed=True,
-                reason=f"Command '{command_key}' allowed"
-            )
-
-        except Exception as e:
-            logger.error(
-                f"Error checking command permissions for {user_id}: {e}")
-            return SecurityCheck(
-                allowed=False,
-                reason="Permission check failed. Please try again."
-            )
+    # Command permission checks removed as per user request
 
     async def validate_safe_prompt(self, prompt: str) -> SecurityCheck:
         """Validate that the prompt is safe and doesn't contain malicious content"""

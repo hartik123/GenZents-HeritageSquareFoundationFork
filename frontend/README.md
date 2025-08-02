@@ -14,17 +14,14 @@ This is the frontend application built with Next.js, React, and Tailwind CSS. It
 
 1. Clone the repository
 2. Install dependencies with `pnpm install`
-3. Run the development server with `pnpm run dev`
+3. cp `.env.example` to `.env` and configure your environment variables
+4. Run the development server with `pnpm run dev`
 
 ## Security
 
 - Do not commit or expose any API keys or sensitive credentials
 - Use environment variables for all secrets
 - Follow best practices for authentication and authorization
-
-## Environment Variables
-
-- NEXT_PUBLIC_API_URL: URL of the backend API
 
 ## License
 

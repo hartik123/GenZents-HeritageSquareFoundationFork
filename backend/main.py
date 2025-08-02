@@ -1,4 +1,5 @@
 from api import messages
+from api import sync
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -6,7 +7,7 @@ import uvicorn
 import asyncio
 from config import settings
 from utils.logger import logger
-from services.task_processor import task_processor
+from utils.task_processor import task_processor
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -66,7 +67,10 @@ async def root():
 
 # Include routers - computation-heavy operations only
 # Note: Chat CRUD operations moved to frontend API routes
-app.include_router(messages.router)  # AI processing and streaming
+# AI processing and streaming
+app.include_router(messages.router)
+# Drive/Chroma/Supabase sync endpoint
+app.include_router(sync.router)
 # Note: Drive operations available via services but no HTTP endpoints yet
 
 # Startup and shutdown events
@@ -75,13 +79,13 @@ app.include_router(messages.router)  # AI processing and streaming
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting task processor...")
-    await task_processor.start()
+    # await task_processor.start()
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Stopping task processor...")
-    await task_processor.stop()
+    # await task_processor.stop()
 
 if __name__ == "__main__":
     logger.info(f"Starting Archyx AI API on {settings.HOST}:{settings.PORT}")

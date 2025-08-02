@@ -1,13 +1,9 @@
 import asyncio
-import uuid
-import time
-from typing import Dict, List, Optional, Any
+from typing import Dict, Any
 from datetime import datetime, timedelta
 from storage.database import supabase
-from models.task import TaskStatus, TaskType, TaskResponse, TaskUpdate
-from utils.command_processor import command_processor
+from models.task import TaskStatus
 from utils.logger import logger
-import json
 
 
 class TaskProcessor:
@@ -93,9 +89,9 @@ class TaskProcessor:
             # Update task status to running
             await self._update_task_status(task_id, TaskStatus.RUNNING, {"started_at": datetime.utcnow().isoformat()})
 
-            # Process the task based on its type
-            task_type = TaskType(task_data["type"])
-            result = await self._run_task_by_type(task_type, task_data)
+
+            # Process the task (no type-based logic)
+            result = await self._run_task(task_data)
 
             # Update task as completed
             await self._update_task_status(
@@ -158,139 +154,31 @@ class TaskProcessor:
             if task_id in self.active_tasks:
                 del self.active_tasks[task_id]
 
-    async def _run_task_by_type(
-            self, task_type: TaskType, task_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute task based on its type with proper permission checking"""
+    async def _run_task(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute a task (generic handler, no type logic)"""
         try:
-            from services.user_security import get_security_service
+            from user_security import get_security_service
             from storage.database import get_user_supabase_client
 
             # Get user's authenticated supabase client
             user_id = task_data["user_id"]
-            user_supabase = get_user_supabase_client(
-                None)  # This will need to be enhanced
+            user_supabase = get_user_supabase_client(None)  # This will need to be enhanced
             security_service = get_security_service(user_supabase)
 
             # Check if user still has permission to execute this task
             constraints = await security_service.get_user_constraints(user_id)
             command = task_data.get("command", "")
 
-            # Re-check command permissions
-            if command:
-                permission_check = await security_service.check_command_permissions(user_id, command)
-                if not permission_check.allowed:
-                    return {
-                        "error": f"Permission denied: {permission_check.reason}",
-                        "status": "permission_denied"
-                    }
-
-            # Execute based on task type
-            if task_type == TaskType.FILE_ORGANIZATION:
-                return await self._execute_file_organization_task(task_data, user_supabase)
-            elif task_type == TaskType.SEARCH_OPERATION:
-                return await self._execute_search_task(task_data, user_supabase)
-            elif task_type == TaskType.CLEANUP_OPERATION:
-                return await self._execute_cleanup_task(task_data, user_supabase)
-            elif task_type == TaskType.COMMAND_EXECUTION:
-                return await self._execute_command_task(task_data, user_supabase)
-            else:
-                return {"error": f"Unknown task type: {task_type}",
-                        "status": "error"}
+            # Just run a generic handler (customize as needed)
+            # For now, just return a dummy result
+            return {"result": f"Processed command: {command}", "status": "completed"}
 
         except Exception as e:
             logger.error(f"Error executing task {task_data['id']}: {e}")
             return {"error": str(e), "status": "error"}
 
-    async def _execute_file_organization_task(
-            self, task_data: Dict[str, Any], user_supabase) -> Dict[str, Any]:
-        """Execute file organization task with change tracking"""
-        try:
-            from services.drive_agent import create_drive_agent
 
-            # Create drive agent with user context
-            drive_agent = create_drive_agent(
-                user_id=task_data["user_id"],
-                user_supabase_client=user_supabase
-            )
-
-            # Process the organization command
-            command = task_data.get("command", "")
-            result = await drive_agent.process_message(command)
-
-            # The drive agent will handle change tracking internally
-            return {
-                "result": result,
-                "status": "completed",
-                "changes_tracked": True
-            }
-
-        except Exception as e:
-            logger.error(f"Error in file organization task: {e}")
-            return {"error": str(e), "status": "error"}
-
-    async def _execute_search_task(
-            self, task_data: Dict[str, Any], user_supabase) -> Dict[str, Any]:
-        """Execute search task"""
-        try:
-            from services.drive_agent import create_drive_agent
-
-            drive_agent = create_drive_agent(
-                user_id=task_data["user_id"],
-                user_supabase_client=user_supabase
-            )
-
-            command = task_data.get("command", "")
-            result = await drive_agent.process_message(command)
-
-            return {
-                "result": result,
-                "status": "completed"
-            }
-
-        except Exception as e:
-            logger.error(f"Error in search task: {e}")
-            return {"error": str(e), "status": "error"}
-
-    async def _execute_cleanup_task(
-            self, task_data: Dict[str, Any], user_supabase) -> Dict[str, Any]:
-        """Execute cleanup task with change tracking"""
-        try:
-            from services.drive_agent import create_drive_agent
-
-            drive_agent = create_drive_agent(
-                user_id=task_data["user_id"],
-                user_supabase_client=user_supabase
-            )
-
-            command = task_data.get("command", "")
-            result = await drive_agent.process_message(command)
-
-            return {
-                "result": result,
-                "status": "completed",
-                "changes_tracked": True
-            }
-
-        except Exception as e:
-            logger.error(f"Error in cleanup task: {e}")
-            return {"error": str(e), "status": "error"}
-
-    async def _execute_command_task(
-            self, task_data: Dict[str, Any], user_supabase) -> Dict[str, Any]:
-        """Execute general command task"""
-        try:
-            command = task_data.get("command", "")
-            result = command_processor.process_command(command)
-
-            return {
-                "result": result.message if result else "Command executed",
-                "status": "completed",
-                "command_success": result.success if result else False
-            }
-
-        except Exception as e:
-            logger.error(f"Error in command task: {e}")
-            return {"error": str(e), "status": "error"}
+    # _execute_command_task removed as per user request
 
     async def _update_task_status(
             self, task_id: str, status: TaskStatus, updates: Dict[str, Any] = None):
