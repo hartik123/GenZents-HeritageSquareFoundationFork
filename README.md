@@ -97,7 +97,7 @@ Archyx AI transforms heritage archive management by providing an intelligent, co
 - **Hosting**: Vercel (Frontend) + Render (Backend) for scalable deployment
 - **Monitoring**: Built-in analytics and comprehensive error tracking
 
-## Project Structure
+## Basic Project Structure
 
 ```
 GenZents-HeritageSquareFounda/
@@ -112,13 +112,13 @@ GenZents-HeritageSquareFounda/
 │   │   ├── services/         # API and business logic
 │   │   ├── types/            # TypeScript definitions
 │   │   └── utils/            # Helper functions
+│   ├── scripts/               # Database setup and utilities
 │   └── hooks/                # Custom React hooks
 ├── backend/                   # FastAPI backend services
 │   ├── api/                  # API route handlers
 │   ├── services/             # Business logic services
 │   ├── models/               # Data models and schemas
 │   └── main.py              # FastAPI application entry
-├── scripts/                  # Database setup and utilities
 ├── docs/                     # Project documentation
 └── README.md                 # This file
 ```
@@ -268,14 +268,14 @@ python main.py
 - File operations and document processing
 - Advanced search and analytics
 
-## Contributing
+## Contributions
 
-We welcome contributions from the community! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on:
+We welcome contributions from the community!
 
 - Code style and conventions
 - Pull request process
 - Issue reporting and feature requests
-- Development environment setup
+- Live contribution [insights](https://github.com/2025-Arizona-Opportunity-Hack-Summer/GenZents-HeritageSquareFounda/graphs/contributors)
 
 
 ## License
